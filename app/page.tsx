@@ -929,23 +929,18 @@ export default function Home() {
           font-weight: 600;
         }
         .settings-panel {
-          position: fixed;
-          left: 12px;
-          right: 12px;
-          top: 72px;
-          z-index: 9999;
-          max-height: calc(100dvh - 96px);
-          overflow: auto;
-          -webkit-overflow-scrolling: touch;
-          min-width: unset;
+          position: absolute;
+          right: 0;
+          margin-top: 10px;
+          min-width: 220px;
           background: rgba(6, 8, 12, 0.72);
           backdrop-filter: blur(12px) saturate(120%);
           -webkit-backdrop-filter: blur(12px) saturate(120%);
           border-radius: 12px;
           padding: 12px;
           box-shadow: 0 18px 60px rgba(0,0,0,0.6);
+          z-index: 60;
           color: #fff;
-          pointer-events: auto;
         }
         .settings-panel select { pointer-events: auto; }
         .settings-group { margin-bottom: 10px; }
