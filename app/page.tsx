@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { Aspect } from "./types";
+import RatioSelect from "./components/RatioSelect";
 import { getLang, setLang, t, type Lang } from "./i18n";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 
-type Aspect = "1:1" | "9:16" | "16:9";
+// Aspect type moved to app/types.ts
 type MediaTab = "photo" | "video";
 type VideoMode = "i2v" | "motion";
 type VideoQuality = "standard" | "pro";
@@ -1115,11 +1117,8 @@ export default function Home() {
                 {settingsOpen && (
                   <div ref={settingsRef} className="settings-panel" role="dialog" aria-label="Settings">
                     <div className="settings-group">
-                      <div className="group-title">{lang === "uk" ? "Формат" : "Ratio"}</div>
-                      <div className="group-buttons">
-                        <button className={aspect === "1:1" ? "active" : ""} onClick={() => setAspect("1:1")}>1:1</button>
-                        <button className={aspect === "9:16" ? "active" : ""} onClick={() => setAspect("9:16")}>9:16</button>
-                        <button className={aspect === "16:9" ? "active" : ""} onClick={() => setAspect("16:9")}>16:9</button>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <RatioSelect value={aspect} onChange={setAspect} lang={lang} />
                       </div>
                     </div>
                     <div className="settings-group">
