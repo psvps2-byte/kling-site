@@ -1,0 +1,28 @@
+{
+  "title": "Kling генератор фото",
+  "generate": "Згенерувати",
+  "error": "Помилка",
+  "historyTitle": "Історія",
+  "searchPrompt": "Пошук по prompt...",
+  "filterAll": "Всі",
+  "filterImages": "Зображення",
+  "filterVideos": "Відео",
+  "sortNewest": "Новіші",
+  "sortOldest": "Старіші",
+  "open": "Відкрити",
+  "copyLink": "Скопіювати посилання",
+  "share": "Поділитись",
+  "delete": "Видалити"
+  ,"home": "На головну"
+    ,"done":"Готово",
+    "processing":"Обробляється",
+    "image":"Зображення",
+    "video":"Відео",
+    "noPreview":"Немає превʼю",
+    "emptyMessage":"Порожньо. Спочатку згенеруй щось або змініть фільтри.",
+    "copied":"Скопійовано!",
+    "copyFailed":"Не вдалося скопіювати"
+    ,"signIn":"Увійти"
+    ,"signOut":"Вийти"
+    ,"history":"Історія"
+}
