@@ -1121,23 +1121,36 @@ export default function Home() {
                 </button>
 
                 {settingsOpen && (
-                  <div ref={settingsRef} className="settings-panel" role="dialog" aria-label="Settings">
-                    <div className="settings-group">
-                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        <RatioSelect value={aspect} onChange={setAspect} lang={lang} />
+                  <>
+                    <div
+                      className="settings-backdrop"
+                      onClick={() => setSettingsOpen(false)}
+                      aria-hidden="true"
+                    />
+                    <div
+                      ref={settingsRef}
+                      className="settings-panel"
+                      role="dialog"
+                      aria-label="Settings"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="settings-group">
+                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          <RatioSelect value={aspect} onChange={setAspect} lang={lang} />
+                        </div>
+                      </div>
+                      <div className="settings-group">
+                        <div className="group-title">{lang === "uk" ? "Кількість" : "Output"}</div>
+                        <div className="group-buttons">
+                          {Array.from({ length: 9 }, (_, i) => i + 1).map((k) => (
+                            <button key={k} className={omniN === k ? "active" : ""} onClick={() => setOmniN(k)}>
+                              {k}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                    <div className="settings-group">
-                      <div className="group-title">{lang === "uk" ? "Кількість" : "Output"}</div>
-                      <div className="group-buttons">
-                        {Array.from({ length: 9 }, (_, i) => i + 1).map((k) => (
-                          <button key={k} className={omniN === k ? "active" : ""} onClick={() => setOmniN(k)}>
-                            {k}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
+                  </>
                 )}
               </div>
 

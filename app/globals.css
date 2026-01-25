@@ -159,11 +159,24 @@ a { color: inherit; }
 }
 .settings-panel select { pointer-events: auto; }
 
-@media (max-width: 420px) {
+/* backdrop for settings (covers page but sits under the panel) */
+.settings-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 9998;
+}
+
+@media (max-width: 640px) {
   .settings-panel {
-    left: 8px;
-    right: 8px;
-    top: 64px;
-    max-height: calc(100dvh - 80px);
+    left: 0;
+    right: 0;
+    top: auto;
+    bottom: 0;
+    border-radius: 12px 12px 0 0;
+    max-height: 70dvh;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+    margin: 0 0 0 0;
+    min-width: unset;
   }
 }
