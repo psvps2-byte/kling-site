@@ -7,7 +7,6 @@ import { getLang, setLang, t, type Lang } from "./i18n";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 
-// Aspect type moved to app/types.ts
 type MediaTab = "photo" | "video";
 type VideoMode = "i2v" | "motion";
 type VideoQuality = "standard" | "pro";
@@ -129,39 +128,27 @@ export default function Home() {
 
   // Settings popover state (for Images tab)
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const settingsRef = useRef<HTMLDivElement | null>(null);
-  const settingsButtonRef = useRef<HTMLButtonElement | null>(null);
+  const settingsPanelRef = useRef<HTMLDivElement | null>(null);
+
+  // Close on Escape + click outside panel (overlay handles click on backdrop)
   useEffect(() => {
     if (!settingsOpen) return;
-    function handleDown(e: MouseEvent | TouchEvent) {
-      const target = e.target as Node | null;
-      if (
-        settingsRef.current &&
-        !settingsRef.current.contains(target) &&
-        settingsButtonRef.current &&
-        !settingsButtonRef.current.contains(target)
-      ) {
-        setSettingsOpen(false);
-      }
-    }
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") setSettingsOpen(false);
     }
-    document.addEventListener("mousedown", handleDown);
-    document.addEventListener("touchstart", handleDown);
     document.addEventListener("keydown", handleKey);
+    // Lock scroll while overlay is open
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     return () => {
-      document.removeEventListener("mousedown", handleDown);
-      document.removeEventListener("touchstart", handleDown);
       document.removeEventListener("keydown", handleKey);
+      document.body.style.overflow = prevOverflow;
     };
   }, [settingsOpen]);
 
   const acceptImg = "image/jpeg,image/png,image/heic,image/heif,.heic,.heif,.jpg,.jpeg,.png";
   const srcPreview = useMemo(() => (srcFile ? URL.createObjectURL(srcFile) : ""), [srcFile]);
   const srcPreview2 = useMemo(() => (srcFile2 ? URL.createObjectURL(srcFile2) : ""), [srcFile2]);
-
-  // THEME (dark-only)
 
   // VIDEO
   const [videoMode, setVideoMode] = useState<VideoMode>("i2v");
@@ -237,7 +224,6 @@ export default function Home() {
   // ✅ Правило: start+end працює тільки PRO
   useEffect(() => {
     if (videoMode === "i2v" && videoQuality === "standard" && vEndImg) {
-      // просто прибираємо end, щоб не було помилки
       setVEndImg(null);
     }
   }, [videoQuality, videoMode, vEndImg]);
@@ -276,7 +262,6 @@ export default function Home() {
     return result;
   }
 
-  // ✅ Import remote result (video/image) into R2 via /api/r2/import
   async function importRemoteToR2(remoteUrl: string, filename: string) {
     const res = await fetch("/api/r2/import", {
       method: "POST",
@@ -290,7 +275,6 @@ export default function Home() {
     return data as { ok: true; key: string; publicUrl?: string | null };
   }
 
-  // ✅ polling for video tasks + import to R2 + save to history as r2Keys
   async function pollVideoTask(opts: { kind: "image2video" | "motion-control"; taskId: string }) {
     const { kind, taskId } = opts;
     const endpoint = kind === "image2video" ? `/api/kling/image2video/${taskId}` : `/api/kling/motion-control/${taskId}`;
@@ -343,7 +327,6 @@ export default function Home() {
     throw new Error(lang === "uk" ? "Час очікування задачі вичерпано" : "Task timeout");
   }
 
-  // ✅ polling for Omni image task
   async function pollOmniImageTask(taskId: string): Promise<string[]> {
     const endpoint = `/api/kling/omni-image/${taskId}`;
 
@@ -383,23 +366,18 @@ export default function Home() {
     throw new Error(lang === "uk" ? "Час очікування задачі вичерпано" : "Task timeout");
   }
 
-  // =========================================================
-  // ✅ ЦІНИ (твоя логіка)
-  // =========================================================
+  // ✅ ЦІНИ
   const currentCost = useMemo(() => {
-    // Фото: 1 фото = 1 бал, але якщо omniN = 3 -> 3 бали
     if (mediaTab === "photo") {
       const n = Math.max(1, Math.min(9, Number(omniN) || 1));
       return n;
     }
 
-    // Відео
     if (videoMode === "i2v") {
       if (videoQuality === "standard") return videoDuration === 5 ? 8 : 16;
       return videoDuration === 5 ? 14 : 28;
     }
 
-    // motion control: price by real reference duration (up to 30s)
     const perSec = videoQuality === "standard" ? 3 : 4;
     const secs = Math.min(30, Math.max(1, Math.ceil(refVideoSeconds || 0)));
     return perSec * secs;
@@ -409,25 +387,19 @@ export default function Home() {
   const needsBuy = !!session && points <= 0;
   const notEnoughPoints = !!session && points > 0 && points < currentCost;
 
-  // =========================================================
-  // ✅ Генерація
-  // =========================================================
   async function generate() {
     setError(null);
 
-    // 1) не авторизований
     if (!session) {
       window.location.href = "/auth";
       return;
     }
 
-    // 2) 0 балів
     if (points <= 0) {
       setError(lang === "uk" ? "У тебе 0 балів. Обери пакет у кабінеті." : "You have 0 points. Choose a package in your account.");
       return;
     }
 
-    // 3) мало балів
     if (points < currentCost) {
       setError(
         lang === "uk"
@@ -437,13 +409,11 @@ export default function Home() {
       return;
     }
 
-    // 4) правило: start+end тільки PRO
     if (mediaTab === "video" && videoMode === "i2v" && videoQuality === "standard" && vEndImg) {
       setError(lang === "uk" ? "Кінцеве фото (start+end) доступне тільки в PRO." : "End image (start+end) works only in PRO.");
       return;
     }
 
-    // motion-control: ensure we have reference duration read
     if (mediaTab === "video" && videoMode === "motion" && vMotionVideo && (refVideoSeconds || 0) <= 0) {
       setError(lang === "uk" ? "Ще зчитую тривалість відео..." : "Still reading video duration...");
       return;
@@ -453,9 +423,6 @@ export default function Home() {
     setImageUrls([]);
 
     try {
-      // ---------------------------
-      // VIDEO
-      // ---------------------------
       if (mediaTab === "video") {
         if (videoMode === "i2v") {
           if (!vStartImg) throw new Error(lang === "uk" ? "Потрібне початкове фото" : "Start image is required");
@@ -470,7 +437,6 @@ export default function Home() {
             image: imageB64,
           };
 
-          // ✅ start+end тільки PRO
           if (imageTailB64 && videoQuality === "pro") body.image_tail = imageTailB64;
           if (prompt.trim()) body.prompt = prompt.trim();
 
@@ -494,7 +460,6 @@ export default function Home() {
           return;
         }
 
-        // motion-control
         if (!vCharacterImg) throw new Error(lang === "uk" ? "Потрібне фото персонажа" : "Character image is required");
         if (!vMotionVideo) throw new Error(lang === "uk" ? "Потрібне відео з рухами" : "Motion video is required");
 
@@ -531,9 +496,7 @@ export default function Home() {
         return;
       }
 
-      // ---------------------------
       // PHOTO (Kling Omni O1)
-      // ---------------------------
       if (!prompt.trim()) throw new Error(lang === "uk" ? "Введи промт" : "Please enter a prompt");
       if (refUploading) throw new Error(lang === "uk" ? "Зачекай, фото ще завантажується..." : "Please wait, image is still uploading...");
 
@@ -612,7 +575,6 @@ export default function Home() {
         ? !vStartImg
         : !vCharacterImg || !vMotionVideo);
 
-  // ✅ текст на кнопці генерації
   const generateBtnText = useMemo(() => {
     if (!session) return lang === "uk" ? "Увійти" : "Sign in";
     if (points <= 0) return lang === "uk" ? "Купити бали" : "Buy points";
@@ -620,9 +582,8 @@ export default function Home() {
 
     const base = loading ? (lang === "uk" ? "Генерація" : "Generating") : (lang === "uk" ? "Згенерувати" : "Generate");
     return `${base} · ${currentCost}`;
-  }, [session, points, currentCost, loading, dict.generate, dict.generating, lang]);
+  }, [session, points, currentCost, loading, lang]);
 
-  // ✅ клік по кнопці, якщо 0 балів — ведемо в кабінет
   function onGenerateClick() {
     if (!session) {
       window.location.href = "/auth";
@@ -648,6 +609,7 @@ export default function Home() {
             animation: none !important;
           }
         }
+
         .ldots {
           display: inline-flex;
           gap: 2px;
@@ -875,18 +837,21 @@ export default function Home() {
           bottom: 14px;
           font-size: 14px;
           font-weight: 700;
-          color: rgba(255,255,255,0.6);
-          text-shadow: 0 6px 18px rgba(0,0,0,0.6);
+          color: rgba(255, 255, 255, 0.6);
+          text-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
           pointer-events: none;
           transition: color 0.12s ease, opacity 0.12s ease;
           opacity: 0.95;
         }
-        .uploadTile:hover .tile-label { color: rgba(255,255,255,0.96); opacity: 1; }
+        .uploadTile:hover .tile-label {
+          color: rgba(255, 255, 255, 0.96);
+          opacity: 1;
+        }
         .tile-remove {
           position: absolute;
           top: 10px;
           right: 10px;
-          background: rgba(0,0,0,0.45);
+          background: rgba(0, 0, 0, 0.45);
           border: none;
           color: #fff;
           border-radius: 8px;
@@ -895,7 +860,10 @@ export default function Home() {
           opacity: 0;
           transition: opacity 0.12s ease, transform 0.12s ease;
         }
-        .uploadTile:hover .tile-remove { opacity: 1; transform: translateY(0); }
+        .uploadTile:hover .tile-remove {
+          opacity: 1;
+          transform: translateY(0);
+        }
 
         .grid {
           display: grid;
@@ -916,46 +884,90 @@ export default function Home() {
           height: auto;
           display: block;
         }
+
+        /* ===== Settings trigger button ===== */
         .settings-pill {
           display: inline-flex;
           align-items: center;
           gap: 8px;
           padding: 8px 12px;
           border-radius: 999px;
-          background: rgba(255,255,255,0.03);
-          color: rgba(255,255,255,0.95);
-          border: 1px solid rgba(255,255,255,0.06);
+          background: rgba(255, 255, 255, 0.03);
+          color: rgba(255, 255, 255, 0.95);
+          border: 1px solid rgba(255, 255, 255, 0.06);
           cursor: pointer;
           font-weight: 600;
         }
-        .settings-panel {
-          position: absolute;
-          right: 0;
-          margin-top: 10px;
-          min-width: 220px;
+
+        /* ===== New overlay popover (doesn't shift layout) ===== */
+        .settingsOverlay {
+          position: fixed;
+          inset: 0;
+          z-index: 9999;
+          background: rgba(0, 0, 0, 0.45);
+          display: flex;
+          justify-content: flex-end;
+          align-items: flex-start;
+          padding: 16px;
+        }
+
+        .settingsPanel {
+          width: min(420px, calc(100vw - 32px));
           background: rgba(6, 8, 12, 0.72);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 14px;
+          padding: 12px;
+          box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
           backdrop-filter: blur(12px) saturate(120%);
           -webkit-backdrop-filter: blur(12px) saturate(120%);
-          border-radius: 12px;
-          padding: 12px;
-          box-shadow: 0 18px 60px rgba(0,0,0,0.6);
-          z-index: 60;
+          max-height: calc(100dvh - 32px);
+          overflow: auto;
+          -webkit-overflow-scrolling: touch;
+        }
+
+        .settingsGroup {
+          margin-bottom: 10px;
+        }
+        .groupTitle {
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.75);
+          margin-bottom: 6px;
+        }
+        .groupButtons button {
+          margin-right: 6px;
+          margin-bottom: 6px;
+          padding: 6px 10px;
+          border-radius: 8px;
+          border: 1px solid rgba(255, 255, 255, 0.06);
+          background: rgba(255, 255, 255, 0.03);
+          color: #fff;
+          cursor: pointer;
+        }
+        .groupButtons button.active {
+          background: rgba(10, 132, 255, 0.18);
+          border-color: rgba(10, 132, 255, 0.28);
           color: #fff;
         }
-        .settings-panel select { pointer-events: auto; }
-        .settings-group { margin-bottom: 10px; }
-        .group-title { font-size: 12px; color: rgba(255,255,255,0.75); margin-bottom: 6px; }
-        .group-buttons button { margin-right: 6px; margin-bottom:6px; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.03); color: #fff; cursor:pointer; }
-        .group-buttons button.active { background: rgba(10,132,255,0.18); border-color: rgba(10,132,255,0.28); color:#fff; }
 
-        
+        @media (max-width: 640px) {
+          .settingsOverlay {
+            justify-content: center;
+            align-items: flex-end;
+            padding: 0;
+          }
+          .settingsPanel {
+            width: 100%;
+            border-radius: 16px 16px 0 0;
+            max-height: 75dvh;
+            padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+          }
+        }
       `}</style>
 
       {/* Topbar */}
       <div className="topbar">
-      <div style={{ flex: 1 }} />
+        <div style={{ flex: 1 }} />
         <div className="topbar-right">
-          
           <button
             className={`ios-btn ${lang === "uk" ? "ios-btn--primary" : "ios-btn--ghost"}`}
             onClick={() => {
@@ -981,7 +993,6 @@ export default function Home() {
                 {dict.history}
               </Link>
 
-              {/* ✅ кнопка з балами */}
               <Link
                 className="ios-btn ios-btn--ghost"
                 href="/account"
@@ -994,7 +1005,6 @@ export default function Home() {
                 title="Кабінет"
               >
                 <span style={{ fontWeight: 800 }}>{points}</span>
-                {/* світлий значок */}
                 <svg width="18" height="18" viewBox="0 0 64 64" aria-hidden="true" style={{ display: "block" }}>
                   <path
                     fill="rgba(255,255,255,0.92)"
@@ -1099,55 +1109,20 @@ export default function Home() {
                   }
                 }}
               />
-
-              {/* second reference temporarily removed — single-photo flow only */}
             </div>
 
+            {/* Settings trigger */}
             <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
-              <div style={{ position: "relative" }}>
-                <button
-                  ref={settingsButtonRef}
-                  type="button"
-                  className="vPill settings-pill"
-                  onClick={() => setSettingsOpen((s) => !s)}
-                >
-                  <strong style={{ marginRight: 8 }}>{aspect}</strong>
-                  <span style={{ opacity: 0.75 }}>· {omniN}</span>
-                </button>
-
-                {settingsOpen && (
-                  <>
-                    <div
-                      className="settings-backdrop"
-                      onClick={() => setSettingsOpen(false)}
-                      aria-hidden="true"
-                    />
-                    <div
-                      ref={settingsRef}
-                      className="settings-panel"
-                      role="dialog"
-                      aria-label="Settings"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="settings-group">
-                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                          <RatioSelect value={aspect} onChange={setAspect} lang={lang} />
-                        </div>
-                      </div>
-                      <div className="settings-group">
-                        <div className="group-title">{lang === "uk" ? "Кількість" : "Output"}</div>
-                        <div className="group-buttons">
-                          {Array.from({ length: 9 }, (_, i) => i + 1).map((k) => (
-                            <button key={k} className={omniN === k ? "active" : ""} onClick={() => setOmniN(k)}>
-                              {k}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+              <button
+                type="button"
+                className="vPill settings-pill"
+                onClick={() => setSettingsOpen(true)}
+                aria-haspopup="dialog"
+                aria-expanded={settingsOpen}
+              >
+                <strong style={{ marginRight: 8 }}>{aspect}</strong>
+                <span style={{ opacity: 0.75 }}>· {omniN}</span>
+              </button>
 
               {refUploading && (
                 <div className="gen-pill">
@@ -1158,6 +1133,52 @@ export default function Home() {
                 </div>
               )}
             </div>
+
+            {/* Overlay settings */}
+            {settingsOpen && (
+              <div
+                className="settingsOverlay"
+                role="dialog"
+                aria-label="Settings"
+                onMouseDown={() => setSettingsOpen(false)}
+                onTouchStart={() => setSettingsOpen(false)}
+              >
+                <div
+                  ref={settingsPanelRef}
+                  className="settingsPanel"
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onTouchStart={(e) => e.stopPropagation()}
+                >
+                  <div className="settingsGroup">
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <RatioSelect value={aspect} onChange={setAspect} lang={lang} />
+                    </div>
+                  </div>
+
+                  <div className="settingsGroup">
+                    <div className="groupTitle">{lang === "uk" ? "Кількість" : "Output"}</div>
+                    <div className="groupButtons">
+                      {Array.from({ length: 9 }, (_, i) => i + 1).map((k) => (
+                        <button
+                          key={k}
+                          type="button"
+                          className={omniN === k ? "active" : ""}
+                          onClick={() => setOmniN(k)}
+                        >
+                          {k}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                    <button type="button" className="ios-btn ios-btn--ghost" onClick={() => setSettingsOpen(false)}>
+                      OK
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <textarea
               className="ios-textarea"
@@ -1256,7 +1277,14 @@ export default function Home() {
                   >
                     {motionPreviewUrl ? (
                       <>
-                        <video src={motionPreviewUrl} muted playsInline controls preload="metadata" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <video
+                          src={motionPreviewUrl}
+                          muted
+                          playsInline
+                          controls
+                          preload="metadata"
+                          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+                        />
                         <span className="tile-label">{lang === "uk" ? "Відео" : "Video"}</span>
                       </>
                     ) : (
@@ -1296,7 +1324,7 @@ export default function Home() {
                           };
                         });
                         URL.revokeObjectURL(url);
-                      } catch (err) {
+                      } catch {
                         setRefVideoSeconds(0);
                       }
                     }}
@@ -1332,17 +1360,15 @@ export default function Home() {
                 </div>
 
                 <div className="vRow">
-                  {/* Orientation is auto-set for motion-control; UI removed */}
+                  <div className="vPill">
+                    <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Тривалість референсу" : "Reference duration"}</span>
+                    <span style={{ opacity: 0.9, marginLeft: 8 }}>{Math.min(30, Math.ceil(refVideoSeconds || 0))}с</span>
+                  </div>
 
-                    <div className="vPill">
-                      <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Тривалість референсу" : "Reference duration"}</span>
-                      <span style={{ opacity: 0.9, marginLeft: 8 }}>{Math.min(30, Math.ceil(refVideoSeconds || 0))}с</span>
-                    </div>
-
-                    <div className="vPill" style={{ cursor: "pointer" }} onClick={() => setKeepOriginalSound((v) => !v)}>
-                      <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Аудіо" : "Audio"}</span>
-                      <span style={{ opacity: 0.9 }}>{keepOriginalSound ? "ON" : "OFF"}</span>
-                    </div>
+                  <div className="vPill" style={{ cursor: "pointer" }} onClick={() => setKeepOriginalSound((v) => !v)}>
+                    <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Аудіо" : "Audio"}</span>
+                    <span style={{ opacity: 0.9 }}>{keepOriginalSound ? "ON" : "OFF"}</span>
+                  </div>
                 </div>
               </>
             )}
@@ -1356,7 +1382,6 @@ export default function Home() {
                 </select>
               </div>
 
-              {/* ✅ Тривалість показуємо і для i2v і для motion (бо ціна “за секунди”) */}
               {videoMode === "i2v" && (
                 <div className="vPill">
                   <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Тривалість" : "Duration"}</span>
@@ -1377,7 +1402,6 @@ export default function Home() {
           </>
         )}
 
-        {/* ✅ Пояснення якщо нема доступу */}
         {(needsAuth || needsBuy || notEnoughPoints) && (
           <div style={{ marginTop: 10, opacity: 0.9 }}>
             {needsAuth && <div>Щоб генерувати — увійди через Google.</div>}
