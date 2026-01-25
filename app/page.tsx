@@ -929,19 +929,25 @@ export default function Home() {
           font-weight: 600;
         }
         .settings-panel {
-          position: absolute;
-          right: 0;
-          margin-top: 10px;
-          min-width: 220px;
+          position: fixed;
+          left: 12px;
+          right: 12px;
+          top: 72px;
+          z-index: 9999;
+          max-height: calc(100dvh - 96px);
+          overflow: auto;
+          -webkit-overflow-scrolling: touch;
+          min-width: unset;
           background: rgba(6, 8, 12, 0.72);
           backdrop-filter: blur(12px) saturate(120%);
           -webkit-backdrop-filter: blur(12px) saturate(120%);
           border-radius: 12px;
           padding: 12px;
           box-shadow: 0 18px 60px rgba(0,0,0,0.6);
-          z-index: 60;
           color: #fff;
+          pointer-events: auto;
         }
+        .settings-panel select { pointer-events: auto; }
         .settings-group { margin-bottom: 10px; }
         .group-title { font-size: 12px; color: rgba(255,255,255,0.75); margin-bottom: 6px; }
         .group-buttons button { margin-right: 6px; margin-bottom:6px; padding:6px 10px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background: rgba(255,255,255,0.03); color: #fff; cursor:pointer; }
