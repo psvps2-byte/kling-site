@@ -4,6 +4,7 @@ import { promises as fs } from "fs";
 import OpenAI from "openai";
 import { toFile } from "openai/uploads";
 import heicConvert from "heic-convert";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 

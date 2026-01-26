@@ -2,11 +2,13 @@ export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { supabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { authOptions } from "@/lib/auth";
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
+  
+  const supabaseAdmin = getSupabaseAdmin();
+const session = await getServerSession(authOptions);
 
   if (!session?.user?.email) {
     const res = NextResponse.json({ authenticated: false }, { status: 401 });

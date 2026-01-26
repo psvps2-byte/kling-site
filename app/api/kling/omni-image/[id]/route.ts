@@ -3,7 +3,8 @@ import { klingHeaders } from "@/lib/klingAuth";
 
 export const runtime = "nodejs";
 
-export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) {
+export async function GET(_: Request, ctx: { 
+params: Promise<{ id: string }> }) {
   try {
     const { id } = await ctx.params;
 

@@ -24,7 +24,8 @@ function jsonError(message: string, status = 500, extra?: any) {
 }
 
 export async function POST(req: Request) {
-  try {
+  
+try {
     const publicBase = mustEnv("R2_PUBLIC_BASE_URL");
 
     const form = await req.formData();

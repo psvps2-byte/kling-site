@@ -30,7 +30,7 @@ function deriveExtFromContentType(ct?: string, fallbackUrl?: string) {
 }
 
 export async function GET(req: NextRequest) {
-  const baseUrl = process.env.KLING_BASE_URL;
+const baseUrl = process.env.KLING_BASE_URL;
   const ak = process.env.KLING_ACCESS_KEY;
   const sk = process.env.KLING_SECRET_KEY;
 

@@ -4,7 +4,8 @@ import { klingHeaders } from "@/lib/klingAuth";
 export const runtime = "nodejs";
 
 export async function GET() {
-  const headers = klingHeaders();
+  
+const headers = klingHeaders();
   const token = headers.Authorization?.replace("Bearer ", "") || "";
 
   return NextResponse.json({

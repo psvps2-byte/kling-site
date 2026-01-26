@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { supabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
 import { klingHeaders } from "@/lib/klingAuth";
 
 export const runtime = "nodejs";
@@ -33,7 +33,9 @@ function calcI2VCost(opts: { mode: "std" | "pro"; duration: 5 | 10 }) {
 }
 
 export async function POST(req: Request) {
-  // 0) AUTH
+  
+  const supabaseAdmin = getSupabaseAdmin();
+// 0) AUTH
   const session = await getServerSession(authOptions);
   const email = session?.user?.email;
 

@@ -13,11 +13,13 @@ function sizeByAspect(aspect: string) {
 
 // ✅ щоб при відкритті URL в браузері не було 405
 export async function GET() {
-  return NextResponse.json({ ok: true, hint: "Use POST /api/gpt-txt2img" }, { status: 200 });
+  
+return NextResponse.json({ ok: true, hint: "Use POST /api/gpt-txt2img" }, { status: 200 });
 }
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.OPENAI_API_KEY;
+  
+const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return NextResponse.json({ error: "Missing OPENAI_API_KEY" }, { status: 500 });
 
   const body = await req.json().catch(() => ({}));

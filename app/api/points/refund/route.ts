@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { supabaseAdmin } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
+  
+  const supabaseAdmin = getSupabaseAdmin();
+const session = await getServerSession(authOptions);
   const email = session?.user?.email;
 
   if (!email) {

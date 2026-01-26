@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { klingHeaders } from "@/lib/klingAuth";
+import { getSupabaseAdmin } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(_req: NextRequest, ctx: Ctx) {
-  try {
+  
+  const supabaseAdmin = getSupabaseAdmin();
+try {
     const { id } = await ctx.params;
 
     // Guard: missing / "undefined"

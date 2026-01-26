@@ -15,7 +15,7 @@ async function makeToken(ak: string, sk: string) {
 }
 
 export async function POST() {
-  const supabase = createClient(
+const supabase = createClient(
     process.env.SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
