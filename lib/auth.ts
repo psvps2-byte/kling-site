@@ -1,7 +1,7 @@
 // lib/auth.ts
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import FacebookProvider from "next-auth/providers/facebook";
+//import FacebookProvider from "next-auth/providers/facebook";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -11,10 +11,10 @@ export const authOptions: NextAuthOptions = {
       authorization: { params: { prompt: "select_account" } },
     }),
 
-    FacebookProvider({
-      clientId: process.env.FACEBOOK_CLIENT_ID ?? "",
-      clientSecret: process.env.FACEBOOK_CLIENT_SECRET ?? "",
-    }),
+    //FacebookProvider({
+      // clientId: process.env.FACEBOOK_CLIENT_ID ?? "",
+      // clientSecret: process.env.FACEBOOK_CLIENT_SECRET ?? "",
+      //}),
   ],
 
   secret: process.env.NEXTAUTH_SECRET,
@@ -45,3 +45,7 @@ export const authOptions: NextAuthOptions = {
     },
   },
 };
+function FacebookProvider(arg0: { clientId: string; clientSecret: string; }): import("next-auth/providers/index").Provider {
+  throw new Error("Function not implemented.");
+}
+
