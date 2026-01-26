@@ -14,33 +14,6 @@ export default function AuthPage() {
       >
         Увійти через Google
       </button>
-
-      <button
-        style={btnPrimary}
-        onClick={() => signIn("facebook", { callbackUrl: "/" })}
-      >
-        Увійти через Facebook
-      </button>
-
-      <div style={hint}>
-        <div style={{ fontSize: 13, opacity: 0.85, lineHeight: 1.35 }}>
-          Якщо Facebook повертає помилку — перевір у Meta:
-          <div style={{ marginTop: 8 }}>
-            <code style={code}>Valid OAuth Redirect URIs</code> має містити:
-          </div>
-          <div style={{ marginTop: 6 }}>
-            <code style={code}>http://localhost:3000/api/auth/callback/facebook</code>
-          </div>
-          <div style={{ marginTop: 10 }}>
-            А в <code style={code}>.env.local</code> має бути:
-          </div>
-          <div style={{ marginTop: 6 }}>
-            <code style={code}>NEXTAUTH_URL=http://localhost:3000</code>
-            <br />
-            <code style={code}>NEXTAUTH_SECRET=...</code>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
