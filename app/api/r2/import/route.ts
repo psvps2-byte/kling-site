@@ -68,7 +68,6 @@ export async function POST(req: Request) {
     // 1) Fetch remote file (safeFetch)
     // ---------------------------------------------------
     let remoteRes: Response;
-
     try {
       remoteRes = await safeFetch(
         url,
@@ -83,11 +82,7 @@ export async function POST(req: Request) {
       );
     } catch (e: any) {
       return NextResponse.json(
-        {
-          error: "Remote fetch failed",
-          details: stringifyFetchError(e),
-          url,
-        },
+        { error: "Remote fetch failed", details: stringifyFetchError(e), url },
         { status: 502 }
       );
     }
@@ -95,24 +90,19 @@ export async function POST(req: Request) {
     if (!remoteRes.ok) {
       const txt = await remoteRes.text().catch(() => "");
       return NextResponse.json(
-        {
-          error: `Failed to fetch remote: ${remoteRes.status}`,
-          details: txt.slice(0, 500),
-        },
+        { error: `Failed to fetch remote: ${remoteRes.status}`, details: txt.slice(0, 500), url },
         { status: 502 }
       );
     }
 
     const contentType = String(
-      body?.contentType ??
-        remoteRes.headers.get("content-type") ??
-        "application/octet-stream"
+      body?.contentType ?? remoteRes.headers.get("content-type") ?? "application/octet-stream"
     ).trim();
 
     const buf = Buffer.from(await remoteRes.arrayBuffer());
 
     // ---------------------------------------------------
-    // 2) Presign PUT
+    // 2) Presign PUT (ВАЖЛИВО: тільки absolute URL)
     // ---------------------------------------------------
     const ext = guessExt(contentType);
     const urlName = filenameFromUrl(stripQueryFromUrl(url));
@@ -122,41 +112,40 @@ export async function POST(req: Request) {
       rawFilename && rawFilename.includes(".")
         ? rawFilename
         : rawFilename
-        ? `${rawFilename}.${ext}`
-        : `asset_${Date.now()}.${ext}`
+          ? `${rawFilename}.${ext}`
+          : `asset_${Date.now()}.${ext}`
     );
 
-    let presignRes: Response;
+    const presignUrl = new URL("/api/upload/presign-put", req.url).toString();
 
+    let presignRes: Response;
     try {
-      const presignUrl = new URL("/api/upload/presign-put", req.url).toString();
-      presignRes = await fetch(presignUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename, contentType }),
-      });
-    } catch {
-      presignRes = await fetch("/api/upload/presign-put", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename, contentType }),
-      });
+      presignRes = await safeFetch(
+        presignUrl,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ filename, contentType }),
+        },
+        { timeoutMs: 15_000, retries: 2 }
+      );
+    } catch (e: any) {
+      return NextResponse.json(
+        { error: "Presign fetch failed", details: stringifyFetchError(e), presignUrl },
+        { status: 502 }
+      );
     }
 
     const pres = await readJsonOrRaw(presignRes);
 
     if (!presignRes.ok || !pres?.uploadUrl || !pres?.key) {
-      return NextResponse.json(
-        { error: "Presign failed", details: pres },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Presign failed", details: pres }, { status: 500 });
     }
 
     // ---------------------------------------------------
-    // 3) PUT upload to R2
+    // 3) PUT upload to R2 (safeFetch)
     // ---------------------------------------------------
     let putRes: Response;
-
     try {
       putRes = await safeFetch(
         pres.uploadUrl,
@@ -177,10 +166,7 @@ export async function POST(req: Request) {
     if (!putRes.ok) {
       const txt = await putRes.text().catch(() => "");
       return NextResponse.json(
-        {
-          error: `Upload to R2 failed: ${putRes.status}`,
-          details: txt.slice(0, 500),
-        },
+        { error: `Upload to R2 failed: ${putRes.status}`, details: txt.slice(0, 500) },
         { status: 502 }
       );
     }
