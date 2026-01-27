@@ -126,25 +126,21 @@ export async function POST(req: Request) {
         : `asset_${Date.now()}.${ext}`
     );
 
-    const presignUrl = new URL("/api/upload/presign-put", req.url).toString();
-
     let presignRes: Response;
 
     try {
-      presignRes = await safeFetch(
-        presignUrl,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ filename, contentType }),
-        },
-        { timeoutMs: 15_000, retries: 2 }
-      );
-    } catch (e: any) {
-      return NextResponse.json(
-        { error: "Presign fetch failed", details: stringifyFetchError(e) },
-        { status: 502 }
-      );
+      const presignUrl = new URL("/api/upload/presign-put", req.url).toString();
+      presignRes = await fetch(presignUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename, contentType }),
+      });
+    } catch {
+      presignRes = await fetch("/api/upload/presign-put", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename, contentType }),
+      });
     }
 
     const pres = await readJsonOrRaw(presignRes);
