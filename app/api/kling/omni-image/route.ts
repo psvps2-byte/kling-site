@@ -3,20 +3,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { klingHeaders } from "@/lib/klingAuth";
+import { safeFetch, readJsonOrRaw, stringifyFetchError } from "@/lib/safeFetch";
 
 export const runtime = "nodejs";
 
 function asStr(v: any) {
   return typeof v === "string" ? v : v == null ? "" : String(v);
-}
-
-async function readJsonOrRaw(res: Response) {
-  const rawText = await res.text();
-  try {
-    return JSON.parse(rawText);
-  } catch {
-    return { raw: rawText };
-  }
 }
 
 /**
@@ -57,8 +49,6 @@ function sanitizePrompt(prompt: string) {
   ];
 
   for (const re of patterns) p = p.replace(re, "");
-
-  // collapse whitespace
   p = p.replace(/\s{2,}/g, " ").trim();
   return p;
 }
@@ -97,23 +87,21 @@ function ensurePromptHasKlingImageTags(prompt: string, imageCount: number) {
 }
 
 export async function POST(req: Request) {
-  
   const supabaseAdmin = getSupabaseAdmin();
-// 0) AUTH
+
+  // 0) AUTH
   const session = await getServerSession(authOptions);
   const email = session?.user?.email;
 
   if (!email) {
-    return NextResponse.json(
-      { error: "Not authenticated" },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
+  // 1) Parse body
   const base = process.env.KLING_API_BASE || "https://api-singapore.klingai.com";
   const body = await req.json().catch(() => ({}));
 
-  // 1) Basic fields
+  // 2) Basic fields
   const model_name = asStr(body?.model_name) || "kling-image-o1";
   const resolution = asStr(body?.resolution) || "1k";
   const aspect_ratio = asStr(body?.aspect_ratio) || "auto";
@@ -123,7 +111,7 @@ export async function POST(req: Request) {
   const callback_url = body?.callback_url ? asStr(body.callback_url) : undefined;
   const external_task_id = body?.external_task_id ? asStr(body.external_task_id) : undefined;
 
-  // 2) Collect reference images
+  // 3) Collect reference images
   const images: string[] = [];
 
   // A) image_1..image_10
@@ -146,7 +134,7 @@ export async function POST(req: Request) {
 
   const image_list = images.length ? images.map((img) => ({ image: img })) : undefined;
 
-  // 3) Prompt
+  // 4) Prompt
   let prompt = asStr(body?.prompt ?? "").trim();
   if (!prompt) {
     return NextResponse.json({ error: "Missing prompt" }, { status: 400 });
@@ -158,10 +146,10 @@ export async function POST(req: Request) {
     prompt = ensurePromptHasKlingImageTags(prompt, images.length);
   }
 
-  // 4) COST (Фото: 1 фото = 1 бал) => тут вартість = n
+  // 5) COST (Фото: 1 фото = 1 бал) => cost = n
   const costPoints = n;
 
-  // 5) списати бали + створити запис генерації (атомарно)
+  // 6) списати бали + створити запис генерації (атомарно)
   const { data: genId, error: genErr } = await supabaseAdmin.rpc(
     "create_generation_and_spend_points",
     {
@@ -189,7 +177,7 @@ export async function POST(req: Request) {
 
   const generationId = String(genId);
 
-  // 6) Call Kling
+  // 7) Call Kling
   const payload: any = {
     model_name,
     prompt,
@@ -202,40 +190,55 @@ export async function POST(req: Request) {
   if (external_task_id) payload.external_task_id = external_task_id;
   if (image_list) payload.image_list = image_list;
 
-  const res = await fetch(`${base}/v1/images/omni-image`, {
-    method: "POST",
-    headers: {
-      ...klingHeaders(),
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  let res: Response;
+
+  try {
+    res = await safeFetch(
+      `${base}/v1/images/omni-image`,
+      {
+        method: "POST",
+        headers: {
+          ...klingHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      },
+      { timeoutMs: 30_000, retries: 3 }
+    );
+  } catch (e: any) {
+    const details = stringifyFetchError(e);
+
+    // refund + FAILED
+    await supabaseAdmin.rpc("refund_points", { p_email: email, p_amount: costPoints });
+    await supabaseAdmin.from("generations").update({ status: "FAILED" }).eq("id", generationId);
+
+    console.error("Kling fetch failed", details);
+
+    return NextResponse.json(
+      { error: "fetch failed", details, generation_id: generationId },
+      { status: 502 }
+    );
+  }
 
   const data = await readJsonOrRaw(res);
 
-  // 7) якщо Kling одразу повернув помилку -> REFUND + FAILED
+  // 8) якщо Kling одразу повернув помилку -> REFUND + FAILED
   if (!res.ok) {
     await supabaseAdmin.rpc("refund_points", { p_email: email, p_amount: costPoints });
-    await supabaseAdmin
-      .from("generations")
-      .update({ status: "FAILED" })
-      .eq("id", generationId);
+    await supabaseAdmin.from("generations").update({ status: "FAILED" }).eq("id", generationId);
 
-    return NextResponse.json(data, { status: res.status });
+    return NextResponse.json({ ...data, generation_id: generationId }, { status: res.status });
   }
 
-  // 8) якщо Kling повернув code != 0 (деякі відповіді)
+  // 9) якщо Kling повернув code != 0
   if (typeof (data as any)?.code === "number" && (data as any).code !== 0) {
     await supabaseAdmin.rpc("refund_points", { p_email: email, p_amount: costPoints });
-    await supabaseAdmin
-      .from("generations")
-      .update({ status: "FAILED" })
-      .eq("id", generationId);
+    await supabaseAdmin.from("generations").update({ status: "FAILED" }).eq("id", generationId);
 
-    return NextResponse.json(data, { status: 400 });
+    return NextResponse.json({ ...data, generation_id: generationId }, { status: 400 });
   }
 
-  // 9) успішно стартанули задачу -> RUNNING + збережемо task_id (якщо є)
+  // 10) успіх -> RUNNING + task_id
   const taskId =
     (data as any)?.data?.task_id ||
     (data as any)?.task_id ||
@@ -252,7 +255,6 @@ export async function POST(req: Request) {
     })
     .eq("id", generationId);
 
-  // повертаємо як було + додамо generation_id (зручно для дебагу)
   return NextResponse.json(
     { ...data, generation_id: generationId, cost_points: costPoints },
     { status: 200 }

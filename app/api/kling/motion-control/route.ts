@@ -3,20 +3,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { klingHeaders } from "@/lib/klingAuth";
+import { safeFetch, readJsonOrRaw, stringifyFetchError } from "@/lib/safeFetch";
 
 export const runtime = "nodejs";
 
 function asStr(v: any) {
   return typeof v === "string" ? v : v == null ? "" : String(v);
-}
-
-async function readJsonOrRaw(res: Response) {
-  const rawText = await res.text();
-  try {
-    return JSON.parse(rawText);
-  } catch {
-    return { raw: rawText };
-  }
 }
 
 /**
@@ -53,9 +45,9 @@ function readSeconds(body: any): number {
 }
 
 export async function POST(req: Request) {
-  
   const supabaseAdmin = getSupabaseAdmin();
-// 0) AUTH
+
+  // 0) AUTH
   const session = await getServerSession(authOptions);
   const email = session?.user?.email;
 
@@ -63,109 +55,120 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
+  const base = process.env.KLING_API_BASE || "https://api-singapore.klingai.com";
+  const body = await req.json().catch(() => ({}));
+
+  // 1) mode std/pro
+  const modeStr = asStr(body?.mode).toLowerCase();
+  const mode: "std" | "pro" = modeStr === "pro" ? "pro" : "std";
+
+  // 2) seconds
+  const seconds = readSeconds(body);
+
+  // 3) cost
+  const costPoints = calcMotionCost({ mode, seconds });
+
+  // 4) списати бали + створити generations
+  const { data: genId, error: genErr } = await supabaseAdmin.rpc(
+    "create_generation_and_spend_points",
+    {
+      p_email: email,
+      p_kind: "I2V", // motion-control теж відео
+      p_tier: mode === "pro" ? "PRO" : "STANDARD",
+      p_duration_sec: null,
+      p_has_start_end: false,
+      p_motion_control_sec: Math.max(1, Math.floor(seconds)),
+      p_cost_points: costPoints,
+    }
+  );
+
+  if (genErr) {
+    const msg = (genErr.message || "").toLowerCase();
+
+    if (msg.includes("not_enough_points")) {
+      return NextResponse.json({ error: "Not enough points" }, { status: 402 });
+    }
+    if (msg.includes("user_not_found")) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+    return NextResponse.json({ error: genErr.message }, { status: 500 });
+  }
+
+  const generationId = String(genId);
+
+  // 5) Kling payload
+  const payload: any = { ...body };
+  payload.model_name = "kling-v2-6";
+  payload.mode = mode; // std|pro
+
+  let res: Response;
+
   try {
-    const base = process.env.KLING_API_BASE || "https://api-singapore.klingai.com";
-    const body = await req.json().catch(() => ({}));
-
-    // 1) mode std/pro (у тебе на фронті: "std" або "pro")
-    const modeStr = asStr(body?.mode).toLowerCase();
-    const mode: "std" | "pro" = modeStr === "pro" ? "pro" : "std";
-
-    // 2) seconds
-    const seconds = readSeconds(body);
-
-    // 3) cost
-    const costPoints = calcMotionCost({ mode, seconds });
-
-    // 4) списати бали + створити generations
-    const { data: genId, error: genErr } = await supabaseAdmin.rpc(
-      "create_generation_and_spend_points",
+    res = await safeFetch(
+      `${base}/v1/videos/motion-control`,
       {
-        p_email: email,
-        p_kind: "I2V", // щоб не плодити новий kind, motion-control теж відео
-        p_tier: mode === "pro" ? "PRO" : "STANDARD",
-        p_duration_sec: null,
-        p_has_start_end: false,
-        p_motion_control_sec: Math.max(1, Math.floor(seconds)),
-        p_cost_points: costPoints,
-      }
-    );
-
-    if (genErr) {
-      const msg = (genErr.message || "").toLowerCase();
-
-      if (msg.includes("not_enough_points")) {
-        return NextResponse.json({ error: "Not enough points" }, { status: 402 });
-      }
-      if (msg.includes("user_not_found")) {
-        return NextResponse.json({ error: "User not found" }, { status: 404 });
-      }
-      return NextResponse.json({ error: genErr.message }, { status: 500 });
-    }
-
-    const generationId = String(genId);
-
-    // 5) Kling payload
-    const payload: any = { ...body };
-    payload.model_name = "kling-v2-6";
-    payload.mode = mode; // std|pro
-
-    const res = await fetch(`${base}/v1/videos/motion-control`, {
-      method: "POST",
-      headers: {
-        ...klingHeaders(),
-        "Content-Type": "application/json",
+        method: "POST",
+        headers: {
+          ...klingHeaders(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       },
-      body: JSON.stringify(payload),
-    });
-
-    const data = await readJsonOrRaw(res);
-
-    // 6) якщо помилка -> refund + FAILED
-    if (!res.ok) {
-      await supabaseAdmin.rpc("refund_points", { p_email: email, p_amount: costPoints });
-      await supabaseAdmin
-        .from("generations")
-        .update({ status: "FAILED" })
-        .eq("id", generationId);
-
-      return NextResponse.json(data, { status: res.status });
-    }
-
-    // 7) якщо Kling повернув code != 0
-    if (typeof (data as any)?.code === "number" && (data as any).code !== 0) {
-      await supabaseAdmin.rpc("refund_points", { p_email: email, p_amount: costPoints });
-      await supabaseAdmin
-        .from("generations")
-        .update({ status: "FAILED" })
-        .eq("id", generationId);
-
-      return NextResponse.json(data, { status: 400 });
-    }
-
-    // 8) task id (як у тебе)
-    const id =
-      (data as any)?.data?.task_id ||
-      (data as any)?.task_id ||
-      (data as any)?.data?.id ||
-      (data as any)?.id ||
-      null;
-
-    // 9) RUNNING + store task_id, clear result_url
-    await supabaseAdmin
-      .from("generations")
-      .update({
-        status: "RUNNING",
-        task_id: id ? String(id) : null,
-        result_url: null,
-      })
-      .eq("id", generationId);
-
-    return NextResponse.json(
-      { ...data, id, generation_id: generationId, cost_points: costPoints },
-      { status: 200 }
+      { timeoutMs: 30_000, retries: 3 }
     );
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
+    const details = stringifyFetchError(e);
+
+    // refund + FAILED
+    await supabaseAdmin.rpc("refund_points", { p_email: email, p_amount: costPoints });
+    await supabaseAdmin.from("generations").update({ status: "FAILED" }).eq("id", generationId);
+
+    console.error("Kling motion-control fetch failed", details);
+
+    return NextResponse.json(
+      { error: "fetch failed", details, generation_id: generationId },
+      { status: 502 }
+    );
   }
+
+  const data = await readJsonOrRaw(res);
+
+  // 6) якщо помилка -> refund + FAILED
+  if (!res.ok) {
+    await supabaseAdmin.rpc("refund_points", { p_email: email, p_amount: costPoints });
+    await supabaseAdmin.from("generations").update({ status: "FAILED" }).eq("id", generationId);
+
+    return NextResponse.json({ ...data, generation_id: generationId }, { status: res.status });
+  }
+
+  // 7) якщо Kling повернув code != 0
+  if (typeof (data as any)?.code === "number" && (data as any).code !== 0) {
+    await supabaseAdmin.rpc("refund_points", { p_email: email, p_amount: costPoints });
+    await supabaseAdmin.from("generations").update({ status: "FAILED" }).eq("id", generationId);
+
+    return NextResponse.json({ ...data, generation_id: generationId }, { status: 400 });
+  }
+
+  // 8) task id
+  const id =
+    (data as any)?.data?.task_id ||
+    (data as any)?.task_id ||
+    (data as any)?.data?.id ||
+    (data as any)?.id ||
+    null;
+
+  // 9) RUNNING + store task_id
+  await supabaseAdmin
+    .from("generations")
+    .update({
+      status: "RUNNING",
+      task_id: id ? String(id) : null,
+      result_url: null,
+    })
+    .eq("id", generationId);
+
+  return NextResponse.json(
+    { ...data, id, generation_id: generationId, cost_points: costPoints },
+    { status: 200 }
+  );
 }

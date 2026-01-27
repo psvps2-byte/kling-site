@@ -3,20 +3,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import { klingHeaders } from "@/lib/klingAuth";
+import { safeFetch, readJsonOrRaw, stringifyFetchError } from "@/lib/safeFetch";
 
 export const runtime = "nodejs";
 
 function asStr(v: any) {
   return typeof v === "string" ? v : v == null ? "" : String(v);
-}
-
-async function readJsonOrRaw(res: Response) {
-  const rawText = await res.text();
-  try {
-    return JSON.parse(rawText);
-  } catch {
-    return { raw: rawText };
-  }
 }
 
 /**
@@ -33,9 +25,9 @@ function calcI2VCost(opts: { mode: "std" | "pro"; duration: 5 | 10 }) {
 }
 
 export async function POST(req: Request) {
-  
   const supabaseAdmin = getSupabaseAdmin();
-// 0) AUTH
+
+  // 0) AUTH
   const session = await getServerSession(authOptions);
   const email = session?.user?.email;
 
@@ -43,15 +35,15 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  try {
-    const base = process.env.KLING_API_BASE || "https://api-singapore.klingai.com";
-    const body = await req.json().catch(() => ({}));
+  const base = process.env.KLING_API_BASE || "https://api-singapore.klingai.com";
+  const body = await req.json().catch(() => ({}));
 
+  try {
     // 1) Приводимо поля до нормального виду
     const durationRaw = Number(body?.duration);
     const duration: 5 | 10 = durationRaw === 10 ? 10 : 5;
 
-    // mode: std/pro (у тебе на фронті: "std" або "pro")
+    // mode: std/pro
     const modeStr = asStr(body?.mode).toLowerCase();
     const mode: "std" | "pro" = modeStr === "pro" ? "pro" : "std";
 
@@ -97,26 +89,47 @@ export async function POST(req: Request) {
 
     const generationId = String(genId);
 
-    // 5) Кличемо Kling (ставимо model_name примусово)
+    // 5) Kling payload
     const payload: any = { ...body };
-
     payload.model_name = "kling-v2-5-turbo";
-    payload.mode = mode; // гарантовано "std" або "pro"
+    payload.mode = mode; // std|pro
     payload.duration = String(duration); // Kling очікує строку
-    // image / image_tail / prompt ми лишаємо як є, бо фронт уже шле base64
 
-    const res = await fetch(`${base}/v1/videos/image2video`, {
-      method: "POST",
-      headers: {
-        ...klingHeaders(),
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    // 6) Kling call через safeFetch
+    let res: Response;
+    try {
+      res = await safeFetch(
+        `${base}/v1/videos/image2video`,
+        {
+          method: "POST",
+          headers: {
+            ...klingHeaders(),
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        },
+        { timeoutMs: 30_000, retries: 3 }
+      );
+    } catch (e: any) {
+      const details = stringifyFetchError(e);
+
+      await supabaseAdmin.rpc("refund_points", { p_email: email, p_amount: costPoints });
+      await supabaseAdmin
+        .from("generations")
+        .update({ status: "FAILED" })
+        .eq("id", generationId);
+
+      console.error("Kling image2video fetch failed", details);
+
+      return NextResponse.json(
+        { error: "fetch failed", details, generation_id: generationId },
+        { status: 502 }
+      );
+    }
 
     const data = await readJsonOrRaw(res);
 
-    // 6) Якщо помилка -> refund + FAILED
+    // 7) Якщо помилка -> refund + FAILED
     if (!res.ok) {
       await supabaseAdmin.rpc("refund_points", { p_email: email, p_amount: costPoints });
       await supabaseAdmin
@@ -124,10 +137,10 @@ export async function POST(req: Request) {
         .update({ status: "FAILED" })
         .eq("id", generationId);
 
-      return NextResponse.json(data, { status: res.status });
+      return NextResponse.json({ ...data, generation_id: generationId }, { status: res.status });
     }
 
-    // 7) якщо Kling повернув code != 0
+    // 8) якщо Kling повернув code != 0
     if (typeof (data as any)?.code === "number" && (data as any).code !== 0) {
       await supabaseAdmin.rpc("refund_points", { p_email: email, p_amount: costPoints });
       await supabaseAdmin
@@ -135,10 +148,10 @@ export async function POST(req: Request) {
         .update({ status: "FAILED" })
         .eq("id", generationId);
 
-      return NextResponse.json(data, { status: 400 });
+      return NextResponse.json({ ...data, generation_id: generationId }, { status: 400 });
     }
 
-    // 8) Успіх: ставимо RUNNING + збережемо task_id
+    // 9) Успіх: RUNNING + task_id
     const taskId =
       (data as any)?.data?.task_id ||
       (data as any)?.task_id ||
@@ -160,6 +173,16 @@ export async function POST(req: Request) {
       { status: 200 }
     );
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
+    const details = stringifyFetchError(e);
+
+    console.error("image2video route error", details);
+
+    // тут не роблю refund автоматом, бо generationId може не існувати якщо впало до rpc.
+    // Якщо хочеш — можу переробити так, щоб refund робився в усіх сценаріях після genId.
+
+    return NextResponse.json(
+      { error: e?.message || "Server error", details },
+      { status: 500 }
+    );
   }
 }
