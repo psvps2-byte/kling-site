@@ -69,7 +69,21 @@ export async function POST(req: Request) {
     const origin = new URL(req.url).origin;
 
     // 1) Fetch remote bytes server-side (bypass CORS)
-    const remoteRes = await fetch(url, { method: "GET" });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25_000);
+    let remoteRes: Response;
+    try {
+      remoteRes = await fetch(url, {
+        method: "GET",
+        headers: { Accept: "*/*", "User-Agent": "kling-site/1.0" },
+        signal: controller.signal,
+      });
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      const details = err?.message ?? String(err);
+      return NextResponse.json({ error: "Remote fetch failed", details, url }, { status: 502 });
+    }
+    clearTimeout(timeoutId);
 
     if (!remoteRes.ok) {
       const txt = await remoteRes.text().catch(() => "");
@@ -102,7 +116,8 @@ export async function POST(req: Request) {
           : `asset_${Date.now()}.${ext}`
     );
 
-    const presignRes = await fetch(`${origin}/api/upload/presign-put`, {
+    const presignUrl = new URL("/api/upload/presign-put", req.url).toString();
+    const presignRes = await fetch(presignUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ filename, contentType }),
