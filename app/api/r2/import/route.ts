@@ -116,7 +116,7 @@ export async function POST(req: Request) {
           : `asset_${Date.now()}.${ext}`
     );
 
-    const presignUrl = new URL("/api/upload/presign-put", req.url).toString();
+    const presignUrl = new URL("/api/upload/presign-put", `https://${req.headers.get("host")}`).toString();
 
     let presignRes: Response;
     try {
