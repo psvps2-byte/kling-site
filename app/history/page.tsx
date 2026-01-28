@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { getLang, setLang, t, type Lang } from "../i18n";
+import { useRouter } from "next/navigation";
 
 type Entry = {
   id: string;
@@ -22,6 +23,7 @@ async function readJsonOrRaw(res: Response) {
 }
 
 export default function HistoryPage() {
+  const router = useRouter();
   const [items, setItems] = useState<Entry[]>([]);
   const [selected, setSelected] = useState<{ id: string; urlIndex: number } | null>(null);
   const [search, setSearch] = useState("");
@@ -245,9 +247,17 @@ export default function HistoryPage() {
       {/* top bar */}
       <div className="topbar">
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <Link className="ios-btn ios-btn--ghost" href="/" style={{ textDecoration: "none" }}>
-            {`← ${dict.home}`}
+          <Link
+            className="ios-btn ios-btn--ghost"
+            href="/"
+            style={{ textDecoration: "none" }}
+            onClick={() => {
+              setTimeout(() => router.refresh(), 0);
+            }}
+          >
+            ← {dict.home}
           </Link>
+
           <div style={{ fontSize: 26, fontWeight: 800 }}>{dict.historyTitle}</div>
         </div>
 
