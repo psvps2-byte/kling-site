@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { getLang, setLang, t, type Lang } from "../i18n";
 import { useRouter } from "next/navigation";
 
@@ -248,22 +247,23 @@ export default function HistoryPage() {
       <div className="topbar">
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
           <button
+            type="button"
             className="ios-btn ios-btn--ghost"
             style={{ textDecoration: "none" }}
             onClick={() => {
-              router.push("/");
-              router.refresh();
+              // ✅ 100% працює завжди (повний перехід + оновлення)
+              window.location.assign("/");
             }}
           >
             ← {dict.home}
           </button>
-
 
           <div style={{ fontSize: 26, fontWeight: 800 }}>{dict.historyTitle}</div>
         </div>
 
         <div className="topbar-right">
           <button
+            type="button"
             className={`ios-btn ${lang === "uk" ? "ios-btn--primary" : "ios-btn--ghost"}`}
             onClick={() => {
               setLang("uk");
@@ -273,6 +273,7 @@ export default function HistoryPage() {
             UA
           </button>
           <button
+            type="button"
             className={`ios-btn ${lang === "en" ? "ios-btn--primary" : "ios-btn--ghost"}`}
             onClick={() => {
               setLang("en");
@@ -297,18 +298,21 @@ export default function HistoryPage() {
 
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             <button
+              type="button"
               className={`ios-btn ${filter === "all" ? "ios-btn--primary" : "ios-btn--ghost"}`}
               onClick={() => setFilter("all")}
             >
               {dict.filterAll}
             </button>
             <button
+              type="button"
               className={`ios-btn ${filter === "images" ? "ios-btn--primary" : "ios-btn--ghost"}`}
               onClick={() => setFilter("images")}
             >
               {dict.filterImages}
             </button>
             <button
+              type="button"
               className={`ios-btn ${filter === "videos" ? "ios-btn--primary" : "ios-btn--ghost"}`}
               onClick={() => setFilter("videos")}
             >
@@ -316,12 +320,17 @@ export default function HistoryPage() {
             </button>
           </div>
 
-          <select className="ios-select" value={sort} onChange={(e) => setSort(e.target.value as any)} style={{ width: 180 }}>
+          <select
+            className="ios-select"
+            value={sort}
+            onChange={(e) => setSort(e.target.value as any)}
+            style={{ width: 180 }}
+          >
             <option value="newest">{dict.sortNewest}</option>
             <option value="oldest">{dict.sortOldest}</option>
           </select>
 
-          <button className="ios-btn ios-btn--ghost" onClick={loadHistory}>
+          <button type="button" className="ios-btn ios-btn--ghost" onClick={loadHistory}>
             {dict.refresh ?? "Оновити"}
           </button>
         </div>
@@ -421,23 +430,36 @@ export default function HistoryPage() {
                     flexWrap: "wrap",
                   }}
                 >
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}>{new Date(it.createdAt).toLocaleString()}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}>
+                    {new Date(it.createdAt).toLocaleString()}
+                  </div>
 
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     <button
+                      type="button"
                       className="ios-btn ios-btn--ghost"
                       onClick={() => it.urls?.[0] && window.open(it.urls?.[0], "_blank")}
                       disabled={!it.urls?.[0]}
                     >
                       {dict.open}
                     </button>
-                    <button className="ios-btn ios-btn--ghost" onClick={() => copyLink(it.urls?.[0])} disabled={!it.urls?.[0]}>
+                    <button
+                      type="button"
+                      className="ios-btn ios-btn--ghost"
+                      onClick={() => copyLink(it.urls?.[0])}
+                      disabled={!it.urls?.[0]}
+                    >
                       {dict.copyLink}
                     </button>
-                    <button className="ios-btn ios-btn--ghost" onClick={() => shareLink(it.urls?.[0])} disabled={!it.urls?.[0]}>
+                    <button
+                      type="button"
+                      className="ios-btn ios-btn--ghost"
+                      onClick={() => shareLink(it.urls?.[0])}
+                      disabled={!it.urls?.[0]}
+                    >
                       {dict.share}
                     </button>
-                    <button className="ios-btn ios-btn--danger" onClick={() => deleteItem(it)} disabled={busy}>
+                    <button type="button" className="ios-btn ios-btn--danger" onClick={() => deleteItem(it)} disabled={busy}>
                       {busy ? (dict.deleting ?? "Видаляю...") : dict.delete}
                     </button>
                   </div>
@@ -500,6 +522,7 @@ export default function HistoryPage() {
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {modalItem.urls.length > 1 && (
                   <button
+                    type="button"
                     className="ios-btn ios-btn--ghost"
                     onClick={() => setSelected({ id: modalItem.id, urlIndex: Math.max(selected.urlIndex - 1, 0) })}
                   >
@@ -508,8 +531,11 @@ export default function HistoryPage() {
                 )}
                 {modalItem.urls.length > 1 && (
                   <button
+                    type="button"
                     className="ios-btn ios-btn--ghost"
-                    onClick={() => setSelected({ id: modalItem.id, urlIndex: Math.min(selected.urlIndex + 1, modalItem.urls.length - 1) })}
+                    onClick={() =>
+                      setSelected({ id: modalItem.id, urlIndex: Math.min(selected.urlIndex + 1, modalItem.urls.length - 1) })
+                    }
                   >
                     →
                   </button>
@@ -530,7 +556,7 @@ export default function HistoryPage() {
                 </div>
               </div>
 
-              <button className="ios-btn ios-btn--ghost" onClick={closeModal}>
+              <button type="button" className="ios-btn ios-btn--ghost" onClick={closeModal}>
                 ✕
               </button>
             </div>
@@ -540,21 +566,26 @@ export default function HistoryPage() {
                 <video src={modalUrl} controls style={{ maxWidth: "100%", maxHeight: "78vh", borderRadius: 18 }} />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={modalUrl} alt={modalItem.prompt || "preview"} style={{ maxWidth: "100%", maxHeight: "78vh", borderRadius: 18 }} />
+                <img
+                  src={modalUrl}
+                  alt={modalItem.prompt || "preview"}
+                  style={{ maxWidth: "100%", maxHeight: "78vh", borderRadius: 18 }}
+                />
               )}
             </div>
 
             <div style={{ padding: 16, display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
-              <button className="ios-btn ios-btn--ghost" onClick={() => window.open(modalUrl, "_blank")}>
+              <button type="button" className="ios-btn ios-btn--ghost" onClick={() => window.open(modalUrl, "_blank")}>
                 {dict.open}
               </button>
-              <button className="ios-btn ios-btn--ghost" onClick={() => copyLink(modalUrl)}>
+              <button type="button" className="ios-btn ios-btn--ghost" onClick={() => copyLink(modalUrl)}>
                 {dict.copyLink}
               </button>
-              <button className="ios-btn ios-btn--ghost" onClick={() => shareLink(modalUrl)}>
+              <button type="button" className="ios-btn ios-btn--ghost" onClick={() => shareLink(modalUrl)}>
                 {dict.share}
               </button>
               <button
+                type="button"
                 className="ios-btn ios-btn--danger"
                 onClick={() => deleteItem(modalItem)}
                 disabled={deletingId === modalItem.id}
