@@ -247,16 +247,17 @@ export default function HistoryPage() {
       {/* top bar */}
       <div className="topbar">
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <Link
+          <button
             className="ios-btn ios-btn--ghost"
-            href="/"
             style={{ textDecoration: "none" }}
             onClick={() => {
-              setTimeout(() => router.refresh(), 0);
+              router.push("/");
+              router.refresh();
             }}
           >
             ← {dict.home}
-          </Link>
+          </button>
+
 
           <div style={{ fontSize: 26, fontWeight: 800 }}>{dict.historyTitle}</div>
         </div>
