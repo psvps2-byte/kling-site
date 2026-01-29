@@ -9,66 +9,94 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !WORKER_BASE_URL) {
   process.exit(1);
 }
 
-const supabase = createClient(
-  SUPABASE_URL,
-  SUPABASE_SERVICE_ROLE_KEY
-);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+function pickResultUrl(json) {
+  // Під різні відповіді Kling (фото/відео)
+  return (
+    json?.imageUrls?.[0] ||
+    json?.images?.[0]?.url ||
+    json?.result?.image_url ||
+    json?.videoUrl ||
+    json?.videoUrls?.[0] ||
+    json?.result?.video_url ||
+    null
+  );
+}
 
 async function runOnce() {
   console.log("Worker tick", new Date().toISOString());
 
-  const { data: jobs, error } = await supabase
-    .from("generations")
-    .select("*")
-    .eq("status", "QUEUED")
-    .order("created_at", { ascending: true })
-    .limit(5);
-
+  // 1) Забираємо ОДНУ задачу з черги (RPC сама ставить RUNNING + started_at)
+  const { data: job, error } = await supabase.rpc("dequeue_generation");
   if (error) throw error;
-  if (!jobs || jobs.length === 0) {
-    console.log("No queued jobs");
+
+  const pickedJob = Array.isArray(job) ? job[0] : job;
+
+  if (!pickedJob) {
+    console.log("No jobs available");
     return;
   }
 
-  for (const job of jobs) {
-    console.log("Processing", job.id);
+  if (!pickedJob.task_id) {
+    console.error("Job has no task_id:", pickedJob.id);
 
     await supabase
       .from("generations")
-      .update({ status: "RUNNING" })
-      .eq("id", job.id);
+      .update({ status: "ERROR" })
+      .eq("id", pickedJob.id);
 
-    try {
-      const url = `${WORKER_BASE_URL}/api/kling/history?task_id=${encodeURIComponent(job.result_url)}`;
+    return;
+  }
 
-      const res = await fetch(url);
-      const json = await res.json();
+  console.log("Processing", pickedJob.id, "kind=", pickedJob.kind, "task_id=", pickedJob.task_id);
 
-      if (!res.ok) throw new Error(JSON.stringify(json));
+  try {
+    // 2) Перевіряємо статус/результат у Kling по task_id
+    const url = `${WORKER_BASE_URL}/api/kling/history?task_id=${encodeURIComponent(
+      pickedJob.task_id
+    )}`;
 
-      await supabase
-        .from("generations")
-        .update({
-          status: "DONE",
-          result_url: json?.imageUrls?.[0] || job.result_url,
-        })
-        .eq("id", job.id);
+    const res = await fetch(url);
+    const json = await res.json();
 
-      console.log("DONE", job.id);
-    } catch (e) {
-      console.error("FAILED", job.id, e);
+    if (!res.ok) throw new Error(JSON.stringify(json));
 
-      await supabase
-        .from("generations")
-        .update({ status: "ERROR" })
-        .eq("id", job.id);
+    // 3) Дістаємо URL результату (якщо вже готовий)
+    const resultUrl = pickResultUrl(json);
+
+    // Якщо Kling ще не віддав результат — НЕ ставимо DONE
+    // (залишаємо RUNNING і воркер перевірить наступного тіку)
+    if (!resultUrl) {
+      console.log("Still running (no result yet)", pickedJob.id);
+      return;
     }
+
+    // 4) Позначаємо DONE через RPC
+    await supabase.rpc("mark_generation_done", {
+      p_id: pickedJob.id,
+      p_result_url: resultUrl,
+    });
+
+    console.log("DONE", pickedJob.id, resultUrl);
+  } catch (e) {
+    console.error("FAILED", pickedJob.id, e);
+
+    await supabase
+      .from("generations")
+      .update({ status: "ERROR" })
+      .eq("id", pickedJob.id);
   }
 }
 
-runOnce()
-  .then(() => process.exit(0))
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  });
+async function loop() {
+  try {
+    await runOnce();
+  } catch (e) {
+    console.error("Loop error", e);
+  } finally {
+    setTimeout(loop, 5000); // кожні 5 секунд
+  }
+}
+
+loop();

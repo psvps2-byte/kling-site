@@ -126,23 +126,34 @@ export default function Home() {
   // ✅ кількість генерацій (Omni O1 зазвичай 1..9)
   const [omniN, setOmniN] = useState<number>(1);
 
-  // Settings popover state (for Images tab)
+  // Dropdown state (for Images tab)
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settingsPanelRef = useRef<HTMLDivElement | null>(null);
 
-  // Close on Escape + click outside panel (overlay handles click on backdrop)
+  // Close on Escape + click outside dropdown
   useEffect(() => {
     if (!settingsOpen) return;
+
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") setSettingsOpen(false);
     }
+
+    function handleOutside(e: MouseEvent | TouchEvent) {
+      const el = settingsPanelRef.current;
+      if (!el) return;
+      if (e.target instanceof Node && !el.contains(e.target)) {
+        setSettingsOpen(false);
+      }
+    }
+
     document.addEventListener("keydown", handleKey);
-    // Lock scroll while overlay is open
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    document.addEventListener("mousedown", handleOutside, true);
+    document.addEventListener("touchstart", handleOutside, true);
+
     return () => {
       document.removeEventListener("keydown", handleKey);
-      document.body.style.overflow = prevOverflow;
+      document.removeEventListener("mousedown", handleOutside, true);
+      document.removeEventListener("touchstart", handleOutside, true);
     };
   }, [settingsOpen]);
 
@@ -277,7 +288,8 @@ export default function Home() {
 
   async function pollVideoTask(opts: { kind: "image2video" | "motion-control"; taskId: string }) {
     const { kind, taskId } = opts;
-    const endpoint = kind === "image2video" ? `/api/kling/image2video/${taskId}` : `/api/kling/motion-control/${taskId}`;
+    const endpoint =
+      kind === "image2video" ? `/api/kling/image2video/${taskId}` : `/api/kling/motion-control/${taskId}`;
 
     const started = Date.now();
     const maxMs = 10 * 60 * 1000;
@@ -296,7 +308,8 @@ export default function Home() {
 
       if (status === "succeed") {
         const vurl = extractVideoUrlFromTask(data);
-        if (!vurl) throw new Error(lang === "uk" ? "Задача успішна, але нема URL відео" : "Task succeeded but no video URL");
+        if (!vurl)
+          throw new Error(lang === "uk" ? "Задача успішна, але нема URL відео" : "Task succeeded but no video URL");
 
         const imp = await importRemoteToR2(vurl, `kling_${kind}_${taskId}_${Date.now()}.mp4`);
 
@@ -396,7 +409,9 @@ export default function Home() {
     }
 
     if (points <= 0) {
-      setError(lang === "uk" ? "У тебе 0 балів. Обери пакет у кабінеті." : "You have 0 points. Choose a package in your account.");
+      setError(
+        lang === "uk" ? "У тебе 0 балів. Обери пакет у кабінеті." : "You have 0 points. Choose a package in your account."
+      );
       return;
     }
 
@@ -566,14 +581,14 @@ export default function Home() {
   const generateDisabled =
     loading ||
     refUploading ||
-    needsAuth ||
-    needsBuy ||
-    notEnoughPoints ||
+    !session ||
+    (!!session && points <= 0) ||
+    (!!session && points > 0 && points < currentCost) ||
     (mediaTab === "photo"
       ? prompt.trim().length < 1
       : videoMode === "i2v"
-        ? !vStartImg
-        : !vCharacterImg || !vMotionVideo);
+      ? !vStartImg
+      : !vCharacterImg || !vMotionVideo);
 
   const generateBtnText = useMemo(() => {
     if (!session) return lang === "uk" ? "Увійти" : "Sign in";
@@ -899,19 +914,19 @@ export default function Home() {
           font-weight: 600;
         }
 
-        /* ===== New overlay popover (doesn't shift layout) ===== */
-        .settingsOverlay {
-          position: fixed;
-          inset: 0;
-          z-index: 9999;
-          background: rgba(0, 0, 0, 0.45);
-          display: flex;
-          justify-content: flex-end;
-          align-items: flex-start;
-          padding: 16px;
+        /* anchor for dropdown */
+        .settingsWrap {
+          position: relative;
+          display: inline-flex;
         }
 
-        .settingsPanel {
+        /* dropdown panel */
+        .settingsDropdown {
+          position: absolute;
+          top: calc(100% + 8px);
+          left: 0;
+          z-index: 9999;
+
           width: min(420px, calc(100vw - 32px));
           background: rgba(6, 8, 12, 0.72);
           border: 1px solid rgba(255, 255, 255, 0.12);
@@ -920,9 +935,6 @@ export default function Home() {
           box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
           backdrop-filter: blur(12px) saturate(120%);
           -webkit-backdrop-filter: blur(12px) saturate(120%);
-          max-height: calc(100dvh - 32px);
-          overflow: auto;
-          -webkit-overflow-scrolling: touch;
         }
 
         .settingsGroup {
@@ -949,18 +961,13 @@ export default function Home() {
           color: #fff;
         }
 
-        @media (max-width: 640px) {
-          .settingsOverlay {
-            justify-content: center;
-            align-items: flex-end;
-            padding: 0;
-          }
-          .settingsPanel {
-            width: 100%;
-            border-radius: 16px 16px 0 0;
-            max-height: 75dvh;
-            padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
-          }
+        /* tabular numbers so they look одинаково (як 1:1) */
+        .numMono {
+          font-variant-numeric: tabular-nums;
+          font-feature-settings: "tnum";
+        }
+        .numMono.light {
+          opacity: 0.75;
         }
       `}</style>
 
@@ -1111,18 +1118,59 @@ export default function Home() {
               />
             </div>
 
-            {/* Settings trigger */}
+            {/* Settings trigger + dropdown */}
             <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
-              <button
-                type="button"
-                className="vPill settings-pill"
-                onClick={() => setSettingsOpen(true)}
-                aria-haspopup="dialog"
-                aria-expanded={settingsOpen}
-              >
-                <strong style={{ marginRight: 8 }}>{aspect}</strong>
-                <span style={{ opacity: 0.75 }}>· {omniN}</span>
-              </button>
+              <div className="settingsWrap">
+                <button
+                  type="button"
+                  className="vPill settings-pill"
+                  onClick={() => setSettingsOpen((v) => !v)}
+                  aria-haspopup="menu"
+                  aria-expanded={settingsOpen}
+                >
+                  <strong className="numMono">{aspect}</strong>
+                  {/* без пробілу між "·" та цифрою */}
+                  <span className="numMono light">·{omniN}</span>
+                </button>
+
+                {settingsOpen && (
+                  <div
+                    ref={settingsPanelRef}
+                    className="settingsDropdown"
+                    role="menu"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                  >
+                    <div className="settingsGroup">
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <RatioSelect value={aspect} onChange={setAspect} lang={lang} />
+                      </div>
+                    </div>
+
+                    <div className="settingsGroup">
+                      <div className="groupTitle">{lang === "uk" ? "Кількість" : "Output"}</div>
+                      <div className="groupButtons">
+                        {Array.from({ length: 9 }, (_, i) => i + 1).map((k) => (
+                          <button
+                            key={k}
+                            type="button"
+                            className={omniN === k ? "active" : ""}
+                            onClick={() => setOmniN(k)}
+                          >
+                            {k}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                      <button type="button" className="ios-btn ios-btn--ghost" onClick={() => setSettingsOpen(false)}>
+                        OK
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {refUploading && (
                 <div className="gen-pill">
@@ -1133,52 +1181,6 @@ export default function Home() {
                 </div>
               )}
             </div>
-
-            {/* Overlay settings */}
-            {settingsOpen && (
-              <div
-                className="settingsOverlay"
-                role="dialog"
-                aria-label="Settings"
-                onMouseDown={() => setSettingsOpen(false)}
-                onTouchStart={() => setSettingsOpen(false)}
-              >
-                <div
-                  ref={settingsPanelRef}
-                  className="settingsPanel"
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onTouchStart={(e) => e.stopPropagation()}
-                >
-                  <div className="settingsGroup">
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                      <RatioSelect value={aspect} onChange={setAspect} lang={lang} />
-                    </div>
-                  </div>
-
-                  <div className="settingsGroup">
-                    <div className="groupTitle">{lang === "uk" ? "Кількість" : "Output"}</div>
-                    <div className="groupButtons">
-                      {Array.from({ length: 9 }, (_, i) => i + 1).map((k) => (
-                        <button
-                          key={k}
-                          type="button"
-                          className={omniN === k ? "active" : ""}
-                          onClick={() => setOmniN(k)}
-                        >
-                          {k}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                    <button type="button" className="ios-btn ios-btn--ghost" onClick={() => setSettingsOpen(false)}>
-                      OK
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
 
             <textarea
               className="ios-textarea"
@@ -1224,13 +1226,7 @@ export default function Home() {
                     )}
                   </div>
 
-                  <input
-                    id="vStart"
-                    type="file"
-                    accept={acceptImg}
-                    style={{ display: "none" }}
-                    onChange={(e) => setVStartImg(e.target.files?.[0] ?? null)}
-                  />
+                  <input id="vStart" type="file" accept={acceptImg} style={{ display: "none" }} onChange={(e) => setVStartImg(e.target.files?.[0] ?? null)} />
 
                   {vStartImg && videoQuality === "pro" && (
                     <>
@@ -1254,13 +1250,7 @@ export default function Home() {
                         )}
                       </div>
 
-                      <input
-                        id="vEnd"
-                        type="file"
-                        accept={acceptImg}
-                        style={{ display: "none" }}
-                        onChange={(e) => setVEndImg(e.target.files?.[0] ?? null)}
-                      />
+                      <input id="vEnd" type="file" accept={acceptImg} style={{ display: "none" }} onChange={(e) => setVEndImg(e.target.files?.[0] ?? null)} />
                     </>
                   )}
                 </div>
@@ -1350,13 +1340,7 @@ export default function Home() {
                     )}
                   </div>
 
-                  <input
-                    id="vChar"
-                    type="file"
-                    accept={acceptImg}
-                    style={{ display: "none" }}
-                    onChange={(e) => setVCharacterImg(e.target.files?.[0] ?? null)}
-                  />
+                  <input id="vChar" type="file" accept={acceptImg} style={{ display: "none" }} onChange={(e) => setVCharacterImg(e.target.files?.[0] ?? null)} />
                 </div>
 
                 <div className="vRow">
@@ -1402,10 +1386,10 @@ export default function Home() {
           </>
         )}
 
-        {(needsAuth || needsBuy || notEnoughPoints) && (
+        {(!session || (!!session && points <= 0) || (!!session && points > 0 && points < currentCost)) && (
           <div style={{ marginTop: 10, opacity: 0.9 }}>
-            {needsAuth && <div>Щоб генерувати — увійди через Google.</div>}
-            {needsBuy && (
+            {!session && <div>Щоб генерувати — увійди через Google.</div>}
+            {!!session && points <= 0 && (
               <div>
                 У тебе 0 балів —{" "}
                 <Link href="/account" style={{ textDecoration: "underline" }}>
@@ -1414,7 +1398,7 @@ export default function Home() {
                 .
               </div>
             )}
-            {notEnoughPoints && (
+            {!!session && points > 0 && points < currentCost && (
               <div>
                 Недостатньо балів —{" "}
                 <Link href="/account" style={{ textDecoration: "underline" }}>

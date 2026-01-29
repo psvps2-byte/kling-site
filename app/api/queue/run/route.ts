@@ -32,12 +32,12 @@ const supabase = createClient(
     return NextResponse.json({ message: "No free slots" });
   }
 
-  // 2️⃣ Беремо QUEUED
+  // 2️⃣ Беремо PENDING
   const { data: queued } = await supabase
     .from("generations")
     .select("*")
     .eq("kind", "PHOTO")
-    .eq("status", "QUEUED")
+    .eq("status", "PENDING")
     .order("created_at", { ascending: true })
     .limit(freeSlots);
 

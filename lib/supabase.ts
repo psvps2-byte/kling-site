@@ -15,3 +15,31 @@ export function getSupabaseAdmin() {
     auth: { persistSession: false },
   });
 }
+export async function takeOnePendingGeneration() {
+  const supabase = getSupabaseAdmin();
+
+  // 1) знайти одну задачу зі статусом PENDING
+  const { data, error } = await supabase
+    .from("generations")
+    .select("*")
+    .eq("status", "PENDING")
+    .is("result_url", null)
+    .limit(1)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  // 2) помітити її як RUNNING
+  const { error: updateError } = await supabase
+    .from("generations")
+    .update({ status: "RUNNING" })
+    .eq("id", data.id);
+
+  if (updateError) {
+    return null;
+  }
+
+  return data;
+}
