@@ -151,13 +151,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ ...data, generation_id: generationId }, { status: 400 });
     }
 
+    console.log("Kling response:", JSON.stringify(data));
+
     // 9) Успіх: RUNNING + task_id
     const taskId =
       (data as any)?.data?.task_id ||
+      (data as any)?.data?.taskId ||
       (data as any)?.task_id ||
+      (data as any)?.taskId ||
       (data as any)?.data?.id ||
       (data as any)?.id ||
       null;
+
 
     await supabaseAdmin
       .from("generations")
