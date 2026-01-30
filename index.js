@@ -11,82 +11,93 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !WORKER_BASE_URL) {
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-function pickResultUrl(json) {
-  // Під різні відповіді Kling (фото/відео)
+function pickResultUrlFromHistory(json, fallback) {
+  // PHOTO часто повертає imageUrls, I2V може повертати videoUrl
   return (
     json?.imageUrls?.[0] ||
-    json?.images?.[0]?.url ||
-    json?.result?.image_url ||
+    json?.images?.[0] ||
+    json?.result?.imageUrls?.[0] ||
     json?.videoUrl ||
-    json?.videoUrls?.[0] ||
-    json?.result?.video_url ||
+    json?.video?.[0] ||
+    json?.result?.videoUrl ||
+    fallback ||
     null
   );
+}
+
+function isDoneHistory(json) {
+  // Під різні формати відповіді
+  const status = (json?.status || json?.state || json?.result?.status || "")
+    .toString()
+    .toUpperCase();
+
+  if (["DONE", "SUCCESS", "SUCCEEDED", "COMPLETED", "FINISHED"].includes(status)) return true;
+
+  // Навіть якщо статус неочевидний — але є готовий URL, значить готово
+  const url = pickResultUrlFromHistory(json, null);
+  return Boolean(url);
 }
 
 async function runOnce() {
   console.log("Worker tick", new Date().toISOString());
 
-  // 1) Забираємо ОДНУ задачу з черги (RPC сама ставить RUNNING + started_at)
-  const { data: job, error } = await supabase.rpc("dequeue_generation");
+  // 1) Взяти 1 задачу з черги і одразу помітити RUNNING робить сама функція в БД
+  const { data, error } = await supabase.rpc("dequeue_generation");
   if (error) throw error;
 
-  const pickedJob = Array.isArray(job) ? job[0] : job;
-
-  if (!pickedJob) {
+  if (!data || (Array.isArray(data) && data.length === 0)) {
     console.log("No jobs available");
     return;
   }
 
-  if (!pickedJob.task_id) {
-    console.error("Job has no task_id:", pickedJob.id);
+  const job = Array.isArray(data) ? data[0] : data;
 
-    await supabase
-      .from("generations")
-      .update({ status: "ERROR" })
-      .eq("id", pickedJob.id);
+  console.log("Picked job", job.id, "kind=", job.kind, "task_id=", job.task_id);
 
+  // ВАЖЛИВО: task_id беремо з колонки task_id
+  if (!job.task_id) {
+    console.error("Job has no task_id, cannot poll history:", job.id);
+
+    // щоб не висів RUNNING вічно — помічаємо ERROR
+    await supabase.from("generations").update({ status: "ERROR" }).eq("id", job.id);
     return;
   }
 
-  console.log("Processing", pickedJob.id, "kind=", pickedJob.kind, "task_id=", pickedJob.task_id);
+  // 2) Перевірити статус у Kling history
+  const url = `${WORKER_BASE_URL}/api/kling/history?task_id=${encodeURIComponent(job.task_id)}`;
 
-  try {
-    // 2) Перевіряємо статус/результат у Kling по task_id
-    const url = `${WORKER_BASE_URL}/api/kling/history?task_id=${encodeURIComponent(
-      pickedJob.task_id
-    )}`;
+  const res = await fetch(url);
+  const json = await res.json().catch(() => ({}));
 
-    const res = await fetch(url);
-    const json = await res.json();
+  if (!res.ok) {
+    console.error("History fetch failed", res.status, json);
 
-    if (!res.ok) throw new Error(JSON.stringify(json));
-
-    // 3) Дістаємо URL результату (якщо вже готовий)
-    const resultUrl = pickResultUrl(json);
-
-    // Якщо Kling ще не віддав результат — НЕ ставимо DONE
-    // (залишаємо RUNNING і воркер перевірить наступного тіку)
-    if (!resultUrl) {
-      console.log("Still running (no result yet)", pickedJob.id);
-      return;
-    }
-
-    // 4) Позначаємо DONE через RPC
-    await supabase.rpc("mark_generation_done", {
-      p_id: pickedJob.id,
-      p_result_url: resultUrl,
-    });
-
-    console.log("DONE", pickedJob.id, resultUrl);
-  } catch (e) {
-    console.error("FAILED", pickedJob.id, e);
-
-    await supabase
-      .from("generations")
-      .update({ status: "ERROR" })
-      .eq("id", pickedJob.id);
+    // не валимо задачу одразу — але щоб не висіло нескінченно, можна ERROR
+    await supabase.from("generations").update({ status: "ERROR" }).eq("id", job.id);
+    return;
   }
+
+  if (!isDoneHistory(json)) {
+    console.log("Still running (no result yet)", job.id);
+    // нічого не змінюємо — залишаємо RUNNING
+    return;
+  }
+
+  const resultUrl = pickResultUrlFromHistory(json, job.result_url);
+  if (!resultUrl) {
+    console.log("Done but no result url found, keep RUNNING for now", job.id);
+    return;
+  }
+
+  // 3) Позначити DONE через RPC, яку ти створив
+  const { error: doneErr } = await supabase.rpc("mark_generation_done", {
+    p_id: job.id,
+    p_result_url: resultUrl,
+  });
+
+  if (doneErr) throw doneErr;
+
+  console.log("DONE", job.id, resultUrl);
 }
 
 async function loop() {
