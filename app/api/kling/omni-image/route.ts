@@ -249,7 +249,7 @@ export async function POST(req: Request) {
   await supabaseAdmin
     .from("generations")
     .update({
-      status: "RUNNING",
+      status: "PENDING",
       task_id: taskId ? String(taskId) : null,
       result_url: null,
     })

@@ -15,7 +15,7 @@ async function makeToken(ak: string, sk: string) {
 }
 
 export async function POST() {
-const supabase = createClient(
+  const supabase = createClient(
     process.env.SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
@@ -73,11 +73,12 @@ const supabase = createClient(
       await supabase
         .from("generations")
         .update({
-          status: "RUNNING",
+          status: "PENDING",   // 👈 ВАЖЛИВО
           task_id: task_id,
           result_url: null,
         })
         .eq("id", job.id);
+
     }
   }
 
