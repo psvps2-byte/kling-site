@@ -6,6 +6,7 @@ import RatioSelect from "./components/RatioSelect";
 import { getLang, setLang, t, type Lang } from "./i18n";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import LegalMenu from "./components/LegalMenu";
 
 type MediaTab = "photo" | "video";
 type VideoMode = "i2v" | "motion";
@@ -102,7 +103,7 @@ export default function Home() {
       .then((j) => {
         if (j?.authenticated) setPoints(Number(j.user?.points ?? 0));
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [session]);
 
   // COMMON PROMPT
@@ -587,8 +588,8 @@ export default function Home() {
     (mediaTab === "photo"
       ? prompt.trim().length < 1
       : videoMode === "i2v"
-      ? !vStartImg
-      : !vCharacterImg || !vMotionVideo);
+        ? !vStartImg
+        : !vCharacterImg || !vMotionVideo);
 
   const generateBtnText = useMemo(() => {
     if (!session) return lang === "uk" ? "Увійти" : "Sign in";
@@ -616,8 +617,11 @@ export default function Home() {
   }
 
   return (
-    <div className="page-wrap">
-      <style jsx global>{`
+    <>
+        <div className="page-wrap">
+
+
+        <style jsx global>{`
         @media (prefers-reduced-motion: reduce) {
           .ldots span,
           .skeleton::after {
@@ -969,485 +973,507 @@ export default function Home() {
         .numMono.light {
           opacity: 0.75;
         }
+
+        .topbar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .topbar-left {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          padding-left: 6px;
+        }
+
+        /* previously hid the internal LegalMenu open button; removed so the embedded menu remains the sole menu button */
       `}</style>
 
-      {/* Topbar */}
-      <div className="topbar">
-        <div style={{ flex: 1 }} />
-        <div className="topbar-right">
-          <button
-            className={`ios-btn ${lang === "uk" ? "ios-btn--primary" : "ios-btn--ghost"}`}
-            onClick={() => {
-              setLang("uk");
-              setLangState("uk");
-            }}
-          >
-            UA
-          </button>
-          <button
-            className={`ios-btn ${lang === "en" ? "ios-btn--primary" : "ios-btn--ghost"}`}
-            onClick={() => {
-              setLang("en");
-              setLangState("en");
-            }}
-          >
-            EN
-          </button>
-
-          {session ? (
-            <>
-              <Link className="ios-btn ios-btn--ghost" href="/history" style={{ textDecoration: "none" }}>
-                {dict.history}
-              </Link>
-
-              <Link
-                className="ios-btn ios-btn--ghost"
-                href="/account"
-                style={{
-                  textDecoration: "none",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-                title="Кабінет"
-              >
-                <span style={{ fontWeight: 800 }}>{points}</span>
-                <svg width="18" height="18" viewBox="0 0 64 64" aria-hidden="true" style={{ display: "block" }}>
-                  <path
-                    fill="rgba(255,255,255,0.92)"
-                    d="M32 2l6.2 18.7L57 27l-18.8 6.3L32 52l-6.2-18.7L7 27l18.8-6.3L32 2zm20 30l3.1 9.4L64 44l-8.9 3L52 56l-3.1-9.4L40 44l8.9-3L52 32zM12 40l2.6 7.8L22 50l-7.4 2.5L12 60l-2.6-7.8L2 50l7.4-2.5L12 40z"
-                  />
-                </svg>
-              </Link>
-            </>
-          ) : (
-            <Link className="ios-btn ios-btn--primary" href="/auth" style={{ textDecoration: "none" }}>
-              {dict.signIn}
-            </Link>
-          )}
-        </div>
-      </div>
-
-      {/* Main card */}
-      <div className="glass-card">
-        {/* Tabs */}
-        <div className="tabs">
-          <div className="tabsWrap" role="tablist" aria-label="media tabs">
+        {/* Topbar */}
+        <div className="topbar">
+          <div className="topbar-left">
+            <div id="legalmenu-host">
+              <LegalMenu email="contact.vilna.pro@gmail.com" />
+            </div>
+          </div>
+          <div className="topbar-right">
             <button
-              type="button"
-              role="tab"
-              aria-selected={mediaTab === "photo"}
-              className={`tabBtn ${mediaTab === "photo" ? "tabBtnActive" : ""}`}
-              onClick={() => setMediaTab("photo")}
+              className={`ios-btn ${lang === "uk" ? "ios-btn--primary" : "ios-btn--ghost"}`}
+              onClick={() => {
+                setLang("uk");
+                setLangState("uk");
+              }}
             >
-              {dict.image}
+              UA
             </button>
             <button
-              type="button"
-              role="tab"
-              aria-selected={mediaTab === "video"}
-              className={`tabBtn ${mediaTab === "video" ? "tabBtnActive" : ""}`}
-              onClick={() => setMediaTab("video")}
+              className={`ios-btn ${lang === "en" ? "ios-btn--primary" : "ios-btn--ghost"}`}
+              onClick={() => {
+                setLang("en");
+                setLangState("en");
+              }}
             >
-              {dict.video}
+              EN
             </button>
+
+            {session ? (
+              <>
+                <Link className="ios-btn ios-btn--ghost" href="/history" style={{ textDecoration: "none" }}>
+                  {dict.history}
+                </Link>
+
+                <Link
+                  className="ios-btn ios-btn--ghost"
+                  href="/account"
+                  style={{
+                    textDecoration: "none",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                  title="Кабінет"
+                >
+                  <span style={{ fontWeight: 800 }}>{points}</span>
+                  <svg width="18" height="18" viewBox="0 0 64 64" aria-hidden="true" style={{ display: "block" }}>
+                    <path
+                      fill="rgba(255,255,255,0.92)"
+                      d="M32 2l6.2 18.7L57 27l-18.8 6.3L32 52l-6.2-18.7L7 27l18.8-6.3L32 2zm20 30l3.1 9.4L64 44l-8.9 3L52 56l-3.1-9.4L40 44l8.9-3L52 32zM12 40l2.6 7.8L22 50l-7.4 2.5L12 60l-2.6-7.8L2 50l7.4-2.5L12 40z"
+                    />
+                  </svg>
+                </Link>
+              </>
+            ) : (
+              <Link className="ios-btn ios-btn--primary" href="/auth" style={{ textDecoration: "none" }}>
+                {dict.signIn}
+              </Link>
+            )}
           </div>
         </div>
 
-        {/* PHOTO UI */}
-        {mediaTab === "photo" && (
-          <>
-            <div className="uploadRow">
-              <div
-                className="uploadTile"
-                role="button"
-                tabIndex={0}
-                aria-label={lang === "uk" ? "Завантажити фото" : "Upload image"}
-                onClick={() => (document.getElementById("file1") as HTMLInputElement | null)?.click()}
-                onKeyDown={(e) => e.key === "Enter" && (document.getElementById("file1") as HTMLInputElement | null)?.click()}
+        {/* Main card */}
+        <div className="glass-card">
+          {/* Tabs */}
+          <div className="tabs">
+            <div className="tabsWrap" role="tablist" aria-label="media tabs">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mediaTab === "photo"}
+                className={`tabBtn ${mediaTab === "photo" ? "tabBtnActive" : ""}`}
+                onClick={() => setMediaTab("photo")}
               >
-                {srcPreview ? (
-                  <>
-                    <img src={srcPreview} alt="reference1" />
-                    <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                    <button
-                      type="button"
-                      className="tile-remove"
-                      aria-label={lang === "uk" ? "Видалити референс" : "Remove reference"}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSrcFile(null);
-                        setSrcUrl("");
-                      }}
-                    >
-                      ✕
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <span className="uploadPlus">+</span>
-                    <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                  </>
-                )}
-              </div>
-
-              <input
-                id="file1"
-                type="file"
-                accept={acceptImg}
-                style={{ display: "none" }}
-                onChange={async (e) => {
-                  const f = e.target.files?.[0] ?? null;
-
-                  setError(null);
-                  setSrcFile(f);
-                  setSrcUrl("");
-
-                  if (!f) return;
-
-                  try {
-                    setRefUploading(true);
-                    const { url } = await uploadToR2AndGetPublicUrl(f);
-                    setSrcUrl(url);
-                  } catch (err: any) {
-                    setError(normalizeErr(err));
-                  } finally {
-                    setRefUploading(false);
-                  }
-                }}
-              />
+                {dict.image}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mediaTab === "video"}
+                className={`tabBtn ${mediaTab === "video" ? "tabBtnActive" : ""}`}
+                onClick={() => setMediaTab("video")}
+              >
+                {dict.video}
+              </button>
             </div>
+          </div>
 
-            {/* Settings trigger + dropdown */}
-            <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
-              <div className="settingsWrap">
-                <button
-                  type="button"
-                  className="vPill settings-pill"
-                  onClick={() => setSettingsOpen((v) => !v)}
-                  aria-haspopup="menu"
-                  aria-expanded={settingsOpen}
+          {/* PHOTO UI */}
+          {mediaTab === "photo" && (
+            <>
+              <div className="uploadRow">
+                <div
+                  className="uploadTile"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={lang === "uk" ? "Завантажити фото" : "Upload image"}
+                  onClick={() => (document.getElementById("file1") as HTMLInputElement | null)?.click()}
+                  onKeyDown={(e) => e.key === "Enter" && (document.getElementById("file1") as HTMLInputElement | null)?.click()}
                 >
-                  <strong className="numMono">{aspect}</strong>
-                  {/* без пробілу між "·" та цифрою */}
-                  <span className="numMono light">·{omniN}</span>
-                </button>
-
-                {settingsOpen && (
-                  <div
-                    ref={settingsPanelRef}
-                    className="settingsDropdown"
-                    role="menu"
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                  >
-                    <div className="settingsGroup">
-                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                        <RatioSelect value={aspect} onChange={setAspect} lang={lang} />
-                      </div>
-                    </div>
-
-                    <div className="settingsGroup">
-                      <div className="groupTitle">{lang === "uk" ? "Кількість" : "Output"}</div>
-                      <div className="groupButtons">
-                        {Array.from({ length: 9 }, (_, i) => i + 1).map((k) => (
-                          <button
-                            key={k}
-                            type="button"
-                            className={omniN === k ? "active" : ""}
-                            onClick={() => setOmniN(k)}
-                          >
-                            {k}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                      <button type="button" className="ios-btn ios-btn--ghost" onClick={() => setSettingsOpen(false)}>
-                        OK
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {refUploading && (
-                <div className="gen-pill">
-                  <span>
-                    {lang === "uk" ? "Завантаження фото" : "Uploading image"}
-                    <LoadingDots />
-                  </span>
-                </div>
-              )}
-            </div>
-
-            <textarea
-              className="ios-textarea"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder={lang === "uk" ? "Опиши що потрібно зробити..." : "Describe what you want..."}
-            />
-          </>
-        )}
-
-        {/* VIDEO UI */}
-        {mediaTab === "video" && (
-          <>
-            <div className="seg" style={{ marginTop: 4 }}>
-              <button className={videoMode === "i2v" ? "active" : ""} onClick={() => setVideoMode("i2v")} type="button">
-                {lang === "uk" ? "Картинка → Відео" : "Image → Video"}
-              </button>
-              <button className={videoMode === "motion" ? "active" : ""} onClick={() => setVideoMode("motion")} type="button">
-                {lang === "uk" ? "Контроль рухів" : "Motion Control"}
-              </button>
-            </div>
-
-            {videoMode === "i2v" ? (
-              <>
-                <div className="uploadRow">
-                  <div
-                    className="uploadTile"
-                    role="button"
-                    tabIndex={0}
-                    aria-label={lang === "uk" ? "Початкове фото" : "Start image"}
-                    onClick={() => (document.getElementById("vStart") as HTMLInputElement | null)?.click()}
-                  >
-                    {vStartPreview ? (
-                      <>
-                        <img src={vStartPreview} alt="video-start" />
-                        <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="uploadPlus">+</span>
-                        <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                      </>
-                    )}
-                  </div>
-
-                  <input id="vStart" type="file" accept={acceptImg} style={{ display: "none" }} onChange={(e) => setVStartImg(e.target.files?.[0] ?? null)} />
-
-                  {vStartImg && videoQuality === "pro" && (
+                  {srcPreview ? (
                     <>
-                      <div
-                        className="uploadTile"
-                        role="button"
-                        tabIndex={0}
-                        aria-label={lang === "uk" ? "Кінцеве фото (тільки PRO)" : "End image (PRO only)"}
-                        onClick={() => (document.getElementById("vEnd") as HTMLInputElement | null)?.click()}
+                      <img src={srcPreview} alt="reference1" />
+                      <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
+                      <button
+                        type="button"
+                        className="tile-remove"
+                        aria-label={lang === "uk" ? "Видалити референс" : "Remove reference"}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSrcFile(null);
+                          setSrcUrl("");
+                        }}
                       >
-                        {vEndPreview ? (
-                          <>
-                            <img src={vEndPreview} alt="video-end" />
-                            <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="uploadPlus">+</span>
-                            <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                          </>
-                        )}
-                      </div>
-
-                      <input id="vEnd" type="file" accept={acceptImg} style={{ display: "none" }} onChange={(e) => setVEndImg(e.target.files?.[0] ?? null)} />
+                        ✕
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span className="uploadPlus">+</span>
+                      <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
                     </>
                   )}
                 </div>
-              </>
-            ) : (
-              <>
-                <div className="uploadRow">
-                  <div
-                    className="uploadTile"
-                    role="button"
-                    tabIndex={0}
-                    aria-label={lang === "uk" ? "Відео з рухами" : "Motion video"}
-                    onClick={() => (document.getElementById("vMotion") as HTMLInputElement | null)?.click()}
-                  >
-                    {motionPreviewUrl ? (
-                      <>
-                        <video
-                          src={motionPreviewUrl}
-                          muted
-                          playsInline
-                          controls
-                          preload="metadata"
-                          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-                        />
-                        <span className="tile-label">{lang === "uk" ? "Відео" : "Video"}</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="uploadPlus">+</span>
-                        <span className="tile-label">{lang === "uk" ? "Відео" : "Video"}</span>
-                      </>
-                    )}
-                  </div>
 
-                  <input
-                    id="vMotion"
-                    type="file"
-                    accept={acceptVid}
-                    style={{ display: "none" }}
-                    onChange={async (e) => {
-                      const f = e.target.files?.[0] ?? null;
-                      setVMotionVideo(f);
-                      if (!f) {
-                        setRefVideoSeconds(0);
-                        return;
-                      }
-                      try {
-                        const url = URL.createObjectURL(f);
-                        const vid = document.createElement("video");
-                        vid.preload = "metadata";
-                        vid.src = url;
-                        await new Promise((resolve) => {
-                          vid.onloadedmetadata = () => {
-                            const secs = Math.round(vid.duration || 0);
-                            setRefVideoSeconds(secs);
-                            resolve(true);
-                          };
-                          vid.onerror = () => {
-                            setRefVideoSeconds(0);
-                            resolve(true);
-                          };
-                        });
-                        URL.revokeObjectURL(url);
-                      } catch {
-                        setRefVideoSeconds(0);
-                      }
-                    }}
-                  />
+                <input
+                  id="file1"
+                  type="file"
+                  accept={acceptImg}
+                  style={{ display: "none" }}
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0] ?? null;
 
-                  <div
-                    className="uploadTile"
-                    role="button"
-                    tabIndex={0}
-                    aria-label={lang === "uk" ? "Фото персонажа" : "Character image"}
-                    onClick={() => (document.getElementById("vChar") as HTMLInputElement | null)?.click()}
-                  >
-                    {vCharPreview ? (
-                      <>
-                        <img src={vCharPreview} alt="character" />
-                        <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="uploadPlus">+</span>
-                        <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                      </>
-                    )}
-                  </div>
+                    setError(null);
+                    setSrcFile(f);
+                    setSrcUrl("");
 
-                  <input id="vChar" type="file" accept={acceptImg} style={{ display: "none" }} onChange={(e) => setVCharacterImg(e.target.files?.[0] ?? null)} />
-                </div>
+                    if (!f) return;
 
-                <div className="vRow">
-                  <div className="vPill">
-                    <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Тривалість референсу" : "Reference duration"}</span>
-                    <span style={{ opacity: 0.9, marginLeft: 8 }}>{Math.min(30, Math.ceil(refVideoSeconds || 0))}с</span>
-                  </div>
-
-                  <div className="vPill" style={{ cursor: "pointer" }} onClick={() => setKeepOriginalSound((v) => !v)}>
-                    <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Аудіо" : "Audio"}</span>
-                    <span style={{ opacity: 0.9 }}>{keepOriginalSound ? "ON" : "OFF"}</span>
-                  </div>
-                </div>
-              </>
-            )}
-
-            <div className="vRow">
-              <div className="vPill">
-                <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Якість" : "Quality"}</span>
-                <select className="vSelect" value={videoQuality} onChange={(e) => setVideoQuality(e.target.value as VideoQuality)}>
-                  <option value="standard">Standard</option>
-                  <option value="pro">Professional</option>
-                </select>
+                    try {
+                      setRefUploading(true);
+                      const { url } = await uploadToR2AndGetPublicUrl(f);
+                      setSrcUrl(url);
+                    } catch (err: any) {
+                      setError(normalizeErr(err));
+                    } finally {
+                      setRefUploading(false);
+                    }
+                  }}
+                />
               </div>
 
-              {videoMode === "i2v" && (
+              {/* Settings trigger + dropdown */}
+              <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
+                <div className="settingsWrap">
+                  <button
+                    type="button"
+                    className="vPill settings-pill"
+                    onClick={() => setSettingsOpen((v) => !v)}
+                    aria-haspopup="menu"
+                    aria-expanded={settingsOpen}
+                  >
+                    <strong className="numMono">{aspect}</strong>
+                    {/* без пробілу між "·" та цифрою */}
+                    <span className="numMono light">·{omniN}</span>
+                  </button>
+
+                  {settingsOpen && (
+                    <div
+                      ref={settingsPanelRef}
+                      className="settingsDropdown"
+                      role="menu"
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onTouchStart={(e) => e.stopPropagation()}
+                    >
+                      <div className="settingsGroup">
+                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          <RatioSelect value={aspect} onChange={setAspect} lang={lang} />
+                        </div>
+                      </div>
+
+                      <div className="settingsGroup">
+                        <div className="groupTitle">{lang === "uk" ? "Кількість" : "Output"}</div>
+                        <div className="groupButtons">
+                          {Array.from({ length: 9 }, (_, i) => i + 1).map((k) => (
+                            <button
+                              key={k}
+                              type="button"
+                              className={omniN === k ? "active" : ""}
+                              onClick={() => setOmniN(k)}
+                            >
+                              {k}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                        <button type="button" className="ios-btn ios-btn--ghost" onClick={() => setSettingsOpen(false)}>
+                          OK
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {refUploading && (
+                  <div className="gen-pill">
+                    <span>
+                      {lang === "uk" ? "Завантаження фото" : "Uploading image"}
+                      <LoadingDots />
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <textarea
+                className="ios-textarea"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                suppressHydrationWarning={true}
+                placeholder={lang === "uk" ? "Опиши що потрібно зробити..." : "Describe what you want..."}
+              />
+            </>
+          )}
+
+          {/* VIDEO UI */}
+          {mediaTab === "video" && (
+            <>
+              <div className="seg" style={{ marginTop: 4 }}>
+                <button className={videoMode === "i2v" ? "active" : ""} onClick={() => setVideoMode("i2v")} type="button">
+                  {lang === "uk" ? "Картинка → Відео" : "Image → Video"}
+                </button>
+                <button className={videoMode === "motion" ? "active" : ""} onClick={() => setVideoMode("motion")} type="button">
+                  {lang === "uk" ? "Контроль рухів" : "Motion Control"}
+                </button>
+              </div>
+
+              {videoMode === "i2v" ? (
+                <>
+                  <div className="uploadRow">
+                    <div
+                      className="uploadTile"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={lang === "uk" ? "Початкове фото" : "Start image"}
+                      onClick={() => (document.getElementById("vStart") as HTMLInputElement | null)?.click()}
+                    >
+                      {vStartPreview ? (
+                        <>
+                          <img src={vStartPreview} alt="video-start" />
+                          <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="uploadPlus">+</span>
+                          <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
+                        </>
+                      )}
+                    </div>
+
+                    <input id="vStart" type="file" accept={acceptImg} style={{ display: "none" }} onChange={(e) => setVStartImg(e.target.files?.[0] ?? null)} />
+
+                    {vStartImg && videoQuality === "pro" && (
+                      <>
+                        <div
+                          className="uploadTile"
+                          role="button"
+                          tabIndex={0}
+                          aria-label={lang === "uk" ? "Кінцеве фото (тільки PRO)" : "End image (PRO only)"}
+                          onClick={() => (document.getElementById("vEnd") as HTMLInputElement | null)?.click()}
+                        >
+                          {vEndPreview ? (
+                            <>
+                              <img src={vEndPreview} alt="video-end" />
+                              <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="uploadPlus">+</span>
+                              <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
+                            </>
+                          )}
+                        </div>
+
+                        <input id="vEnd" type="file" accept={acceptImg} style={{ display: "none" }} onChange={(e) => setVEndImg(e.target.files?.[0] ?? null)} />
+                      </>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="uploadRow">
+                    <div
+                      className="uploadTile"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={lang === "uk" ? "Відео з рухами" : "Motion video"}
+                      onClick={() => (document.getElementById("vMotion") as HTMLInputElement | null)?.click()}
+                    >
+                      {motionPreviewUrl ? (
+                        <>
+                          <video
+                            src={motionPreviewUrl}
+                            muted
+                            playsInline
+                            controls
+                            preload="metadata"
+                            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+                          />
+                          <span className="tile-label">{lang === "uk" ? "Відео" : "Video"}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="uploadPlus">+</span>
+                          <span className="tile-label">{lang === "uk" ? "Відео" : "Video"}</span>
+                        </>
+                      )}
+                    </div>
+
+                    <input
+                      id="vMotion"
+                      type="file"
+                      accept={acceptVid}
+                      style={{ display: "none" }}
+                      onChange={async (e) => {
+                        const f = e.target.files?.[0] ?? null;
+                        setVMotionVideo(f);
+                        if (!f) {
+                          setRefVideoSeconds(0);
+                          return;
+                        }
+                        try {
+                          const url = URL.createObjectURL(f);
+                          const vid = document.createElement("video");
+                          vid.preload = "metadata";
+                          vid.src = url;
+                          await new Promise((resolve) => {
+                            vid.onloadedmetadata = () => {
+                              const secs = Math.round(vid.duration || 0);
+                              setRefVideoSeconds(secs);
+                              resolve(true);
+                            };
+                            vid.onerror = () => {
+                              setRefVideoSeconds(0);
+                              resolve(true);
+                            };
+                          });
+                          URL.revokeObjectURL(url);
+                        } catch {
+                          setRefVideoSeconds(0);
+                        }
+                      }}
+                    />
+
+                    <div
+                      className="uploadTile"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={lang === "uk" ? "Фото персонажа" : "Character image"}
+                      onClick={() => (document.getElementById("vChar") as HTMLInputElement | null)?.click()}
+                    >
+                      {vCharPreview ? (
+                        <>
+                          <img src={vCharPreview} alt="character" />
+                          <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="uploadPlus">+</span>
+                          <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
+                        </>
+                      )}
+                    </div>
+
+                    <input id="vChar" type="file" accept={acceptImg} style={{ display: "none" }} onChange={(e) => setVCharacterImg(e.target.files?.[0] ?? null)} />
+                  </div>
+
+                  <div className="vRow">
+                    <div className="vPill">
+                      <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Тривалість референсу" : "Reference duration"}</span>
+                      <span style={{ opacity: 0.9, marginLeft: 8 }}>{Math.min(30, Math.ceil(refVideoSeconds || 0))}с</span>
+                    </div>
+
+                    <div className="vPill" style={{ cursor: "pointer" }} onClick={() => setKeepOriginalSound((v) => !v)}>
+                      <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Аудіо" : "Audio"}</span>
+                      <span style={{ opacity: 0.9 }}>{keepOriginalSound ? "ON" : "OFF"}</span>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="vRow">
                 <div className="vPill">
-                  <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Тривалість" : "Duration"}</span>
-                  <select className="vSelect" value={String(videoDuration)} onChange={(e) => setVideoDuration(Number(e.target.value) as VideoDuration)}>
-                    <option value="5">5s</option>
-                    <option value="10">10s</option>
+                  <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Якість" : "Quality"}</span>
+                  <select className="vSelect" value={videoQuality} onChange={(e) => setVideoQuality(e.target.value as VideoQuality)}>
+                    <option value="standard">Standard</option>
+                    <option value="pro">Professional</option>
                   </select>
+                </div>
+
+                {videoMode === "i2v" && (
+                  <div className="vPill">
+                    <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Тривалість" : "Duration"}</span>
+                    <select className="vSelect" value={String(videoDuration)} onChange={(e) => setVideoDuration(Number(e.target.value) as VideoDuration)}>
+                      <option value="5">5s</option>
+                      <option value="10">10s</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              <textarea
+                className="ios-textarea"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                suppressHydrationWarning={true}
+                placeholder={lang === "uk" ? "Опиши що потрібно зробити (опційно)..." : "Describe what you want (optional)..."}
+              />
+            </>
+          )}
+
+          {(!session || (!!session && points <= 0) || (!!session && points > 0 && points < currentCost)) && (
+            <div style={{ marginTop: 10, opacity: 0.9 }}>
+              {!session && <div>Щоб генерувати — увійди через Google.</div>}
+              {!!session && points <= 0 && (
+                <div>
+                  У тебе 0 балів —{" "}
+                  <Link href="/account" style={{ textDecoration: "underline" }}>
+                    обери пакет балів
+                  </Link>
+                  .
+                </div>
+              )}
+              {!!session && points > 0 && points < currentCost && (
+                <div>
+                  Недостатньо балів —{" "}
+                  <Link href="/account" style={{ textDecoration: "underline" }}>
+                    поповнити
+                  </Link>
+                  .
                 </div>
               )}
             </div>
+          )}
 
-            <textarea
-              className="ios-textarea"
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder={lang === "uk" ? "Опиши що потрібно зробити (опційно)..." : "Describe what you want (optional)..."}
-            />
-          </>
-        )}
+          <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
+            <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
+              {generateBtnText}
+            </button>
 
-        {(!session || (!!session && points <= 0) || (!!session && points > 0 && points < currentCost)) && (
-          <div style={{ marginTop: 10, opacity: 0.9 }}>
-            {!session && <div>Щоб генерувати — увійди через Google.</div>}
-            {!!session && points <= 0 && (
-              <div>
-                У тебе 0 балів —{" "}
-                <Link href="/account" style={{ textDecoration: "underline" }}>
-                  обери пакет балів
-                </Link>
-                .
+            {(loading || refUploading) && (
+              <div className="gen-pill">
+                <span>
+                  {loading ? dict.generating : lang === "uk" ? "Завантаження фото" : "Uploading image"}
+                  <LoadingDots />
+                </span>
               </div>
             )}
-            {!!session && points > 0 && points < currentCost && (
-              <div>
-                Недостатньо балів —{" "}
-                <Link href="/account" style={{ textDecoration: "underline" }}>
-                  поповнити
-                </Link>
-                .
+
+            {error && (
+              <div style={{ color: "rgba(255, 120, 120, 0.95)", maxWidth: 680, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                {error}
               </div>
             )}
           </div>
+        </div>
+
+        {loading && imageUrls.length === 0 && (
+          <div style={{ marginTop: 14 }}>
+            <div className="skeleton" />
+          </div>
         )}
 
-        <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
-          <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
-            {generateBtnText}
-          </button>
-
-          {(loading || refUploading) && (
-            <div className="gen-pill">
-              <span>
-                {loading ? dict.generating : lang === "uk" ? "Завантаження фото" : "Uploading image"}
-                <LoadingDots />
-              </span>
-            </div>
-          )}
-
-          {error && (
-            <div style={{ color: "rgba(255, 120, 120, 0.95)", maxWidth: 680, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-              {error}
-            </div>
-          )}
-        </div>
+        {imageUrls.length > 0 && (
+          <div className="grid">
+            {imageUrls.map((url) => (
+              <a key={url} href={url} target="_blank" rel="noreferrer" className="thumb">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt="generated" />
+              </a>
+            ))}
+          </div>
+        )}
       </div>
-
-      {loading && imageUrls.length === 0 && (
-        <div style={{ marginTop: 14 }}>
-          <div className="skeleton" />
-        </div>
-      )}
-
-      {imageUrls.length > 0 && (
-        <div className="grid">
-          {imageUrls.map((url) => (
-            <a key={url} href={url} target="_blank" rel="noreferrer" className="thumb">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt="generated" />
-            </a>
-          ))}
-        </div>
-      )}
-    </div>
+    </>
   );
 }
