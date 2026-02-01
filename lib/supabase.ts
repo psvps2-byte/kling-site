@@ -2,10 +2,7 @@
 import { createClient } from "@supabase/supabase-js";
 
 export function getSupabaseAdmin() {
-  const url =
-    process.env.SUPABASE_URL ||
-    process.env.NEXT_PUBLIC_SUPABASE_URL;
-
+  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url) throw new Error("Missing SUPABASE_URL");
@@ -15,21 +12,21 @@ export function getSupabaseAdmin() {
     auth: { persistSession: false },
   });
 }
+
 export async function takeOnePendingGeneration() {
   const supabase = getSupabaseAdmin();
 
-  // 1) знайти одну задачу зі статусом PENDING
+  // 1) знайти одну задачу зі статусом QUEUED
   const { data, error } = await supabase
     .from("generations")
     .select("*")
-    .eq("status", "PENDING")
+    .eq("status", "QUEUED")
     .is("result_url", null)
+    .order("created_at", { ascending: true }) // брати найстарішу
     .limit(1)
     .single();
 
-  if (error || !data) {
-    return null;
-  }
+  if (error || !data) return null;
 
   // 2) помітити її як RUNNING
   const { error: updateError } = await supabase
@@ -37,9 +34,7 @@ export async function takeOnePendingGeneration() {
     .update({ status: "RUNNING" })
     .eq("id", data.id);
 
-  if (updateError) {
-    return null;
-  }
+  if (updateError) return null;
 
   return data;
 }
