@@ -30,7 +30,6 @@ function normalizeBaseUrl(raw) {
 const WORKER_BASE_URL = normalizeBaseUrl(WORKER_BASE_URL_RAW);
 
 function pickResultUrlFromHistory(json, fallback) {
-  // різні формати відповідей
   return (
     json?.result_url ||
     json?.resultUrl ||
@@ -55,7 +54,6 @@ function isDoneHistory(json) {
 
   if (["DONE", "SUCCESS", "SUCCEEDED", "COMPLETED", "FINISHED"].includes(status)) return true;
 
-  // якщо статус неочевидний — але є готовий URL, значить готово
   const url = pickResultUrlFromHistory(json, null);
   return Boolean(url);
 }
@@ -73,19 +71,40 @@ async function fetchJsonWithTimeout(url, timeoutMs = 15000) {
   }
 }
 
-async function runOnce() {
-  console.log("Worker tick", new Date().toISOString());
-
-  // 1) беремо 1 задачу з черги (RPC одразу ставить RUNNING)
+async function pickJob() {
+  // 1) пробуємо взяти задачу через RPC (черга)
   const { data, error } = await supabase.rpc("dequeue_generation");
   if (error) throw error;
 
-  if (!data || (Array.isArray(data) && data.length === 0)) {
+  if (data && (!Array.isArray(data) || data.length > 0)) {
+    return Array.isArray(data) ? data[0] : data;
+  }
+
+  // 2) FALLBACK: якщо черга порожня, беремо будь-який RUNNING з task_id напряму
+  const { data: rows, error: selErr } = await supabase
+    .from("generations")
+    .select("*")
+    .eq("status", "RUNNING")
+    .not("task_id", "is", null)
+    .is("result_url", null)
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  if (selErr) throw selErr;
+  if (!rows || rows.length === 0) return null;
+
+  return rows[0];
+}
+
+async function runOnce() {
+  console.log("Worker tick", new Date().toISOString());
+
+  const job = await pickJob();
+  if (!job) {
     console.log("No jobs available");
     return;
   }
 
-  const job = Array.isArray(data) ? data[0] : data;
   console.log("Picked job", job.id, "kind=", job.kind, "task_id=", job.task_id);
 
   if (!job.task_id) {
@@ -93,9 +112,9 @@ async function runOnce() {
     return;
   }
 
-
-  // 2) перевіряємо history
-  const historyUrl = `${WORKER_BASE_URL}/api/kling/history?task_id=${encodeURIComponent(job.task_id)}`;
+  const historyUrl = `${WORKER_BASE_URL}/api/kling/history?task_id=${encodeURIComponent(
+    job.task_id
+  )}`;
 
   let res, json;
   try {
@@ -103,7 +122,6 @@ async function runOnce() {
     res = out.res;
     json = out.json;
   } catch (e) {
-    // тимчасова помилка мережі/таймаут — НЕ валимо задачу в ERROR
     console.error("History fetch exception (will retry later)", String(e?.message || e));
     return;
   }
@@ -111,7 +129,6 @@ async function runOnce() {
   if (!res.ok) {
     console.error("History fetch failed", res.status, json);
 
-    // якщо Kling каже 404/invalid task — тоді вже ERROR
     if (res.status === 404) {
       await supabase.from("generations").update({ status: "ERROR" }).eq("id", job.id);
     }
@@ -129,7 +146,6 @@ async function runOnce() {
     return;
   }
 
-  // 3) помічаємо DONE
   const { error: doneErr } = await supabase.rpc("mark_generation_done", {
     p_id: job.id,
     p_result_url: resultUrl,
