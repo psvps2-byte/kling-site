@@ -15,7 +15,6 @@ async function makeToken(ak: string, sk: string) {
 }
 
 function getTaskIdFromKlingResponse(json: any): string | null {
-  // Під різні формати відповіді
   const taskId =
     json?.task_id ||
     json?.data?.task_id ||
@@ -36,17 +35,10 @@ export async function POST() {
     const KLING_BASE_URL = process.env.KLING_BASE_URL;
 
     if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      return NextResponse.json(
-        { message: "Missing Supabase env vars" },
-        { status: 500 }
-      );
+      return NextResponse.json({ message: "Missing Supabase env vars" }, { status: 500 });
     }
-
     if (!KLING_ACCESS_KEY || !KLING_SECRET_KEY || !KLING_BASE_URL) {
-      return NextResponse.json(
-        { message: "Missing Kling env vars" },
-        { status: 500 }
-      );
+      return NextResponse.json({ message: "Missing Kling env vars" }, { status: 500 });
     }
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -70,23 +62,28 @@ export async function POST() {
       return NextResponse.json({ message: "No free slots", started: 0 });
     }
 
-    // 2) Беремо з черги саме QUEUED
-    const { data: queued, error: qErr } = await supabase
+    // 2) АТОМАРНО "забираємо" з QUEUED -> CLAIMED (щоб паралельні запуски не брали те саме)
+    // Якщо в тебе немає статусу CLAIMED — можна тимчасово ставити RUNNING тут,
+    // але тоді воркер-поллер має брати тільки RUNNING + task_id IS NOT NULL.
+    const { data: claimed, error: claimErr } = await supabase
       .from("generations")
-      .select("*")
+      .update({ status: "CLAIMED" }) // <-- якщо нема CLAIMED, постав "RUNNING"
       .eq("kind", "PHOTO")
       .eq("status", "QUEUED")
+      .is("task_id", null)
+      .is("result_url", null)
       .order("created_at", { ascending: true })
-      .limit(freeSlots);
+      .limit(freeSlots)
+      .select("*");
 
-    if (qErr) {
+    if (claimErr) {
       return NextResponse.json(
-        { message: "DB error (queue)", error: qErr.message },
+        { message: "DB error (claim)", error: claimErr.message },
         { status: 500 }
       );
     }
 
-    if (!queued || queued.length === 0) {
+    if (!claimed || claimed.length === 0) {
       return NextResponse.json({ message: "Queue empty", started: 0 });
     }
 
@@ -95,7 +92,7 @@ export async function POST() {
     let started = 0;
 
     // 3) Запускаємо Kling
-    for (const job of queued) {
+    for (const job of claimed) {
       const res = await fetch(`${KLING_BASE_URL}/v1/images/generations`, {
         method: "POST",
         headers: {
@@ -107,30 +104,36 @@ export async function POST() {
 
       const json = await res.json().catch(() => ({}));
 
-      // корисно для дебагу
-      console.log("Kling response for job", job.id, json);
+      console.log("Kling response for job", job.id, "status", res.status, json);
 
       if (!res.ok) {
+        // Kling реально відмовив → ERROR
         await supabase
           .from("generations")
-          .update({ status: "ERROR" })
+          .update({
+            status: "ERROR",
+            // last_error: JSON.stringify(json), // якщо є колонка last_error
+          })
           .eq("id", job.id);
-
         continue;
       }
 
       const task_id = getTaskIdFromKlingResponse(json);
 
       if (!task_id) {
+        // Kling відповів ок, але task_id не знайшли.
+        // Краще повернути назад у QUEUED (або ERROR, якщо хочеш жорстко).
         await supabase
           .from("generations")
-          .update({ status: "ERROR" })
+          .update({
+            status: "QUEUED",
+            // last_error: "No task_id in Kling response",
+          })
           .eq("id", job.id);
-
         continue;
       }
 
-      // ✅ Як тільки отримали task_id — ставимо RUNNING
+      // ✅ task_id є → ставимо RUNNING
       const { error: updErr } = await supabase
         .from("generations")
         .update({
@@ -143,7 +146,7 @@ export async function POST() {
       if (!updErr) started += 1;
     }
 
-    return NextResponse.json({ started });
+    return NextResponse.json({ started, claimed: claimed.length });
   } catch (e: any) {
     console.error("queue/run POST error:", e);
     return NextResponse.json(

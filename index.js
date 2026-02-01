@@ -89,10 +89,10 @@ async function runOnce() {
   console.log("Picked job", job.id, "kind=", job.kind, "task_id=", job.task_id);
 
   if (!job.task_id) {
-    console.error("Job has no task_id, cannot poll history:", job.id);
-    await supabase.from("generations").update({ status: "ERROR" }).eq("id", job.id);
+    console.log("Job has no task_id yet, skip:", job.id);
     return;
   }
+
 
   // 2) перевіряємо history
   const historyUrl = `${WORKER_BASE_URL}/api/kling/history?task_id=${encodeURIComponent(job.task_id)}`;
