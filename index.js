@@ -112,9 +112,7 @@ async function runOnce() {
     return;
   }
 
-  const historyUrl = `${WORKER_BASE_URL}/api/kling/history?task_id=${encodeURIComponent(
-    job.task_id
-  )}`;
+  const historyUrl = `${WORKER_BASE_URL}/api/history`;
 
   let res, json;
   try {
