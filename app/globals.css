@@ -114,7 +114,7 @@ a { color: inherit; }
   -webkit-backdrop-filter: blur(14px) saturate(140%);
 }
 
-.ios-textarea { resize: vertical; min-height: 110px; }
+.ios-textarea { resize: vertical; min-height: 110px; margin-top: 0; }
 
 .grid {
   margin-top: 14px;

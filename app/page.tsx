@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Aspect } from "./types";
-import RatioSelect from "./components/RatioSelect";
 import { getLang, setLang, t, type Lang } from "./i18n";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -127,36 +126,40 @@ export default function Home() {
   // ✅ кількість генерацій (Omni O1 зазвичай 1..9)
   const [omniN, setOmniN] = useState<number>(1);
 
-  // Dropdown state (for Images tab)
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const settingsPanelRef = useRef<HTMLDivElement | null>(null);
+  // Inline small dropdowns (Format / Quantity)
+  const [formatOpen, setFormatOpen] = useState(false);
+  const [qtyOpen, setQtyOpen] = useState(false);
+  const inlineSelectorsRef = useRef<HTMLDivElement | null>(null);
 
-  // Close on Escape + click outside dropdown
   useEffect(() => {
-    if (!settingsOpen) return;
-
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setSettingsOpen(false);
-    }
-
-    function handleOutside(e: MouseEvent | TouchEvent) {
-      const el = settingsPanelRef.current;
-      if (!el) return;
-      if (e.target instanceof Node && !el.contains(e.target)) {
-        setSettingsOpen(false);
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setFormatOpen(false);
+        setQtyOpen(false);
       }
     }
 
-    document.addEventListener("keydown", handleKey);
-    document.addEventListener("mousedown", handleOutside, true);
-    document.addEventListener("touchstart", handleOutside, true);
+    function onOutside(e: MouseEvent | TouchEvent) {
+      const el = inlineSelectorsRef.current;
+      if (!el) return;
+      if (e.target instanceof Node && !el.contains(e.target)) {
+        setFormatOpen(false);
+        setQtyOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onOutside, true);
+    document.addEventListener("touchstart", onOutside, true);
 
     return () => {
-      document.removeEventListener("keydown", handleKey);
-      document.removeEventListener("mousedown", handleOutside, true);
-      document.removeEventListener("touchstart", handleOutside, true);
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onOutside, true);
+      document.removeEventListener("touchstart", onOutside, true);
     };
-  }, [settingsOpen]);
+  }, []);
+
+  
 
   const acceptImg = "image/jpeg,image/png,image/heic,image/heif,.heic,.heif,.jpg,.jpeg,.png";
   const srcPreview = useMemo(() => (srcFile ? URL.createObjectURL(srcFile) : ""), [srcFile]);
@@ -166,6 +169,11 @@ export default function Home() {
   const [videoMode, setVideoMode] = useState<VideoMode>("i2v");
   const [videoQuality, setVideoQuality] = useState<VideoQuality>("standard");
   const [videoDuration, setVideoDuration] = useState<VideoDuration>(5);
+  const [qualityOpen, setQualityOpen] = useState(false);
+  const [durationOpen, setDurationOpen] = useState(false);
+
+  const qualityRef = useRef<HTMLDivElement | null>(null);
+  const durationRef = useRef<HTMLDivElement | null>(null);
 
   const [vStartImg, setVStartImg] = useState<File | null>(null);
   const [vEndImg, setVEndImg] = useState<File | null>(null);
@@ -618,7 +626,7 @@ export default function Home() {
 
   return (
     <>
-        <div className="page-wrap">
+      <div className="page-wrap">
 
 
         <style jsx global>{`
@@ -904,19 +912,7 @@ export default function Home() {
           display: block;
         }
 
-        /* ===== Settings trigger button ===== */
-        .settings-pill {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 12px;
-          border-radius: 999px;
-          background: rgba(255, 255, 255, 0.03);
-          color: rgba(255, 255, 255, 0.95);
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          cursor: pointer;
-          font-weight: 600;
-        }
+        /* settings-pill removed; using inline select triggers */
 
         /* anchor for dropdown */
         .settingsWrap {
@@ -965,6 +961,102 @@ export default function Home() {
           color: #fff;
         }
 
+        /* --- NEW: separate grids --- */
+        .formatButtons {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 8px;
+        }
+
+        .qtyButtons {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 8px;
+        }
+
+        .formatButtons button,
+        .qtyButtons button {
+          margin: 0;
+          width: 100%;
+        }
+
+        .selectTrigger {
+          padding: 8px 12px;
+          border-radius: 12px;
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(255,255,255,0.06);
+          color: #fff;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          cursor: pointer;
+        }
+
+        .smallDropdown {
+          position: absolute;
+          top: calc(100% + 8px);
+          left: 0;
+          z-index: 10000;
+          width: max-content;
+          background: rgba(6,8,12,0.82);
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 10px;
+          padding: 8px;
+          box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+          backdrop-filter: blur(10px) saturate(120%);
+          -webkit-backdrop-filter: blur(10px) saturate(120%);
+        }
+
+        .smallDropdown button {
+          background: transparent;
+          border: none;
+          color: white;
+          padding: 8px 10px;
+          border-radius: 8px;
+          cursor: pointer;
+          text-align: left;
+          width: 100%;
+        }
+
+        .smallDropdown button:hover {
+          background: rgba(255,255,255,0.03);
+        }
+
+        .smallDropdown button.active {
+          background: rgba(10,132,255,0.18);
+          border-radius: 8px;
+        }
+
+        @media (max-width: 640px) {
+
+          /* Тригери Формат / Кількість */
+          .miniSelectTrigger {
+            padding: 10px 14px;
+            font-size: 15px;
+            min-height: 40px;
+            border-radius: 12px;
+          }
+
+          /* Кнопки всередині dropdown (1:1, 16:9, цифри) */
+          .formatOption,
+          .qtyOption {
+            padding: 12px 0;
+            font-size: 15px;
+            border-radius: 10px;
+          }
+
+          /* Контейнер гріда кількості */
+          .qtyGrid {
+            gap: 10px;
+          }
+
+          /* Сам dropdown трохи більший */
+          .miniDropdown {
+            padding: 12px;
+            border-radius: 14px;
+          }
+        }
+
         /* tabular numbers so they look одинаково (як 1:1) */
         .numMono {
           font-variant-numeric: tabular-nums;
@@ -986,6 +1078,10 @@ export default function Home() {
           gap: 12px;
           padding-left: 6px;
         }
+
+        /* spacer placed before prompt textarea to unify spacing across tabs */
+        .promptSpacer { margin-top: 10px; }
+        @media (max-width: 640px) { .promptSpacer { margin-top: 12px; } }
 
         /* previously hid the internal LegalMenu open button; removed so the embedded menu remains the sole menu button */
       `}</style>
@@ -1141,58 +1237,95 @@ export default function Home() {
                 />
               </div>
 
-              {/* Settings trigger + dropdown */}
+              {/* Inline Format + Quantity selectors */}
               <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
-                <div className="settingsWrap">
-                  <button
-                    type="button"
-                    className="vPill settings-pill"
-                    onClick={() => setSettingsOpen((v) => !v)}
-                    aria-haspopup="menu"
-                    aria-expanded={settingsOpen}
-                  >
-                    <strong className="numMono">{aspect}</strong>
-                    {/* без пробілу між "·" та цифрою */}
-                    <span className="numMono light">·{omniN}</span>
-                  </button>
-
-                  {settingsOpen && (
-                    <div
-                      ref={settingsPanelRef}
-                      className="settingsDropdown"
-                      role="menu"
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onTouchStart={(e) => e.stopPropagation()}
-                    >
-                      <div className="settingsGroup">
-                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                          <RatioSelect value={aspect} onChange={setAspect} lang={lang} />
-                        </div>
-                      </div>
-
-                      <div className="settingsGroup">
-                        <div className="groupTitle">{lang === "uk" ? "Кількість" : "Output"}</div>
-                        <div className="groupButtons">
-                          {Array.from({ length: 9 }, (_, i) => i + 1).map((k) => (
-                            <button
-                              key={k}
-                              type="button"
-                              className={omniN === k ? "active" : ""}
-                              onClick={() => setOmniN(k)}
-                            >
-                              {k}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                        <button type="button" className="ios-btn ios-btn--ghost" onClick={() => setSettingsOpen(false)}>
-                          OK
-                        </button>
-                      </div>
+                <div ref={inlineSelectorsRef} style={{ display: "flex", gap: 24, alignItems: "center" }}>
+                  {/* Format trigger with label */}
+                  <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                    <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>
+                      {lang === "uk" ? "Формат" : "Format"}
                     </div>
-                  )}
+                    <div style={{ position: "relative" }}>
+                      <button
+                        type="button"
+                        className="vPill selectTrigger miniSelectTrigger"
+                        onClick={() => {
+                          setFormatOpen((v) => !v);
+                          setQtyOpen(false);
+                        }}
+                        aria-haspopup="menu"
+                        aria-expanded={formatOpen}
+                      >
+                        <span style={{ opacity: 0.95 }}>{aspect}</span>
+                        <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>▾</span>
+                      </button>
+
+                      {formatOpen && (
+                        <div className="smallDropdown miniDropdown" role="menu" onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            {(["1:1", "16:9", "9:16"] as const).map((r) => (
+                              <button
+                                key={r}
+                                type="button"
+                                className={aspect === r ? "formatOption active numMono" : "formatOption numMono"}
+                                onClick={() => {
+                                  setAspect(r);
+                                  setFormatOpen(false);
+                                }}
+                              >
+                                <span style={{ display: "inline-flex", justifyContent: "space-between", width: "100%" }}>
+                                  <span>{r}</span>
+                                  {aspect === r && <span>✓</span>}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Quantity trigger with label */}
+                  <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                    <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>
+                      {lang === "uk" ? "Кількість" : "Quantity"}
+                    </div>
+                    <div style={{ position: "relative" }}>
+                      <button
+                        type="button"
+                        className="vPill selectTrigger miniSelectTrigger"
+                        onClick={() => {
+                          setQtyOpen((v) => !v);
+                          setFormatOpen(false);
+                        }}
+                        aria-haspopup="menu"
+                        aria-expanded={qtyOpen}
+                      >
+                        <span style={{ opacity: 0.95 }}>{omniN}</span>
+                        <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>▾</span>
+                      </button>
+
+                      {qtyOpen && (
+                        <div className="smallDropdown miniDropdown" role="menu" onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
+                          <div className="qtyButtons qtyGrid" style={{ width: 180 }}>
+                            {Array.from({ length: 9 }, (_, i) => i + 1).map((k) => (
+                              <button
+                                key={k}
+                                type="button"
+                                className={omniN === k ? "qtyOption active" : "qtyOption"}
+                                onClick={() => {
+                                  setOmniN(k);
+                                  setQtyOpen(false);
+                                }}
+                              >
+                                {k}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {refUploading && (
@@ -1205,6 +1338,7 @@ export default function Home() {
                 )}
               </div>
 
+              <div className="promptSpacer" />
               <textarea
                 className="ios-textarea"
                 value={prompt}
@@ -1241,6 +1375,18 @@ export default function Home() {
                         <>
                           <img src={vStartPreview} alt="video-start" />
                           <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
+                          <button
+                            type="button"
+                            className="tile-remove"
+                            aria-label={lang === "uk" ? "Видалити" : "Remove"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setVStartImg(null);
+                              setVEndImg(null);
+                            }}
+                          >
+                            ✕
+                          </button>
                         </>
                       ) : (
                         <>
@@ -1265,6 +1411,17 @@ export default function Home() {
                             <>
                               <img src={vEndPreview} alt="video-end" />
                               <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
+                                  <button
+                                    type="button"
+                                    className="tile-remove"
+                                    aria-label={lang === "uk" ? "Видалити" : "Remove"}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setVEndImg(null);
+                                    }}
+                                  >
+                                    ✕
+                                  </button>
                             </>
                           ) : (
                             <>
@@ -1300,6 +1457,19 @@ export default function Home() {
                             style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
                           />
                           <span className="tile-label">{lang === "uk" ? "Відео" : "Video"}</span>
+                          <button
+                            type="button"
+                            className="tile-remove"
+                            aria-label={lang === "uk" ? "Видалити" : "Remove"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setVMotionVideo(null);
+                              setMotionPreviewUrl("");
+                              setRefVideoSeconds(0);
+                            }}
+                          >
+                            ✕
+                          </button>
                         </>
                       ) : (
                         <>
@@ -1355,6 +1525,17 @@ export default function Home() {
                         <>
                           <img src={vCharPreview} alt="character" />
                           <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
+                            <button
+                              type="button"
+                              className="tile-remove"
+                              aria-label={lang === "uk" ? "Видалити" : "Remove"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setVCharacterImg(null);
+                              }}
+                            >
+                              ✕
+                            </button>
                         </>
                       ) : (
                         <>
@@ -1382,25 +1563,94 @@ export default function Home() {
               )}
 
               <div className="vRow">
-                <div className="vPill">
-                  <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Якість" : "Quality"}</span>
-                  <select className="vSelect" value={videoQuality} onChange={(e) => setVideoQuality(e.target.value as VideoQuality)}>
-                    <option value="standard">Standard</option>
-                    <option value="pro">Professional</option>
-                  </select>
+                <div ref={qualityRef} style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                  <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>{lang === "uk" ? "Якість" : "Quality"}</div>
+                  <div style={{ position: "relative" }}>
+                    <button
+                      type="button"
+                      className="vPill selectTrigger miniSelectTrigger"
+                      onClick={() => {
+                        setQualityOpen((v) => !v);
+                        setDurationOpen(false);
+                      }}
+                      aria-haspopup="menu"
+                      aria-expanded={qualityOpen}
+                    >
+                      <span style={{ opacity: 0.95 }}>{videoQuality === "standard" ? "Standard" : "Professional"}</span>
+                      <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>▾</span>
+                    </button>
+
+                    {qualityOpen && (
+                      <div className="smallDropdown miniDropdown" role="menu" onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          {([
+                            ["standard", lang === "uk" ? "Стандарт" : "Standard"],
+                            ["pro", lang === "uk" ? "Професійно" : "Professional"],
+                          ] as const).map(([val, label]) => (
+                            <button
+                              key={String(val)}
+                              type="button"
+                              className={videoQuality === val ? "formatOption active numMono" : "formatOption numMono"}
+                              onClick={() => {
+                                setVideoQuality(val as VideoQuality);
+                                setQualityOpen(false);
+                              }}
+                            >
+                              <span style={{ display: "inline-flex", justifyContent: "space-between", width: "100%" }}>
+                                <span>{label}</span>
+                                {videoQuality === val && <span>✓</span>}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {videoMode === "i2v" && (
-                  <div className="vPill">
-                    <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Тривалість" : "Duration"}</span>
-                    <select className="vSelect" value={String(videoDuration)} onChange={(e) => setVideoDuration(Number(e.target.value) as VideoDuration)}>
-                      <option value="5">5s</option>
-                      <option value="10">10s</option>
-                    </select>
+                  <div ref={durationRef} style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                    <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>{lang === "uk" ? "Тривалість" : "Duration"}</div>
+                    <div style={{ position: "relative" }}>
+                      <button
+                        type="button"
+                        className="vPill selectTrigger miniSelectTrigger"
+                        onClick={() => {
+                          setDurationOpen((v) => !v);
+                          setQualityOpen(false);
+                        }}
+                        aria-haspopup="menu"
+                        aria-expanded={durationOpen}
+                      >
+                        <span style={{ opacity: 0.95 }}>{videoDuration === 5 ? "5s" : "10s"}</span>
+                        <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>▾</span>
+                      </button>
+
+                      {durationOpen && (
+                        <div className="smallDropdown miniDropdown" role="menu" onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            {[5, 10].map((v) => (
+                              <button
+                                key={v}
+                                type="button"
+                                className={videoDuration === v ? "formatOption active numMono" : "formatOption numMono"}
+                                onClick={() => {
+                                  setVideoDuration(v as VideoDuration);
+                                  setDurationOpen(false);
+                                }}
+                              >
+                                {v}s
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
 
+              <div className="promptSpacer" />
               <textarea
                 className="ios-textarea"
                 value={prompt}
