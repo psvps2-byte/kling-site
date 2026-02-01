@@ -13,7 +13,12 @@ export function getSupabaseAdmin() {
   });
 }
 
-export async function takeOnePendingGeneration() {
+/**
+ * Забирає 1 задачу зі статусом QUEUED і атомарно намагається помітити як RUNNING.
+ * Важливо: update робимо з умовою status=QUEUED і result_url is null,
+ * щоб не було гонок (коли 2 воркери схопили одну задачу).
+ */
+export async function takeOneQueuedGeneration() {
   const supabase = getSupabaseAdmin();
 
   // 1) знайти одну задачу зі статусом QUEUED
@@ -22,19 +27,26 @@ export async function takeOnePendingGeneration() {
     .select("*")
     .eq("status", "QUEUED")
     .is("result_url", null)
-    .order("created_at", { ascending: true }) // брати найстарішу
+    .order("created_at", { ascending: true }) // найстаріша
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error || !data) return null;
 
-  // 2) помітити її як RUNNING
-  const { error: updateError } = await supabase
+  // 2) атомарно помітити її як RUNNING (тільки якщо вона досі QUEUED і без result_url)
+  const { data: updated, error: updateError } = await supabase
     .from("generations")
     .update({ status: "RUNNING" })
-    .eq("id", data.id);
+    .eq("id", data.id)
+    .eq("status", "QUEUED")
+    .is("result_url", null)
+    .select("*")
+    .maybeSingle();
 
-  if (updateError) return null;
+  if (updateError || !updated) {
+    // хтось уже забрав/оновив — просто пропускаємо
+    return null;
+  }
 
-  return data;
+  return updated;
 }
