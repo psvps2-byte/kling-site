@@ -20,7 +20,7 @@ export async function POST() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // 1️⃣ Скільки зараз RUNNING
+  // 1) Скільки зараз RUNNING
   const { count: runningCount } = await supabase
     .from("generations")
     .select("*", { count: "exact", head: true })
@@ -32,14 +32,18 @@ export async function POST() {
     return NextResponse.json({ message: "No free slots" });
   }
 
-  // 2️⃣ Беремо PENDING
-  const { data: queued } = await supabase
+  // 2) Беремо з черги саме QUEUED (а не PENDING)
+  const { data: queued, error: qErr } = await supabase
     .from("generations")
     .select("*")
     .eq("kind", "PHOTO")
-    .eq("status", "PENDING")
+    .eq("status", "QUEUED")
     .order("created_at", { ascending: true })
     .limit(freeSlots);
+
+  if (qErr) {
+    return NextResponse.json({ message: "DB error", error: qErr.message }, { status: 500 });
+  }
 
   if (!queued || queued.length === 0) {
     return NextResponse.json({ message: "Queue empty" });
@@ -50,7 +54,9 @@ export async function POST() {
     process.env.KLING_SECRET_KEY!
   );
 
-  // 3️⃣ Запускаємо Kling
+  let started = 0;
+
+  // 3) Запускаємо Kling
   for (const job of queued) {
     const res = await fetch(
       `${process.env.KLING_BASE_URL}/v1/images/generations`,
@@ -64,23 +70,46 @@ export async function POST() {
       }
     );
 
-    if (!res.ok) continue;
+    const json = await res.json().catch(() => ({}));
 
-    const json = await res.json();
-    const task_id = json?.data?.task_id;
-
-    if (task_id) {
+    if (!res.ok) {
+      // якщо Kling відмовив — позначаємо ERROR щоб не висіло в черзі
       await supabase
         .from("generations")
         .update({
-          status: "PENDING",   // 👈 ВАЖЛИВО
-          task_id: task_id,
-          result_url: null,
+          status: "ERROR",
         })
         .eq("id", job.id);
 
+      continue;
     }
+
+    const task_id = json?.data?.task_id;
+
+    if (!task_id) {
+      // Kling ок, але не повернув task_id — теж ERROR (або можна лишити QUEUED)
+      await supabase
+        .from("generations")
+        .update({
+          status: "ERROR",
+        })
+        .eq("id", job.id);
+
+      continue;
+    }
+
+    // ✅ ВАЖЛИВО: як тільки отримали task_id — ставимо RUNNING
+    const { error: updErr } = await supabase
+      .from("generations")
+      .update({
+        status: "RUNNING",
+        task_id,
+        result_url: null,
+      })
+      .eq("id", job.id);
+
+    if (!updErr) started += 1;
   }
 
-  return NextResponse.json({ started: queued.length });
+  return NextResponse.json({ started });
 }
