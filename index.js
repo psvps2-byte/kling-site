@@ -153,14 +153,19 @@ async function runOnce() {
     return;
   }
 
-  const { error: doneErr } = await supabase.rpc("mark_generation_done", {
-    p_id: job.id,
-    p_result_url: resultUrl,
-  });
+  const { error: doneErr } = await supabase
+    .from("generations")
+    .update({
+      status: "DONE",
+      result_url: resultUrl,
+      finished_at: new Date().toISOString(),
+    })
+    .eq("id", job.id);
 
   if (doneErr) throw doneErr;
 
   console.log("DONE", job.id, resultUrl);
+
 }
 
 async function loop() {
