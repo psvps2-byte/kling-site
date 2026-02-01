@@ -133,12 +133,21 @@ async function runOnce() {
     return;
   }
 
-  if (!isDoneHistory(json)) {
-    console.log("Still running (no result yet)", job.id);
+  const list = Array.isArray(json) ? json : [];
+  const entry = list.find((x) => String(x?.id) === String(job.task_id));
+
+  if (!entry) {
+    console.log("Not in history yet, keep RUNNING", job.id);
     return;
   }
 
-  const resultUrl = pickResultUrlFromHistory(json, job.result_url);
+  const resultUrl = entry?.urls?.[0] || job.result_url || null;
+
+  if (!resultUrl) {
+    console.log("In history but no url yet, keep RUNNING", job.id);
+    return;
+  }
+
   if (!resultUrl) {
     console.log("Done but no result url found, keep RUNNING for now", job.id);
     return;
