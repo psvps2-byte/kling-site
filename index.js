@@ -153,11 +153,6 @@ async function runOnce() {
 
   const json = await fetchJson(url);
 
-  // (можеш потім прибрати ці 3 рядки, коли все запрацює)
-  console.log("Kling response keys:", Object.keys(json || {}));
-  console.log("Kling data keys:", Object.keys(json?.data || {}));
-  console.log("Kling raw snippet:", JSON.stringify(json).slice(0, 800));
-
   const status = normalizeStatus(json);
   const resultUrl = pickResultUrl(json);
 
