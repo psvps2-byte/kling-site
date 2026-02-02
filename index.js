@@ -19,12 +19,16 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 
 function klingStatusUrl(job) {
   switch (job.kind) {
+
+    case "PHOTO":
     case "omni-image":
       return `https://api-singapore.klingai.com/v1/images/omni-image/${job.task_id}`;
 
+    case "IMAGE2VIDEO":
     case "image2video":
       return `https://api-singapore.klingai.com/v1/videos/image2video/${job.task_id}`;
 
+    case "MOTION":
     case "motion-control":
       return `https://api-singapore.klingai.com/v1/videos/motion-control/${job.task_id}`;
 
@@ -51,10 +55,10 @@ function pickResultUrl(json) {
 function normalizeStatus(json) {
   return String(
     json?.data?.status ||
-      json?.status ||
-      json?.state ||
-      json?.data?.state ||
-      ""
+    json?.status ||
+    json?.state ||
+    json?.data?.state ||
+    ""
   )
     .toUpperCase()
     .trim();
