@@ -127,11 +127,11 @@ async function runOnce() {
   if (!res.ok) {
     console.error("History fetch failed", res.status, json);
 
-    if (res.status === 404) {
-      await supabase.from("generations").update({ status: "ERROR" }).eq("id", job.id);
-    }
+    // НЕ вважаємо це помилкою
+    // просто спробуємо ще раз на наступному циклі
     return;
   }
+
 
   const list = Array.isArray(json) ? json : [];
   const entry = list.find((x) => String(x?.id) === String(job.task_id));
