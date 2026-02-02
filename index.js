@@ -1,182 +1,154 @@
 import { createClient } from "@supabase/supabase-js";
 
+/* ================= ENV ================= */
+
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const WORKER_BASE_URL_RAW = process.env.WORKER_BASE_URL;
+const KLING_API_KEY = process.env.KLING_API_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !WORKER_BASE_URL_RAW) {
-  console.error("Missing env vars", {
-    SUPABASE_URL: Boolean(SUPABASE_URL),
-    SUPABASE_SERVICE_ROLE_KEY: Boolean(SUPABASE_SERVICE_ROLE_KEY),
-    WORKER_BASE_URL: Boolean(WORKER_BASE_URL_RAW),
-  });
+if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !KLING_API_KEY) {
+  console.error("Missing env vars");
   process.exit(1);
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { persistSession: false },
+});
 
-function normalizeBaseUrl(raw) {
-  let s = String(raw || "").trim();
-  if (!s) return "";
+/* ============== ENDPOINT MAP ============== */
 
-  // якщо користувач зберіг домен без протоколу — додаємо https://
-  if (!/^https?:\/\//i.test(s)) s = `https://${s}`;
+function klingStatusUrl(job) {
+  switch (job.kind) {
+    case "omni-image":
+      return `https://api-singapore.klingai.com/v1/images/omni-image/${job.task_id}`;
 
-  // прибрати кінцевий слеш
-  s = s.replace(/\/+$/, "");
-  return s;
+    case "image2video":
+      return `https://api-singapore.klingai.com/v1/videos/image2video/${job.task_id}`;
+
+    case "motion-control":
+      return `https://api-singapore.klingai.com/v1/videos/motion-control/${job.task_id}`;
+
+    default:
+      console.warn("Unknown job.kind:", job.kind);
+      return null;
+  }
 }
 
-const WORKER_BASE_URL = normalizeBaseUrl(WORKER_BASE_URL_RAW);
+/* ============== HELPERS ============== */
 
-function pickResultUrlFromHistory(json, fallback) {
+function pickResultUrl(json) {
   return (
-    json?.result_url ||
-    json?.resultUrl ||
+    json?.data?.result?.url ||
+    json?.data?.url ||
+    json?.result?.url ||
     json?.url ||
-    json?.urls?.[0] ||
-    json?.imageUrls?.[0] ||
-    json?.images?.[0] ||
-    json?.result?.imageUrls?.[0] ||
-    json?.result?.images?.[0] ||
-    json?.videoUrl ||
-    json?.video?.[0] ||
-    json?.result?.videoUrl ||
-    fallback ||
+    json?.data?.outputs?.[0] ||
+    json?.outputs?.[0] ||
     null
   );
 }
 
-function isDoneHistory(json) {
-  const status = (json?.status || json?.state || json?.result?.status || "")
-    .toString()
-    .toUpperCase();
-
-  if (["DONE", "SUCCESS", "SUCCEEDED", "COMPLETED", "FINISHED"].includes(status)) return true;
-
-  const url = pickResultUrlFromHistory(json, null);
-  return Boolean(url);
+function normalizeStatus(json) {
+  return String(
+    json?.data?.status ||
+      json?.status ||
+      json?.state ||
+      json?.data?.state ||
+      ""
+  )
+    .toUpperCase()
+    .trim();
 }
 
-async function fetchJsonWithTimeout(url, timeoutMs = 15000) {
-  const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), timeoutMs);
+async function fetchJson(url) {
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${KLING_API_KEY}`,
+    },
+  });
 
-  try {
-    const res = await fetch(url, { signal: controller.signal });
-    const json = await res.json().catch(() => ({}));
-    return { res, json };
-  } finally {
-    clearTimeout(t);
+  const json = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(JSON.stringify(json).slice(0, 300));
   }
+
+  return json;
 }
+
+/* ============== JOB PICKING ============== */
 
 async function pickJob() {
-  // 1) пробуємо взяти задачу через RPC (черга)
-  const { data, error } = await supabase.rpc("dequeue_generation");
-  if (error) throw error;
-
-  if (data && (!Array.isArray(data) || data.length > 0)) {
-    return Array.isArray(data) ? data[0] : data;
-  }
-
-  // 2) FALLBACK: якщо черга порожня, беремо будь-який RUNNING з task_id напряму
-  const { data: rows, error: selErr } = await supabase
+  const { data, error } = await supabase
     .from("generations")
     .select("*")
-    .eq("status", "RUNNING")
+    .in("status", ["QUEUED", "RUNNING"])
     .not("task_id", "is", null)
     .is("result_url", null)
     .order("created_at", { ascending: true })
     .limit(1);
 
-  if (selErr) throw selErr;
-  if (!rows || rows.length === 0) return null;
-
-  return rows[0];
+  if (error) throw error;
+  return data?.[0] || null;
 }
 
+/* ============== MAIN ============== */
+
 async function runOnce() {
-  console.log("Worker tick", new Date().toISOString());
-
   const job = await pickJob();
-  if (!job) {
-    console.log("No jobs available");
+  if (!job) return;
+
+  const url = klingStatusUrl(job);
+  if (!url) return;
+
+  console.log("Checking", job.id, job.kind);
+
+  const json = await fetchJson(url);
+
+  const status = normalizeStatus(json);
+  const resultUrl = pickResultUrl(json);
+
+  if (status === "FAILED" || status === "ERROR") {
+    await supabase
+      .from("generations")
+      .update({
+        status: "ERROR",
+        finished_at: new Date().toISOString(),
+      })
+      .eq("id", job.id);
+
+    console.log("ERROR", job.id);
     return;
   }
 
-  console.log("Picked job", job.id, "kind=", job.kind, "task_id=", job.task_id);
+  if (status === "SUCCEEDED" || status === "COMPLETED" || resultUrl) {
+    if (!resultUrl) return;
 
-  if (!job.task_id) {
-    console.log("Job has no task_id yet, skip:", job.id);
+    await supabase
+      .from("generations")
+      .update({
+        status: "DONE",
+        result_url: resultUrl,
+        finished_at: new Date().toISOString(),
+      })
+      .eq("id", job.id);
+
+    console.log("DONE", job.id);
     return;
   }
 
-  const historyUrl = `${WORKER_BASE_URL}/api/history`;
-
-  let res, json;
-  try {
-    const out = await fetchJsonWithTimeout(historyUrl, 15000);
-    res = out.res;
-    json = out.json;
-  } catch (e) {
-    console.error("History fetch exception (will retry later)", String(e?.message || e));
-    return;
-  }
-
-  if (!res.ok) {
-    console.error("History fetch failed", res.status, json);
-
-    // НЕ вважаємо це помилкою
-    // просто спробуємо ще раз на наступному циклі
-    return;
-  }
-
-
-  const list = Array.isArray(json) ? json : [];
-  const entry = list.find((x) => String(x?.id) === String(job.task_id));
-
-  if (!entry) {
-    console.log("Not in history yet, keep RUNNING", job.id);
-    return;
-  }
-
-  const resultUrl = entry?.urls?.[0] || job.result_url || null;
-
-  if (!resultUrl) {
-    console.log("In history but no url yet, keep RUNNING", job.id);
-    return;
-  }
-
-  if (!resultUrl) {
-    console.log("Done but no result url found, keep RUNNING for now", job.id);
-    return;
-  }
-
-  const { error: doneErr } = await supabase
-    .from("generations")
-    .update({
-      status: "DONE",
-      result_url: resultUrl,
-      finished_at: new Date().toISOString(),
-    })
-    .eq("id", job.id);
-
-  if (doneErr) throw doneErr;
-
-  console.log("DONE", job.id, resultUrl);
-
+  console.log("Still running", job.id, status);
 }
 
 async function loop() {
   try {
     await runOnce();
   } catch (e) {
-    console.error("Loop error", e);
+    console.error(e);
   } finally {
     setTimeout(loop, 5000);
   }
 }
 
-console.log("Worker started. WORKER_BASE_URL =", WORKER_BASE_URL);
+console.log("Worker started");
 loop();
