@@ -20,12 +20,12 @@ function noStoreJson(data: any, init?: { status?: number }) {
   });
 }
 
-function getSupabaseAdmin() {
-  const url = process.env.SUPABASE_URL;
+function getAdminSupabase() {
+  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!url || !key) {
-    throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+    throw new Error("Missing SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) or SUPABASE_SERVICE_ROLE_KEY");
   }
 
   return createClient(url, key, {
@@ -33,101 +33,91 @@ function getSupabaseAdmin() {
   });
 }
 
-async function getMyUserIdByEmail(supabase: ReturnType<typeof getSupabaseAdmin>, email: string) {
-  const { data, error } = await supabase
+async function getUserIdByEmail(admin: ReturnType<typeof getAdminSupabase>, email: string) {
+  const { data, error } = await admin
     .from("users")
     .select("id")
     .eq("email", email)
     .single();
 
   if (error || !data?.id) {
-    throw new Error(`User not found for email: ${email}`);
+    throw new Error(`User not found by email. ${error?.message ?? ""}`);
   }
+
   return data.id as string;
 }
 
 export async function GET() {
   try {
-    // 1) беремо користувача через NextAuth
+    // 1) AUTH (NextAuth)
     const session = await getServerSession(authOptions);
     const email = session?.user?.email;
 
-    if (!email) {
-      return noStoreJson({ error: "Not authenticated" }, { status: 401 });
-    }
+    if (!email) return noStoreJson({ error: "Not authenticated" }, { status: 401 });
 
-    // 2) супабейс адмін (server only)
-    const supabase = getSupabaseAdmin();
+    // 2) ADMIN client (але з ЖОРСТКИМ фільтром по user_id)
+    const admin = getAdminSupabase();
+    const user_id = await getUserIdByEmail(admin, email);
 
-    // 3) знаходимо свій user_id (з public.users)
-    const user_id = await getMyUserIdByEmail(supabase, email);
-
-    // 4) забираємо ТІЛЬКИ свої генерації
-    const { data, error } = await supabase
+    // 3) Беремо ТІЛЬКИ свої генерації
+    const { data, error } = await admin
       .from("generations")
       .select("id, created_at, kind, status, result_url")
-      .eq("user_id", user_id)
+      .eq("user_id", user_id) // ✅ критично важливо
       .order("created_at", { ascending: false })
       .limit(200);
 
     if (error) {
-      return noStoreJson(
-        { error: "Failed to read history", details: error.message },
-        { status: 500 }
-      );
+      return noStoreJson({ error: "Failed to read history", details: error.message }, { status: 500 });
     }
 
-    const items = (data ?? []).map((row: any) => ({
-      id: row.id,
-      createdAt: row.created_at,
-      kind: row.kind,
-      status: row.status,
-      urls: typeof row.result_url === "string" && row.result_url ? [row.result_url] : [],
-    }));
+    // 4) Формат під твій фронт (urls масив)
+    const items = (data ?? []).map((row: any) => {
+      const direct = typeof row.result_url === "string" ? row.result_url : null;
+      return {
+        id: row.id,
+        createdAt: row.created_at,
+        kind: row.kind,
+        status: row.status,
+        urls: direct ? [direct] : [],
+      };
+    });
 
     return noStoreJson(items);
   } catch (e: any) {
-    return noStoreJson(
-      { error: "Server error", details: String(e?.message ?? e) },
-      { status: 500 }
-    );
+    return noStoreJson({ error: "Server error", details: String(e?.message ?? e) }, { status: 500 });
   }
 }
 
 export async function DELETE(req: NextRequest) {
   try {
+    // 1) AUTH (NextAuth)
     const session = await getServerSession(authOptions);
     const email = session?.user?.email;
 
-    if (!email) {
-      return noStoreJson({ error: "Not authenticated" }, { status: 401 });
-    }
+    if (!email) return noStoreJson({ error: "Not authenticated" }, { status: 401 });
 
-    const supabase = getSupabaseAdmin();
-    const user_id = await getMyUserIdByEmail(supabase, email);
-
+    // 2) id з query
     const id = req.nextUrl.searchParams.get("id")?.trim();
     if (!id) return noStoreJson({ error: "Missing id" }, { status: 400 });
 
-    // ВАЖЛИВО: видаляємо тільки якщо це рядок цього юзера
-    const { error } = await supabase
+    // 3) ADMIN client + user_id
+    const admin = getAdminSupabase();
+    const user_id = await getUserIdByEmail(admin, email);
+
+    // 4) Видаляємо ТІЛЬКИ своє
+    const { error } = await admin
       .from("generations")
       .delete()
       .eq("id", id)
-      .eq("user_id", user_id);
+      .eq("user_id", user_id); // ✅ критично важливо
 
     if (error) {
-      return noStoreJson(
-        { error: "Failed to delete", details: error.message },
-        { status: 500 }
-      );
+      return noStoreJson({ error: "Failed to delete", details: error.message }, { status: 500 });
     }
 
     return noStoreJson({ ok: true });
   } catch (e: any) {
-    return noStoreJson(
-      { error: "Server error", details: String(e?.message ?? e) },
-      { status: 500 }
-    );
+    return noStoreJson({ error: "Server error", details: String(e?.message ?? e) }, { status: 500 });
   }
 }
