@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import jwt from "jsonwebtoken";
+import http from "http";
 
 /* ================= ENV ================= */
 
@@ -29,7 +30,6 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 function klingHeaders() {
   const now = Math.floor(Date.now() / 1000);
 
-  // same idea as your lib/klingAuth.ts:
   // iss = AK, signed by SK
   const payload = {
     iss: KLING_API_KEY,
@@ -81,21 +81,24 @@ function klingStatusUrl(job) {
 
 function pickResultUrl(json) {
   return (
+    // ⭐ Kling реально повертає результат тут:
+    json?.data?.task_result?.images?.[0]?.url ||
+    json?.data?.task_result?.videos?.[0]?.url ||
+    // fallback-и
     json?.data?.result?.url ||
     json?.data?.url ||
     json?.result?.url ||
     json?.url ||
-    json?.data?.outputs?.[0] ||
-    json?.outputs?.[0] ||
-    json?.data?.images?.[0] ||
-    json?.images?.[0] ||
     null
   );
 }
 
 function normalizeStatus(json) {
   return String(
-    json?.data?.status ||
+    // ⭐ Kling реально повертає статус тут:
+    json?.data?.task_status ||
+      // fallback-и
+      json?.data?.status ||
       json?.status ||
       json?.state ||
       json?.data?.state ||
@@ -149,6 +152,8 @@ async function runOnce() {
   console.log("Checking", job.id, "kind=", job.kind, "task_id=", job.task_id);
 
   const json = await fetchJson(url);
+
+  // (можеш потім прибрати ці 3 рядки, коли все запрацює)
   console.log("Kling response keys:", Object.keys(json || {}));
   console.log("Kling data keys:", Object.keys(json?.data || {}));
   console.log("Kling raw snippet:", JSON.stringify(json).slice(0, 800));
@@ -169,7 +174,11 @@ async function runOnce() {
     return;
   }
 
-  if (["SUCCEEDED", "COMPLETED", "DONE", "SUCCESS", "FINISHED"].includes(status) || resultUrl) {
+  // ✅ Kling у тебе дає "SUCCEED", тому додаємо його в список
+  if (
+    ["SUCCEEDED", "SUCCEED", "COMPLETED", "DONE", "SUCCESS", "FINISHED"].includes(status) ||
+    resultUrl
+  ) {
     if (!resultUrl) {
       console.log("Done status but no resultUrl yet:", job.id, "status=", status);
       return;
@@ -203,4 +212,14 @@ async function loop() {
 
 console.log("Worker started");
 console.log("KLING_API_BASE =", KLING_API_BASE);
+
+/* ============== HEALTH SERVER (щоб Railway не вбивав процес) ============== */
+const PORT = process.env.PORT || 3000;
+http
+  .createServer((req, res) => {
+    res.writeHead(200, { "Content-Type": "text/plain" });
+    res.end("ok");
+  })
+  .listen(PORT, "0.0.0.0", () => console.log("Health server on", PORT));
+
 loop();
