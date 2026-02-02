@@ -60,6 +60,7 @@ function klingStatusUrl(job) {
     case "OMNI_IMAGE":
       return `${KLING_API_BASE}/v1/images/omni-image/${encodeURIComponent(taskId)}`;
 
+    case "I2V":
     case "IMAGE2VIDEO":
     case "IMAGE2VIDEO ":
     case "IMAGE_2_VIDEO":
@@ -97,13 +98,13 @@ function normalizeStatus(json) {
   return String(
     // ⭐ Kling реально повертає статус тут:
     json?.data?.task_status ||
-      // fallback-и
-      json?.data?.status ||
-      json?.status ||
-      json?.state ||
-      json?.data?.state ||
-      json?.task?.status ||
-      ""
+    // fallback-и
+    json?.data?.status ||
+    json?.status ||
+    json?.state ||
+    json?.data?.state ||
+    json?.task?.status ||
+    ""
   )
     .toUpperCase()
     .trim();
