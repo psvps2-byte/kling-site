@@ -149,6 +149,9 @@ async function runOnce() {
   console.log("Checking", job.id, "kind=", job.kind, "task_id=", job.task_id);
 
   const json = await fetchJson(url);
+  console.log("Kling response keys:", Object.keys(json || {}));
+  console.log("Kling data keys:", Object.keys(json?.data || {}));
+  console.log("Kling raw snippet:", JSON.stringify(json).slice(0, 800));
 
   const status = normalizeStatus(json);
   const resultUrl = pickResultUrl(json);
