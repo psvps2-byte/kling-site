@@ -39,6 +39,7 @@ export default function LegalShell({
       { label: { uk: "Умови", en: "Terms" }, href: "/terms" },
       { label: { uk: "Конфіденційність", en: "Privacy" }, href: "/privacy" },
       { label: { uk: "Повернення", en: "Refund" }, href: "/refund" },
+      { label: { uk: "Тарифи", en: "Pricing" }, href: "/pricing" },
       { label: { uk: "Контакти", en: "Contacts" }, href: "/contacts" },
       { label: { uk: "Надання послуги", en: "Delivery" }, href: "/delivery" },
     ],

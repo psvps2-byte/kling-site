@@ -15,6 +15,15 @@ export default function ContactsPage() {
             </p>
 
             <p><b>Email:</b> contact.vilna.pro@gmail.com</p>
+            <p><b>Телефон:</b> +380988374851</p>
+
+            <hr />
+
+            <p><b>Власник сервісу:</b> ФОП Глущенко Павло Сергійович</p>
+            <p><b>ЄДРПОУ:</b> 3210721811</p>
+            <p>
+              <b>Юридична адреса:</b> м. Київ, проспект Володимира Івасюка 8, корпус 3
+            </p>
           </>
         ),
         en: (
@@ -24,6 +33,15 @@ export default function ContactsPage() {
             </p>
 
             <p><b>Email:</b> contact.vilna.pro@gmail.com</p>
+            <p><b>Phone:</b> +380988374851</p>
+
+            <hr />
+
+            <p><b>Service owner:</b> Individual Entrepreneur (FOP) Pavlo Hlushchenko</p>
+            <p><b>Registration number:</b> 3210721811</p>
+            <p>
+              <b>Legal address:</b> 8 Volodymyra Ivasiuka Ave., Building 3, Kyiv, Ukraine
+            </p>
           </>
         ),
       }}
