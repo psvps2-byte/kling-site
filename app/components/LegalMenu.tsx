@@ -22,10 +22,6 @@ export default function LegalMenu({ email = "contact.vilna.pro@gmail.com" }: { e
   const items: Item[] = useMemo(
     () => [
       { label: { uk: "Умови", en: "Terms" }, href: "/terms" },
-      { label: { uk: "Конфіденційність", en: "Privacy" }, href: "/privacy" },
-      { label: { uk: "Повернення", en: "Refund" }, href: "/refund" },
-      { label: { uk: "Контакти", en: "Contacts" }, href: "/contacts" },
-      { label: { uk: "Надання послуги", en: "Delivery" }, href: "/delivery" },
     ],
     []
   );
