@@ -135,7 +135,7 @@ async function pickJob() {
   const { data, error } = await supabase
     .from("generations")
     .select("*")
-    .in("status", ["QUEUED", "RUNNING"])
+    .in("status", ["QUEUED", "RUNNING", "DONE"])
     .not("task_id", "is", null)
     .eq("result_urls", "[]")
     .order("created_at", { ascending: true })
@@ -201,13 +201,20 @@ async function runOnce() {
       }
     }
 
+    // скільки картинок замовив користувач
+    const expected = Number(job?.cost_points || job?.payload?.output || 1);
+
+    // якщо ще не всі картинки зібрались → RUNNING
+    // якщо всі зібрались → DONE
+    const nextStatus = existing.length >= expected ? "DONE" : "RUNNING";
+
     await supabase
       .from("generations")
       .update({
-        status: "DONE",
+        status: nextStatus,
         result_urls: existing,
         result_url: existing[0],
-        finished_at: new Date().toISOString(),
+        finished_at: nextStatus === "DONE" ? new Date().toISOString() : null,
       })
       .eq("id", job.id);
 
