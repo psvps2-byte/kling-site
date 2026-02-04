@@ -7,22 +7,22 @@ import { signOut } from "next-auth/react";
 type MeResponse =
   | { authenticated: false }
   | {
-      authenticated: true;
-      user: {
-        email: string;
-        name: string | null;
-        avatar_url: string | null;
-        points: number;
-      };
+    authenticated: true;
+    user: {
+      email: string;
+      name: string | null;
+      avatar_url: string | null;
+      points: number;
     };
+  };
 
-const PACKAGES = [
-  { name: "Starter", price: 7, points: 140 },
-  { name: "Plus", price: 20, points: 440, note: "-10%" },
-  { name: "Pro", price: 50, points: 1200, note: "-20%" },
-  { name: "Max", price: 100, points: 2600, note: "-30%" },
-  { name: "Ultra", price: 200, points: 5600, note: "-40%" },
-];
+const PACKAGES = {
+  starter: { name: "Starter", price: 7, points: 140 },
+  plus: { name: "Plus", price: 20, points: 440, note: "-10%" },
+  pro: { name: "Pro", price: 50, points: 1200, note: "-20%" },
+  max: { name: "Max", price: 100, points: 2600, note: "-30%" },
+  ultra: { name: "Ultra", price: 200, points: 5600, note: "-40%" },
+};
 
 export default function AccountPage() {
   const router = useRouter();
@@ -88,9 +88,9 @@ export default function AccountPage() {
           gap: 12,
         }}
       >
-        {PACKAGES.map((p) => (
+        {Object.entries(PACKAGES).map(([packId, p]) => (
           <div
-            key={p.name}
+            key={packId}
             style={{
               border: "1px solid rgba(255,255,255,0.12)",
               borderRadius: 12,
@@ -102,8 +102,7 @@ export default function AccountPage() {
               {"note" in p ? <div style={{ opacity: 0.8 }}>{(p as any).note}</div> : <div />}
             </div>
 
-            <div style={{ fontSize: 26, fontWeight: 800, marginTop: 6 }}>${p.price}</div>
-            <div style={{ opacity: 0.85, marginTop: 4 }}>{p.points} балів</div>
+            {/* ... тут твій текст ціни/балів, якщо є ... */}
 
             <button
               style={{
@@ -114,17 +113,45 @@ export default function AccountPage() {
                 border: "none",
                 cursor: "pointer",
               }}
-              onClick={() => alert("Далі підключимо LiqPay")}
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/payments/create", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ pack: packId }),
+                  });
+
+                  const data = await res.json();
+
+                  if (!res.ok) {
+                    alert(data?.error || "Помилка створення платежу");
+                    return;
+                  }
+
+                  const form = document.createElement("form");
+                  form.method = "POST";
+                  form.action = "https://secure.wayforpay.com/pay";
+
+                  Object.entries(data).forEach(([k, v]) => {
+                    const input = document.createElement("input");
+                    input.type = "hidden";
+                    input.name = k;
+                    input.value = typeof v === "object" ? JSON.stringify(v) : String(v);
+                    form.appendChild(input);
+                  });
+
+                  document.body.appendChild(form);
+                  form.submit();
+                } catch (e) {
+                  alert("Помилка мережі");
+                }
+              }}
             >
               Купити
             </button>
           </div>
         ))}
       </div>
-
-      <p style={{ marginTop: 18, opacity: 0.7 }}>
-        Зараз кнопки “Купити” тільки тестові. Далі підключимо LiqPay і після оплати бали додаватимуться автоматично.
-      </p>
     </div>
   );
 }
