@@ -72,7 +72,7 @@ export async function GET() {
     // 3) Взяти ТІЛЬКИ свої генерації
     const { data, error } = await admin
       .from("generations")
-      .select("id, created_at, kind, status, result_url")
+      .select("id, created_at, kind, status, result_url, result_urls")
       .eq("user_id", user_id) // ✅ ключова штука
       .order("created_at", { ascending: false })
       .limit(200);
@@ -92,13 +92,22 @@ export async function GET() {
         return url.length > 10; // простий фільтр: якщо URL нормальний — показуємо
       })
       .map((row: any) => {
+        const arr = Array.isArray(row.result_urls) ? row.result_urls : [];
         const direct = asString(row.result_url).trim();
+
+        const urls =
+          arr.length > 0
+            ? arr
+            : direct
+              ? [direct]
+              : [];
+
         return {
           id: row.id,
           createdAt: row.created_at,
           kind: row.kind,
           status: row.status,
-          urls: [direct],
+          urls,
         };
       });
 

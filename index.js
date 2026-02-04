@@ -7,8 +7,8 @@ import http from "http";
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const KLING_API_KEY = (process.env.KLING_API_KEY || "").trim(); // AK / issuer
-const KLING_SECRET_KEY = (process.env.KLING_SECRET_KEY || "").trim(); // SK / secret
+const KLING_API_KEY = (process.env.KLING_API_KEY || "").trim();
+const KLING_SECRET_KEY = (process.env.KLING_SECRET_KEY || "").trim();
 const KLING_API_BASE = (process.env.KLING_API_BASE || "https://api-singapore.klingai.com").trim();
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
@@ -25,15 +25,14 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
-/* ============== KLING AUTH (same as web klingHeaders) ============== */
+/* ============== KLING AUTH ============== */
 
 function klingHeaders() {
   const now = Math.floor(Date.now() / 1000);
 
-  // iss = AK, signed by SK
   const payload = {
     iss: KLING_API_KEY,
-    exp: now + 1800, // 30 min
+    exp: now + 1800,
     nbf: now - 5,
   };
 
@@ -54,7 +53,6 @@ function klingStatusUrl(job) {
   if (!taskId) return null;
 
   switch (kind) {
-    // PHOTO in your DB = omni-image endpoint
     case "PHOTO":
     case "OMNI-IMAGE":
     case "OMNI_IMAGE":
@@ -62,7 +60,6 @@ function klingStatusUrl(job) {
 
     case "I2V":
     case "IMAGE2VIDEO":
-    case "IMAGE2VIDEO ":
     case "IMAGE_2_VIDEO":
     case "IMAGE-2-VIDEO":
       return `${KLING_API_BASE}/v1/videos/image2video/${encodeURIComponent(taskId)}`;
@@ -80,31 +77,38 @@ function klingStatusUrl(job) {
 
 /* ============== HELPERS ============== */
 
-function pickResultUrl(json) {
-  return (
-    // ⭐ Kling реально повертає результат тут:
-    json?.data?.task_result?.images?.[0]?.url ||
-    json?.data?.task_result?.videos?.[0]?.url ||
-    // fallback-и
+// ✅ беремо всі url
+function pickResultUrls(json) {
+  const images = json?.data?.task_result?.images;
+  const videos = json?.data?.task_result?.videos;
+
+  if (Array.isArray(images)) {
+    return images.map((x) => x?.url).filter(Boolean);
+  }
+
+  if (Array.isArray(videos)) {
+    return videos.map((x) => x?.url).filter(Boolean);
+  }
+
+  const single =
     json?.data?.result?.url ||
     json?.data?.url ||
     json?.result?.url ||
     json?.url ||
-    null
-  );
+    null;
+
+  return single ? [String(single)] : [];
 }
 
 function normalizeStatus(json) {
   return String(
-    // ⭐ Kling реально повертає статус тут:
     json?.data?.task_status ||
-    // fallback-и
-    json?.data?.status ||
-    json?.status ||
-    json?.state ||
-    json?.data?.state ||
-    json?.task?.status ||
-    ""
+      json?.data?.status ||
+      json?.status ||
+      json?.state ||
+      json?.data?.state ||
+      json?.task?.status ||
+      ""
   )
     .toUpperCase()
     .trim();
@@ -133,7 +137,7 @@ async function pickJob() {
     .select("*")
     .in("status", ["QUEUED", "RUNNING"])
     .not("task_id", "is", null)
-    .is("result_url", null)
+    .eq("result_urls", "[]")
     .order("created_at", { ascending: true })
     .limit(1);
 
@@ -155,7 +159,7 @@ async function runOnce() {
   const json = await fetchJson(url);
 
   const status = normalizeStatus(json);
-  const resultUrl = pickResultUrl(json);
+  const resultUrls = pickResultUrls(json);
 
   if (["FAILED", "ERROR", "FAILURE", "CANCELED", "CANCELLED"].includes(status)) {
     await supabase
@@ -166,17 +170,16 @@ async function runOnce() {
       })
       .eq("id", job.id);
 
-    console.log("ERROR", job.id, "status=", status);
+    console.log("ERROR", job.id, status);
     return;
   }
 
-  // ✅ Kling у тебе дає "SUCCEED", тому додаємо його в список
-  if (
-    ["SUCCEEDED", "SUCCEED", "COMPLETED", "DONE", "SUCCESS", "FINISHED"].includes(status) ||
-    resultUrl
-  ) {
-    if (!resultUrl) {
-      console.log("Done status but no resultUrl yet:", job.id, "status=", status);
+  const isDone =
+    ["SUCCEEDED", "SUCCEED", "COMPLETED", "DONE", "SUCCESS", "FINISHED"].includes(status);
+
+  if (isDone || resultUrls.length > 0) {
+    if (resultUrls.length === 0) {
+      console.log("Done but no urls yet", job.id);
       return;
     }
 
@@ -184,16 +187,17 @@ async function runOnce() {
       .from("generations")
       .update({
         status: "DONE",
-        result_url: resultUrl,
+        result_urls: resultUrls,
+        result_url: resultUrls[0],
         finished_at: new Date().toISOString(),
       })
       .eq("id", job.id);
 
-    console.log("DONE", job.id, resultUrl);
+    console.log("DONE", job.id, resultUrls.length, "urls");
     return;
   }
 
-  console.log("Still running", job.id, "status=", status || "(empty)");
+  console.log("Still running", job.id, status);
 }
 
 async function loop() {
@@ -209,8 +213,10 @@ async function loop() {
 console.log("Worker started");
 console.log("KLING_API_BASE =", KLING_API_BASE);
 
-/* ============== HEALTH SERVER (щоб Railway не вбивав процес) ============== */
+/* ============== HEALTH SERVER ============== */
+
 const PORT = process.env.PORT || 3000;
+
 http
   .createServer((req, res) => {
     res.writeHead(200, { "Content-Type": "text/plain" });
