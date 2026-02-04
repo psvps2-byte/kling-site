@@ -105,6 +105,7 @@ export default function AccountPage() {
             {/* ... тут твій текст ціни/балів, якщо є ... */}
 
             <button
+              type="button"
               style={{
                 marginTop: 12,
                 width: "100%",
