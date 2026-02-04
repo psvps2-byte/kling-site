@@ -123,7 +123,7 @@ export default function Home() {
   // ✅ resolution завжди 2k, без UI
   const OMNI_RESOLUTION = "2k" as const;
 
-  // ✅ кількість генерацій (Omni O1 зазвичай 1..9)
+  // ✅ кількість генерацій (Omni O1 зазвичай 1..5)
   const [omniN, setOmniN] = useState<number>(1);
 
   // Inline small dropdowns (Format / Quantity)
@@ -1308,7 +1308,7 @@ export default function Home() {
                       {qtyOpen && (
                         <div className="smallDropdown miniDropdown" role="menu" onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
                           <div className="qtyButtons qtyGrid" style={{ width: 180 }}>
-                            {Array.from({ length: 9 }, (_, i) => i + 1).map((k) => (
+                            {Array.from({ length: 5 }, (_, i) => i + 1).map((k) => (
                               <button
                                 key={k}
                                 type="button"
