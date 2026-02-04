@@ -103,12 +103,12 @@ function pickResultUrls(json) {
 function normalizeStatus(json) {
   return String(
     json?.data?.task_status ||
-      json?.data?.status ||
-      json?.status ||
-      json?.state ||
-      json?.data?.state ||
-      json?.task?.status ||
-      ""
+    json?.data?.status ||
+    json?.status ||
+    json?.state ||
+    json?.data?.state ||
+    json?.task?.status ||
+    ""
   )
     .toUpperCase()
     .trim();
@@ -183,12 +183,30 @@ async function runOnce() {
       return;
     }
 
+    // беремо що вже є в базі
+    const { data: row } = await supabase
+      .from("generations")
+      .select("result_urls")
+      .eq("id", job.id)
+      .single();
+
+    const existing = Array.isArray(row?.result_urls)
+      ? row.result_urls
+      : [];
+
+    // додаємо нові url, яких ще нема
+    for (const url of resultUrls) {
+      if (!existing.includes(url)) {
+        existing.push(url);
+      }
+    }
+
     await supabase
       .from("generations")
       .update({
         status: "DONE",
-        result_urls: resultUrls,
-        result_url: resultUrls[0],
+        result_urls: existing,
+        result_url: existing[0],
         finished_at: new Date().toISOString(),
       })
       .eq("id", job.id);
