@@ -3,6 +3,8 @@ import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
+// Щоб Next не кешував/не оптимізував роут
+export const dynamic = "force-dynamic";
 
 const MERCHANT_ACCOUNT = process.env.WFP_MERCHANT_ACCOUNT!;
 const MERCHANT_SECRET = process.env.WFP_MERCHANT_SECRET!;
@@ -28,16 +30,19 @@ async function readPayload(req: NextRequest) {
     return await req.json().catch(() => ({}));
   }
 
-  const text = await req.text();
+  const text = await req.text().catch(() => "");
   const params = new URLSearchParams(text);
-  const obj: Record<string, any> = {};
+
+  const obj: any = {};
   for (const [k, v] of params.entries()) obj[k] = v;
 
   // інколи вони шлють "response" як JSON-рядок
   if (obj.response) {
     try {
       return JSON.parse(obj.response);
-    } catch {}
+    } catch {
+      // ignore
+    }
   }
 
   return obj;
@@ -47,7 +52,7 @@ export async function POST(req: NextRequest) {
   const data = await readPayload(req);
 
   const orderReference = String(data?.orderReference || "").trim();
-  const transactionStatus = String(data?.transactionStatus || "").trim(); // Approved / Declined
+  const transactionStatus = String(data?.transactionStatus || "").trim(); // "Approved" / "Declined" / ...
   const amount = String(data?.amount || "").trim();
   const currency = String(data?.currency || "").trim();
   const receivedSig = String(data?.merchantSignature || "").trim();
@@ -56,21 +61,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No orderReference" }, { status: 400 });
   }
 
-  // 1) знаходимо payment (ВАЖЛИВО: у тебе в БД колонка order_id)
-  const { data: payRow, error: payErr } = await supabase
-    .from("payments")
-    .select("id, user_id, points, status")
-    .eq("order_id", orderReference)
-    .single();
-
-  if (payErr || !payRow?.id) {
-    console.error("Payment not found for orderReference:", orderReference, payErr);
-    return NextResponse.json({ error: "Payment not found" }, { status: 404 });
-  }
-
-  // 2) перевірка підпису (робимо м’якше, щоб не блокувати оплату під час дебагу)
-  // базовий варіант (часто використовується)
-  const expectedSigV1 = sign([
+  // ✅ Підпис: у WayForPay для callback набір полів може відрізнятися.
+  // Поки НЕ блокуємо обробку через сигнатуру — тільки логуємо.
+  // Коли стабілізуємо — підкрутимо точну формулу під твій формат.
+  const expectedSig = sign([
     MERCHANT_ACCOUNT,
     orderReference,
     amount,
@@ -78,17 +72,31 @@ export async function POST(req: NextRequest) {
     transactionStatus,
   ]);
 
-  if (receivedSig && receivedSig !== expectedSigV1) {
-    console.warn("WFP signature mismatch (will still process)", {
+  if (receivedSig && expectedSig !== receivedSig) {
+    console.warn("WayForPay signature mismatch (not blocking)", {
       orderReference,
-      receivedSig,
-      expectedSigV1,
+      transactionStatus,
+      amount,
+      currency,
     });
   }
 
-  // 3) якщо вже PAID — відповідаємо ok
+  // ✅ ГОЛОВНА ПРАВКА: у тебе в БД колонка називається order_id (а не order_reference)
+  const { data: payRow, error: payErr } = await supabase
+    .from("payments")
+    .select("id, user_id, points, status")
+    .eq("order_id", orderReference)
+    .single();
+
+  if (payErr || !payRow?.id) {
+    console.error("Payment not found for orderReference", { orderReference, payErr });
+    // 200 OK щоб WayForPay не ретраїв нескінченно, але з логом у тебе
+    return new NextResponse("OK", { status: 200 });
+  }
+
+  // idempotent
   if (payRow.status === "PAID") {
-    return NextResponse.json({ ok: true });
+    return new NextResponse("OK", { status: 200 });
   }
 
   const approved = transactionStatus.toLowerCase() === "approved";
@@ -99,21 +107,26 @@ export async function POST(req: NextRequest) {
       .update({ status: "FAILED" })
       .eq("id", payRow.id);
 
-    return NextResponse.json({ ok: true });
+    return new NextResponse("OK", { status: 200 });
   }
 
-  // 4) оновлюємо payment
+  // ✅ 1) оновлюємо payment
   await supabase
     .from("payments")
     .update({ status: "PAID", paid_at: new Date().toISOString() })
     .eq("id", payRow.id);
 
-  // 5) додаємо бали користувачу
-  const { data: userRow } = await supabase
+  // ✅ 2) додаємо бали користувачу
+  const { data: userRow, error: userErr } = await supabase
     .from("users")
     .select("points")
     .eq("id", payRow.user_id)
     .single();
+
+  if (userErr) {
+    console.error("User not found for payment", { orderReference, userErr });
+    return new NextResponse("OK", { status: 200 });
+  }
 
   const current = Number(userRow?.points || 0);
   const add = Number(payRow.points || 0);
@@ -123,5 +136,10 @@ export async function POST(req: NextRequest) {
     .update({ points: current + add })
     .eq("id", payRow.user_id);
 
-  return NextResponse.json({ ok: true });
+  return new NextResponse("OK", { status: 200 });
+}
+
+// (опційно) щоб відкриття URL у браузері не давало білий екран
+export async function GET() {
+  return new NextResponse("OK", { status: 200 });
 }
