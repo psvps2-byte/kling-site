@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
       merchantSignature,
 
       // куди повернути користувача після оплати/відмови
-      returnUrl: `${DOMAIN}/account`,
+      returnUrl: `${DOMAIN}/api/payments/return`,
       // куди WayForPay шле callback (POST)
       serviceUrl: `${DOMAIN}/api/payments/callback`,
 
