@@ -4,7 +4,6 @@ import { authOptions } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 
-const USD_TO_UAH_RATE = 43.5;
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
@@ -13,20 +12,21 @@ const MERCHANT_ACCOUNT = process.env.WFP_MERCHANT_ACCOUNT!;
 const MERCHANT_SECRET = process.env.WFP_MERCHANT_SECRET!;
 
 // Дуже важливо: merchantDomainName має бути БЕЗ https://
-// Наприклад: "www.vilna.pro"
-const MERCHANT_DOMAIN =
-  (process.env.WFP_MERCHANT_DOMAIN || "www.vilna.pro").trim();
+const MERCHANT_DOMAIN = (process.env.WFP_MERCHANT_DOMAIN || "www.vilna.pro").trim();
 
 // Твій сайт (для returnUrl/serviceUrl)
 const DOMAIN = "https://www.vilna.pro";
 
-// Пакети (постав тут реальні ціни В UAH)
-const PACKS: Record<string, { price: number; points: number; title: string }> = {
-  starter: { price: 7, points: 140, title: "Starter" },
-  plus: { price: 20, points: 440, title: "Plus" },
-  pro: { price: 50, points: 1200, title: "Pro" },
-  max: { price: 100, points: 2600, title: "Max" },
-  ultra: { price: 200, points: 5600, title: "Ultra" },
+// Фіксований курс (як ти сказав)
+const USD_TO_UAH_RATE = 43.5;
+
+// Пакети у USD (на сайті показуємо $)
+const PACKS_USD: Record<string, { priceUsd: number; points: number; title: string }> = {
+  starter: { priceUsd: 7, points: 140, title: "Starter" },
+  plus: { priceUsd: 20, points: 440, title: "Plus" },
+  pro: { priceUsd: 50, points: 1200, title: "Pro" },
+  max: { priceUsd: 100, points: 2600, title: "Max" },
+  ultra: { priceUsd: 200, points: 5600, title: "Ultra" },
 };
 
 function buildSignature(parts: (string | number)[]) {
@@ -34,28 +34,24 @@ function buildSignature(parts: (string | number)[]) {
   return crypto.createHmac("md5", MERCHANT_SECRET).update(str).digest("hex");
 }
 
+function round2(n: number) {
+  return Math.round(n * 100) / 100;
+}
+
 export async function POST(req: NextRequest) {
   try {
     // 1) auth
     const session = await getServerSession(authOptions);
     const email = session?.user?.email;
-    if (!email) {
-      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-    }
+    if (!email) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
     // 2) body
     const body = await req.json().catch(() => ({}));
     const pack = String(body?.pack || "").trim();
-    const packData = PACKS[pack];
-
-    if (!packData) {
-      return NextResponse.json({ error: "Invalid pack" }, { status: 400 });
-    }
+    const packData = PACKS_USD[pack];
+    if (!packData) return NextResponse.json({ error: "Invalid pack" }, { status: 400 });
 
     // 3) supabase
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      return NextResponse.json({ error: "Missing SUPABASE env vars" }, { status: 500 });
-    }
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false },
     });
@@ -73,20 +69,23 @@ export async function POST(req: NextRequest) {
 
     const user_id = userRow.id;
 
-    // 5) create payment row (PENDING)
+    // 5) amounts
+    const amountUAH = round2(packData.priceUsd * USD_TO_UAH_RATE);
+    const currency = "UAH";
+
+    // 6) create payment row (PENDING)
     const orderReference = `ORD-${Date.now()}`;
     const orderDate = Math.floor(Date.now() / 1000);
 
-    const amount = Math.round(Number(packData.price) * USD_TO_UAH_RATE);
-    const currency = "UAH";
-
+    // ⚠️ У тебе колонка називається amount_usd, але ми тимчасово зберігаємо там UAH.
+    // Пізніше краще додати amount_uah / amount_usd окремо.
     const { data: payRow, error: payErr } = await supabase
       .from("payments")
       .insert({
         user_id,
         order_id: orderReference,
         package_name: pack,
-        amount_usd: amount, // тут фактично UAH (див. коментар зверху)
+        amount_usd: amountUAH, // фактично UAH
         points: packData.points,
         status: "PENDING",
       })
@@ -97,44 +96,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to create payment" }, { status: 500 });
     }
 
-    // 6) WayForPay поля
+    // 7) WayForPay fields
     const productName = [`Vilna ${packData.title} pack`];
     const productCount = ["1"];
-    const productPrice = [amount.toFixed(2)];
+    const productPrice = [amountUAH.toFixed(2)];
 
-    // ✅ Правильний порядок для підпису (важливо)
     const merchantSignature = buildSignature([
       MERCHANT_ACCOUNT,
       MERCHANT_DOMAIN,
       orderReference,
       orderDate,
-      amount.toFixed(2),
+      amountUAH.toFixed(2),
       currency,
       productName[0],
       productCount[0],
       productPrice[0],
     ]);
 
-    // Повертаємо дані, які фронт відправить POST-формою на WayForPay
     return NextResponse.json({
       merchantAccount: MERCHANT_ACCOUNT,
       merchantDomainName: MERCHANT_DOMAIN,
       orderReference,
       orderDate,
-      amount: amount.toFixed(2),
+      amount: amountUAH.toFixed(2),
       currency,
       productName,
       productCount,
       productPrice,
       merchantSignature,
-
-      // куди повернути користувача після оплати/відмови
       returnUrl: `${DOMAIN}/api/payments/return`,
-
-      // куди WayForPay шле callback (POST)
       serviceUrl: `${DOMAIN}/api/payments/callback`,
-
-      // щоб потім можна було зв’язати оплату
       paymentId: payRow.id,
     });
   } catch (e: any) {

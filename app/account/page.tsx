@@ -7,22 +7,22 @@ import { signOut } from "next-auth/react";
 type MeResponse =
   | { authenticated: false }
   | {
-    authenticated: true;
-    user: {
-      email: string;
-      name: string | null;
-      avatar_url: string | null;
-      points: number;
+      authenticated: true;
+      user: {
+        email: string;
+        name: string | null;
+        avatar_url: string | null;
+        points: number;
+      };
     };
-  };
 
 const PACKAGES = {
-  starter: { name: "Starter", price: 7, points: 140 },
-  plus: { name: "Plus", price: 20, points: 440, note: "-10%" },
-  pro: { name: "Pro", price: 50, points: 1200, note: "-20%" },
-  max: { name: "Max", price: 100, points: 2600, note: "-30%" },
-  ultra: { name: "Ultra", price: 200, points: 5600, note: "-40%" },
-};
+  starter: { name: "Starter", priceUsd: 7, points: 140 },
+  plus: { name: "Plus", priceUsd: 20, points: 440, note: "-10%" },
+  pro: { name: "Pro", priceUsd: 50, points: 1200, note: "-20%" },
+  max: { name: "Max", priceUsd: 100, points: 2600, note: "-30%" },
+  ultra: { name: "Ultra", priceUsd: 200, points: 5600, note: "-40%" },
+} as const;
 
 export default function AccountPage() {
   const router = useRouter();
@@ -51,7 +51,7 @@ export default function AccountPage() {
 
   return (
     <div style={{ padding: 24, maxWidth: 900, margin: "0 auto" }}>
-      {/* ✅ TOP ACTIONS */}
+      {/* TOP ACTIONS */}
       <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
         <button
           className="ios-btn ios-btn--ghost"
@@ -106,9 +106,10 @@ export default function AccountPage() {
               {"note" in p ? <div style={{ opacity: 0.8 }}>{(p as any).note}</div> : <div />}
             </div>
 
-            {/* ✅ Ціна в $ + бали */}
-            <div style={{ marginTop: 6, opacity: 0.9 }}>
-              ${p.price} • {p.points} балів
+            {/* PRICE + POINTS */}
+            <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <div style={{ fontSize: 22, fontWeight: 800 }}>${p.priceUsd}</div>
+              <div style={{ opacity: 0.85 }}>{p.points} балів</div>
             </div>
 
             <button
@@ -129,14 +130,10 @@ export default function AccountPage() {
                     body: JSON.stringify({ pack: packId }),
                   });
 
-                  const data = await res.json();
-                  
-                  console.log("WFP returnUrl:", data.returnUrl);
-                  console.log("WFP serviceUrl:", data.serviceUrl);
-
+                  const payload = await res.json();
 
                   if (!res.ok) {
-                    alert(data?.error || "Помилка створення платежу");
+                    alert(payload?.error || "Помилка створення платежу");
                     return;
                   }
 
@@ -144,7 +141,7 @@ export default function AccountPage() {
                   form.method = "POST";
                   form.action = "https://secure.wayforpay.com/pay";
 
-                  Object.entries(data).forEach(([k, v]) => {
+                  Object.entries(payload).forEach(([k, v]) => {
                     if (Array.isArray(v)) {
                       v.forEach((item, i) => {
                         const input = document.createElement("input");
@@ -165,7 +162,7 @@ export default function AccountPage() {
 
                   document.body.appendChild(form);
                   form.submit();
-                } catch (e) {
+                } catch {
                   alert("Помилка мережі");
                 }
               }}
