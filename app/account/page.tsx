@@ -7,14 +7,14 @@ import { signOut } from "next-auth/react";
 type MeResponse =
   | { authenticated: false }
   | {
-    authenticated: true;
-    user: {
-      email: string;
-      name: string | null;
-      avatar_url: string | null;
-      points: number;
+      authenticated: true;
+      user: {
+        email: string;
+        name: string | null;
+        avatar_url: string | null;
+        points: number;
+      };
     };
-  };
 
 const PACKAGES = {
   starter: { name: "Starter", price: 7, points: 140 },
@@ -61,7 +61,11 @@ export default function AccountPage() {
           ← Назад
         </button>
 
-        <button className="ios-btn ios-btn--danger" style={{ marginLeft: "auto" }} onClick={() => signOut({ callbackUrl: "/" })}>
+        <button
+          className="ios-btn ios-btn--danger"
+          style={{ marginLeft: "auto" }}
+          onClick={() => signOut({ callbackUrl: "/" })}
+        >
           Вийти
         </button>
       </div>
@@ -102,7 +106,10 @@ export default function AccountPage() {
               {"note" in p ? <div style={{ opacity: 0.8 }}>{(p as any).note}</div> : <div />}
             </div>
 
-            {/* ... тут твій текст ціни/балів, якщо є ... */}
+            {/* ✅ Ціна в $ + бали */}
+            <div style={{ marginTop: 6, opacity: 0.9 }}>
+              ${p.price} • {p.points} балів
+            </div>
 
             <button
               type="button"
@@ -144,14 +151,13 @@ export default function AccountPage() {
                       });
                       return;
                     }
-                  
+
                     const input = document.createElement("input");
                     input.type = "hidden";
                     input.name = k;
                     input.value = String(v);
                     form.appendChild(input);
                   });
-                  
 
                   document.body.appendChild(form);
                   form.submit();
