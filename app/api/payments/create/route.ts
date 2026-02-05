@@ -129,6 +129,7 @@ export async function POST(req: NextRequest) {
 
       // куди повернути користувача після оплати/відмови
       returnUrl: `${DOMAIN}/api/payments/return`,
+
       // куди WayForPay шле callback (POST)
       serviceUrl: `${DOMAIN}/api/payments/callback`,
 

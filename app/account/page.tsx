@@ -134,12 +134,24 @@ export default function AccountPage() {
                   form.action = "https://secure.wayforpay.com/pay";
 
                   Object.entries(data).forEach(([k, v]) => {
+                    if (Array.isArray(v)) {
+                      v.forEach((item, i) => {
+                        const input = document.createElement("input");
+                        input.type = "hidden";
+                        input.name = `${k}[${i}]`;
+                        input.value = String(item);
+                        form.appendChild(input);
+                      });
+                      return;
+                    }
+                  
                     const input = document.createElement("input");
                     input.type = "hidden";
                     input.name = k;
-                    input.value = typeof v === "object" ? JSON.stringify(v) : String(v);
+                    input.value = String(v);
                     form.appendChild(input);
                   });
+                  
 
                   document.body.appendChild(form);
                   form.submit();
