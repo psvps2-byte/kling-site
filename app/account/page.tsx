@@ -7,14 +7,14 @@ import { signOut } from "next-auth/react";
 type MeResponse =
   | { authenticated: false }
   | {
-      authenticated: true;
-      user: {
-        email: string;
-        name: string | null;
-        avatar_url: string | null;
-        points: number;
-      };
+    authenticated: true;
+    user: {
+      email: string;
+      name: string | null;
+      avatar_url: string | null;
+      points: number;
     };
+  };
 
 const PACKAGES = {
   starter: { name: "Starter", price: 7, points: 140 },
@@ -130,6 +130,10 @@ export default function AccountPage() {
                   });
 
                   const data = await res.json();
+                  
+                  console.log("WFP returnUrl:", data.returnUrl);
+                  console.log("WFP serviceUrl:", data.serviceUrl);
+
 
                   if (!res.ok) {
                     alert(data?.error || "Помилка створення платежу");
