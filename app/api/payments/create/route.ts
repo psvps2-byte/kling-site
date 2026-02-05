@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 
+const USD_TO_UAH_RATE = 43.5;
 const SUPABASE_URL = process.env.SUPABASE_URL!;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
     const orderReference = `ORD-${Date.now()}`;
     const orderDate = Math.floor(Date.now() / 1000);
 
-    const amount = Number(packData.price); // UAH
+    const amount = Math.round(Number(packData.price) * USD_TO_UAH_RATE);
     const currency = "UAH";
 
     const { data: payRow, error: payErr } = await supabase
