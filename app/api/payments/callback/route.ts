@@ -1,114 +1,100 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import crypto from "crypto";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+const MERCHANT_ACCOUNT = process.env.WFP_MERCHANT_ACCOUNT!;
+const MERCHANT_SECRET = process.env.WFP_MERCHANT_SECRET!;
+const SUPABASE_URL = process.env.SUPABASE_URL!;
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+  auth: { persistSession: false },
+});
+
+function sign(parts: string[]) {
+  return crypto
+    .createHmac("md5", MERCHANT_SECRET)
+    .update(parts.join(";"))
+    .digest("hex");
+}
+
+// WayForPay часто шле application/x-www-form-urlencoded
 async function readPayload(req: NextRequest) {
   const ct = (req.headers.get("content-type") || "").toLowerCase();
 
-  // JSON
   if (ct.includes("application/json")) {
+    return await req.json().catch(() => ({}));
+  }
+
+  const text = await req.text();
+  const params = new URLSearchParams(text);
+  const obj: Record<string, any> = {};
+  for (const [k, v] of params.entries()) obj[k] = v;
+
+  // інколи вони шлють "response" як JSON-рядок
+  if (obj.response) {
     try {
-      return await req.json();
+      return JSON.parse(obj.response);
     } catch {
-      return {};
+      // ignore
     }
   }
 
-  // multipart/form-data
-  if (ct.includes("multipart/form-data")) {
-    try {
-      const fd = await req.formData();
-      const obj: any = {};
-      fd.forEach((v, k) => (obj[k] = typeof v === "string" ? v : "[file]"));
-
-      if (obj.response) {
-        try {
-          return JSON.parse(obj.response);
-        } catch {}
-      }
-      return obj;
-    } catch {
-      // fallback нижче
-    }
-  }
-
-  // x-www-form-urlencoded / text
-  try {
-    const text = await req.text();
-
-    // 🔥 ВАЖЛИВО: WayForPay інколи шле тіло як чистий JSON-рядок
-    // але з content-type x-www-form-urlencoded (або просто text)
-    // Тоді URLSearchParams дає 1 "ключ" = весь JSON
-    const trimmed = text.trim();
-    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-      try {
-        return JSON.parse(trimmed);
-      } catch {}
-    }
-
-    const params = new URLSearchParams(text);
-    const obj: any = {};
-    for (const [k, v] of params.entries()) obj[k] = v;
-
-    // якщо це 1 ключ який виглядає як JSON — теж парсимо
-    if (Object.keys(obj).length === 1) {
-      const onlyKey = Object.keys(obj)[0];
-      const maybeJson = onlyKey.trim();
-      if (maybeJson.startsWith("{") && maybeJson.endsWith("}")) {
-        try {
-          return JSON.parse(maybeJson);
-        } catch {}
-      }
-    }
-
-    if (obj.response) {
-      try {
-        return JSON.parse(obj.response);
-      } catch {}
-    }
-
-    return obj;
-  } catch {
-    return {};
-  }
+  return obj;
 }
 
 export async function POST(req: NextRequest) {
-  let data: any = await readPayload(req);
+  const data = await readPayload(req);
 
-  // ✅ якщо раптом data все ще рядок — пробуємо JSON.parse
-  if (typeof data === "string") {
-    const t = data.trim();
-    if (t.startsWith("{") && t.endsWith("}")) {
-      try {
-        data = JSON.parse(t);
-      } catch {}
-    }
-  }
-
+  // Логи корисні для Railway
   console.log("WFP_CALLBACK_HIT", {
     ct: req.headers.get("content-type"),
     keys: Object.keys(data || {}),
-    sample: data,
+    sample: {
+      merchantAccount: data?.merchantAccount,
+      orderReference: data?.orderReference,
+      transactionStatus: data?.transactionStatus,
+      amount: data?.amount,
+      currency: data?.currency,
+    },
   });
 
+  const merchantAccount = String(data?.merchantAccount || "").trim();
   const orderReference = String(data?.orderReference || "").trim();
-  const transactionStatus = String(data?.transactionStatus || "").trim();
+  const transactionStatus = String(data?.transactionStatus || "").trim(); // "Approved"/...
+  const amount = String(data?.amount || "").trim();
+  const currency = String(data?.currency || "").trim();
+  const receivedSig = String(data?.merchantSignature || "").trim();
 
   if (!orderReference) {
     console.log("WFP_CALLBACK_NO_ORDERREFERENCE", { data });
-    return new NextResponse("OK", { status: 200 });
+    return NextResponse.json({ ok: false, error: "No orderReference" }, { status: 400 });
   }
 
-  // ✅ у тебе в БД колонка order_id
+  // (опціонально) перевіримо, що це наш мерчант
+  if (MERCHANT_ACCOUNT && merchantAccount && merchantAccount !== MERCHANT_ACCOUNT) {
+    console.log("WFP_BAD_MERCHANT", { merchantAccount, orderReference });
+    return NextResponse.json({ ok: false, error: "Bad merchantAccount" }, { status: 400 });
+  }
+
+  // Перевірка підпису — базова. Якщо WFP буде шити інакше — підправимо.
+  // У твоїх логах поле називається merchantSignature (так і треба).
+  const expectedSig = sign([
+    MERCHANT_ACCOUNT,
+    orderReference,
+    amount,
+    currency,
+    transactionStatus,
+  ]);
+
+  if (receivedSig && expectedSig !== receivedSig) {
+    console.log("WFP_BAD_SIGNATURE", { orderReference });
+    return NextResponse.json({ ok: false, error: "Bad signature" }, { status: 400 });
+  }
+
+  // ✅ ВАЖЛИВО: у твоїй таблиці колонка з номером замовлення = order_id
   const { data: payRow, error: payErr } = await supabase
     .from("payments")
     .select("id, user_id, points, status")
@@ -117,27 +103,33 @@ export async function POST(req: NextRequest) {
 
   if (payErr || !payRow?.id) {
     console.log("WFP_PAYMENT_NOT_FOUND", { orderReference, payErr });
-    return new NextResponse("OK", { status: 200 });
+    return NextResponse.json({ ok: false, error: "Payment not found" }, { status: 404 });
   }
 
+  // якщо вже зарахували — ідемпотентність
   if (payRow.status === "PAID") {
-    console.log("WFP_ALREADY_PAID", { orderReference });
-    return new NextResponse("OK", { status: 200 });
+    return NextResponse.json({ ok: true });
   }
 
   const approved = transactionStatus.toLowerCase() === "approved";
 
   if (!approved) {
-    await supabase.from("payments").update({ status: "FAILED" }).eq("id", payRow.id);
-    console.log("WFP_MARK_FAILED", { orderReference, transactionStatus });
-    return new NextResponse("OK", { status: 200 });
+    await supabase
+      .from("payments")
+      .update({ status: "FAILED" })
+      .eq("id", payRow.id);
+
+    return NextResponse.json({ ok: true });
   }
 
+  // ✅ 1) оновлюємо payment (додаємо paid_at)
   await supabase
     .from("payments")
     .update({ status: "PAID", paid_at: new Date().toISOString() })
     .eq("id", payRow.id);
 
+  // ✅ 2) додаємо бали користувачу
+  // (краще робити атомарно через RPC, але поки так)
   const { data: userRow } = await supabase
     .from("users")
     .select("points")
@@ -147,13 +139,12 @@ export async function POST(req: NextRequest) {
   const current = Number(userRow?.points || 0);
   const add = Number(payRow.points || 0);
 
-  await supabase.from("users").update({ points: current + add }).eq("id", payRow.user_id);
+  await supabase
+    .from("users")
+    .update({ points: current + add })
+    .eq("id", payRow.user_id);
 
-  console.log("WFP_MARK_PAID_AND_ADD_POINTS", { orderReference, add });
+  console.log("WFP_PAYMENT_APPLIED", { orderReference, add });
 
-  return new NextResponse("OK", { status: 200 });
-}
-
-export async function GET() {
-  return new NextResponse("OK", { status: 200 });
+  return NextResponse.json({ ok: true });
 }
