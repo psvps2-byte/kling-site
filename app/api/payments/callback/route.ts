@@ -14,15 +14,20 @@ const supabase = createClient(
 );
 
 function sign(parts: string[]) {
-  return crypto.createHmac("md5", MERCHANT_SECRET).update(parts.join(";")).digest("hex");
+  return crypto
+    .createHmac("md5", MERCHANT_SECRET)
+    .update(parts.join(";"))
+    .digest("hex");
 }
 
 // WayForPay часто шле form-urlencoded
 async function readPayload(req: NextRequest) {
   const ct = req.headers.get("content-type") || "";
+
   if (ct.includes("application/json")) {
     return await req.json().catch(() => ({}));
   }
+
   const text = await req.text();
   const params = new URLSearchParams(text);
   const obj: any = {};
@@ -30,8 +35,11 @@ async function readPayload(req: NextRequest) {
 
   // інколи вони шлють "response" як JSON-рядок
   if (obj.response) {
-    try { return JSON.parse(obj.response); } catch {}
+    try {
+      return JSON.parse(obj.response);
+    } catch {}
   }
+
   return obj;
 }
 
@@ -48,20 +56,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No orderReference" }, { status: 400 });
   }
 
-  // ✅ перевірка підпису (базова, найпоширеніша)
-  // Якщо WayForPay у твоєму кабінеті шле інший набір полів — скажеш, підправимо 1 рядок.
-  const expectedSig = sign([MERCHANT_ACCOUNT, orderReference, amount, currency, transactionStatus]);
+  // ✅ перевірка підпису (базова)
+  const expectedSig = sign([
+    MERCHANT_ACCOUNT,
+    orderReference,
+    amount,
+    currency,
+    transactionStatus,
+  ]);
 
   if (receivedSig && expectedSig !== receivedSig) {
     console.error("Bad signature", { orderReference });
     return NextResponse.json({ error: "Bad signature" }, { status: 400 });
   }
 
-  // Беремо payment з БД
+  // ✅ Беремо payment з БД
+  // ВАЖЛИВО: у тебе колонка називається order_id (а не order_reference)
   const { data: payRow } = await supabase
     .from("payments")
     .select("id, user_id, points, status")
-    .eq("order_reference", orderReference)
+    .eq("order_id", orderReference)
     .single();
 
   if (!payRow?.id) {
@@ -76,21 +90,34 @@ export async function POST(req: NextRequest) {
   const approved = transactionStatus.toLowerCase() === "approved";
 
   if (!approved) {
-    await supabase.from("payments").update({ status: "FAILED" }).eq("id", payRow.id);
+    await supabase
+      .from("payments")
+      .update({ status: "FAILED" })
+      .eq("id", payRow.id);
+
     return NextResponse.json({ ok: true });
   }
 
   // ✅ 1) оновлюємо payment
-  await supabase.from("payments").update({ status: "PAID" }).eq("id", payRow.id);
+  await supabase
+    .from("payments")
+    .update({ status: "PAID" })
+    .eq("id", payRow.id);
 
   // ✅ 2) додаємо бали користувачу
-  // !!! важливо: тут назва колонки балансу може бути інша
-  // Якщо у users колонка називається не "points" — заміни нижче "points" на свою назву.
-  const { data: userRow } = await supabase.from("users").select("points").eq("id", payRow.user_id).single();
+  const { data: userRow } = await supabase
+    .from("users")
+    .select("points")
+    .eq("id", payRow.user_id)
+    .single();
+
   const current = Number(userRow?.points || 0);
   const add = Number(payRow.points || 0);
 
-  await supabase.from("users").update({ points: current + add }).eq("id", payRow.user_id);
+  await supabase
+    .from("users")
+    .update({ points: current + add })
+    .eq("id", payRow.user_id);
 
   return NextResponse.json({ ok: true });
 }
