@@ -13,6 +13,8 @@ const supabase = createClient(
   { auth: { persistSession: false } }
 );
 
+// ---------- helpers ----------
+
 function sign(parts: string[]) {
   return crypto
     .createHmac("md5", MERCHANT_SECRET)
@@ -31,9 +33,12 @@ async function readPayload(req: NextRequest) {
   const text = await req.text();
   const params = new URLSearchParams(text);
   const obj: any = {};
-  for (const [k, v] of params.entries()) obj[k] = v;
 
-  // інколи вони шлють "response" як JSON-рядок
+  for (const [k, v] of params.entries()) {
+    obj[k] = v;
+  }
+
+  // інколи шлють response як JSON-рядок
   if (obj.response) {
     try {
       return JSON.parse(obj.response);
@@ -43,81 +48,101 @@ async function readPayload(req: NextRequest) {
   return obj;
 }
 
+// ---------- handler ----------
+
 export async function POST(req: NextRequest) {
-  const data = await readPayload(req);
+  try {
+    const data = await readPayload(req);
 
-  const orderReference = String(data?.orderReference || "").trim();
-  const transactionStatus = String(data?.transactionStatus || "").trim(); // "Approved" / "Declined"
-  const amount = String(data?.amount || "").trim();
-  const currency = String(data?.currency || "").trim();
-  const receivedSig = String(data?.merchantSignature || "").trim();
+    console.log("WFP CALLBACK:", data);
 
-  if (!orderReference) {
-    return NextResponse.json({ error: "No orderReference" }, { status: 400 });
-  }
+    const orderReference = String(data?.orderReference || "").trim();
+    const transactionStatus = String(data?.transactionStatus || "").trim();
+    const amount = String(data?.amount || "").trim();
+    const currency = String(data?.currency || "").trim();
+    const receivedSig = String(data?.merchantSignature || "").trim();
 
-  // ✅ перевірка підпису (базова)
-  const expectedSig = sign([
-    MERCHANT_ACCOUNT,
-    orderReference,
-    amount,
-    currency,
-    transactionStatus,
-  ]);
+    if (!orderReference) {
+      return NextResponse.json({ error: "No orderReference" }, { status: 400 });
+    }
 
-  if (receivedSig && expectedSig !== receivedSig) {
-    console.error("Bad signature", { orderReference });
-    return NextResponse.json({ error: "Bad signature" }, { status: 400 });
-  }
+    // ---- signature check ----
+    const expectedSig = sign([
+      MERCHANT_ACCOUNT,
+      orderReference,
+      amount,
+      currency,
+      transactionStatus,
+    ]);
 
-  // ✅ Беремо payment з БД
-  // ВАЖЛИВО: у тебе колонка називається order_id (а не order_reference)
-  const { data: payRow } = await supabase
-    .from("payments")
-    .select("id, user_id, points, status")
-    .eq("order_id", orderReference)
-    .single();
+    if (receivedSig && expectedSig !== receivedSig) {
+      console.error("Bad signature", {
+        orderReference,
+        expectedSig,
+        receivedSig,
+      });
+      return NextResponse.json({ error: "Bad signature" }, { status: 400 });
+    }
 
-  if (!payRow?.id) {
-    return NextResponse.json({ error: "Payment not found" }, { status: 404 });
-  }
+    // ---- IMPORTANT FIX HERE ----
+    const { data: payRow } = await supabase
+      .from("payments")
+      .select("id, user_id, points, status")
+      .eq("order_id", orderReference) // 🔥 ВАЖЛИВО
+      .single();
 
-  // якщо вже зарахували — просто відповідаємо ok
-  if (payRow.status === "PAID") {
-    return NextResponse.json({ ok: true });
-  }
+    if (!payRow?.id) {
+      console.error("Payment not found:", orderReference);
+      return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+    }
 
-  const approved = transactionStatus.toLowerCase() === "approved";
+    // якщо вже зарахований
+    if (payRow.status === "PAID") {
+      return NextResponse.json({ ok: true });
+    }
 
-  if (!approved) {
+    const approved =
+      transactionStatus.toLowerCase() === "approved" ||
+      transactionStatus.toLowerCase() === "successful";
+
+    if (!approved) {
+      await supabase
+        .from("payments")
+        .update({ status: "FAILED" })
+        .eq("id", payRow.id);
+
+      return NextResponse.json({ ok: true });
+    }
+
+    // ---- mark payment paid ----
     await supabase
       .from("payments")
-      .update({ status: "FAILED" })
+      .update({
+        status: "PAID",
+        paid_at: new Date().toISOString(),
+      })
       .eq("id", payRow.id);
 
+    // ---- add points ----
+    const { data: userRow } = await supabase
+      .from("users")
+      .select("points")
+      .eq("id", payRow.user_id)
+      .single();
+
+    const current = Number(userRow?.points || 0);
+    const add = Number(payRow.points || 0);
+
+    await supabase
+      .from("users")
+      .update({ points: current + add })
+      .eq("id", payRow.user_id);
+
+    console.log("PAYMENT SUCCESS:", orderReference);
+
     return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("CALLBACK ERROR:", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
-
-  // ✅ 1) оновлюємо payment
-  await supabase
-    .from("payments")
-    .update({ status: "PAID" })
-    .eq("id", payRow.id);
-
-  // ✅ 2) додаємо бали користувачу
-  const { data: userRow } = await supabase
-    .from("users")
-    .select("points")
-    .eq("id", payRow.user_id)
-    .single();
-
-  const current = Number(userRow?.points || 0);
-  const add = Number(payRow.points || 0);
-
-  await supabase
-    .from("users")
-    .update({ points: current + add })
-    .eq("id", payRow.user_id);
-
-  return NextResponse.json({ ok: true });
 }
