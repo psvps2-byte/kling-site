@@ -159,7 +159,7 @@ export default function Home() {
     };
   }, []);
 
-  
+
 
   const acceptImg = "image/jpeg,image/png,image/heic,image/heif,.heic,.heif,.jpg,.jpeg,.png";
   const srcPreview = useMemo(() => (srcFile ? URL.createObjectURL(srcFile) : ""), [srcFile]);
@@ -1307,7 +1307,10 @@ export default function Home() {
 
                       {qtyOpen && (
                         <div className="smallDropdown miniDropdown" role="menu" onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
-                          <div className="qtyButtons qtyGrid" style={{ width: 180 }}>
+                          <div
+                            className="qtyButtons qtyGrid"
+                            style={{ width: 80, display: "flex", flexDirection: "column" }}
+                          >
                             {Array.from({ length: 5 }, (_, i) => i + 1).map((k) => (
                               <button
                                 key={k}
@@ -1411,17 +1414,17 @@ export default function Home() {
                             <>
                               <img src={vEndPreview} alt="video-end" />
                               <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                                  <button
-                                    type="button"
-                                    className="tile-remove"
-                                    aria-label={lang === "uk" ? "Видалити" : "Remove"}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setVEndImg(null);
-                                    }}
-                                  >
-                                    ✕
-                                  </button>
+                              <button
+                                type="button"
+                                className="tile-remove"
+                                aria-label={lang === "uk" ? "Видалити" : "Remove"}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setVEndImg(null);
+                                }}
+                              >
+                                ✕
+                              </button>
                             </>
                           ) : (
                             <>
@@ -1525,17 +1528,17 @@ export default function Home() {
                         <>
                           <img src={vCharPreview} alt="character" />
                           <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                            <button
-                              type="button"
-                              className="tile-remove"
-                              aria-label={lang === "uk" ? "Видалити" : "Remove"}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setVCharacterImg(null);
-                              }}
-                            >
-                              ✕
-                            </button>
+                          <button
+                            type="button"
+                            className="tile-remove"
+                            aria-label={lang === "uk" ? "Видалити" : "Remove"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setVCharacterImg(null);
+                            }}
+                          >
+                            ✕
+                          </button>
                         </>
                       ) : (
                         <>
