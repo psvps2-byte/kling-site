@@ -23,7 +23,7 @@ export default function AuthPage() {
       </button>
 
       <button
-        onClick={() => signIn("email")}
+        onClick={() => alert("Скоро буде. Тимчасово увійдіть через Google")}
         style={{
           ...btnPrimary,
           background: "rgba(255,255,255,0.08)",
