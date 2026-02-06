@@ -22,21 +22,6 @@ export default function AuthPage() {
         Увійти через Google
       </button>
 
-      <button
-        onClick={() => alert("Скоро буде. Тимчасово увійдіть через Google")}
-        style={{
-          ...btnPrimary,
-          background: "rgba(255,255,255,0.08)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 10,
-        }}
-      >
-        <Mail size={18} />
-        Увійти через пошту
-      </button>
-
     </div>
   );
 }
