@@ -2,18 +2,41 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import { Mail } from "lucide-react";
 
 export default function AuthPage() {
   return (
     <div style={wrap}>
-      <h1 style={title}>Увійти</h1>
 
       <button
-        style={btnPrimary}
         onClick={() => signIn("google", { callbackUrl: "/" })}
+        style={{
+          ...btnPrimary,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10,
+        }}
       >
+        <img src="/google.svg?v=1" width={18} height={18} alt="Google" />
         Увійти через Google
       </button>
+
+      <button
+        onClick={() => signIn("email")}
+        style={{
+          ...btnPrimary,
+          background: "rgba(255,255,255,0.08)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10,
+        }}
+      >
+        <Mail size={18} />
+        Увійти через пошту
+      </button>
+
     </div>
   );
 }
