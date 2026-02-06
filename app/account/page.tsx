@@ -7,14 +7,14 @@ import { signOut } from "next-auth/react";
 type MeResponse =
   | { authenticated: false }
   | {
-      authenticated: true;
-      user: {
-        email: string;
-        name: string | null;
-        avatar_url: string | null;
-        points: number;
-      };
+    authenticated: true;
+    user: {
+      email: string;
+      name: string | null;
+      avatar_url: string | null;
+      points: number;
     };
+  };
 
 const PACKAGES = {
   starter: { name: "Starter", priceUsd: 7, points: 140 },
@@ -55,10 +55,10 @@ export default function AccountPage() {
       <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
         <button
           className="ios-btn ios-btn--ghost"
-          onClick={() => router.back()}
+          onClick={() => router.push("/")}
           style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
         >
-          ← Назад
+          ← На головну
         </button>
 
         <button

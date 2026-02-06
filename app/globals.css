@@ -8,9 +8,12 @@
   --muted: rgba(255, 255, 255, 0.7);
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
-html, body {
+html,
+body {
   padding: 0;
   margin: 0;
   min-height: 100vh;
@@ -19,15 +22,17 @@ html, body {
 
   background-color: var(--bg0);
   background-image:
-    radial-gradient(1200px 700px at 20% 10%, rgba(10,132,255,0.18), transparent 55%),
-    radial-gradient(900px 600px at 80% 20%, rgba(255,69,58,0.12), transparent 60%),
+    radial-gradient(1200px 700px at 20% 10%, rgba(10, 132, 255, 0.18), transparent 55%),
+    radial-gradient(900px 600px at 80% 20%, rgba(255, 69, 58, 0.12), transparent 60%),
     linear-gradient(180deg, var(--bg0), var(--bg1));
 
   background-repeat: no-repeat;
   background-size: cover;
 }
 
-a { color: inherit; }
+a {
+  color: inherit;
+}
 
 .page-wrap {
   max-width: 980px;
@@ -37,10 +42,10 @@ a { color: inherit; }
 
 .glass-card {
   background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 22px;
   padding: 18px;
-  box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
 }
 
 .topbar {
@@ -87,9 +92,18 @@ a { color: inherit; }
   transition: transform 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
 
-.ios-btn:hover { background: var(--glass-strong); }
-.ios-btn:active { transform: scale(0.97); }
-.ios-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.ios-btn:hover {
+  background: var(--glass-strong);
+}
+
+.ios-btn:active {
+  transform: scale(0.97);
+}
+
+.ios-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 
 .ios-btn--primary {
   background: rgba(10, 132, 255, 0.28);
@@ -107,11 +121,13 @@ a { color: inherit; }
 }
 
 /* inputs */
-.ios-input, .ios-textarea, .ios-select {
+.ios-input,
+.ios-textarea,
+.ios-select {
   width: 100%;
   color: var(--text);
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 18px;
   padding: 12px 14px;
   outline: none;
@@ -119,7 +135,11 @@ a { color: inherit; }
   -webkit-backdrop-filter: blur(14px) saturate(140%);
 }
 
-.ios-textarea { resize: vertical; min-height: 110px; margin-top: 0; }
+.ios-textarea {
+  resize: vertical;
+  min-height: 110px;
+  margin-top: 0;
+}
 
 .grid {
   margin-top: 14px;
@@ -131,9 +151,9 @@ a { color: inherit; }
 .thumb {
   border-radius: 22px;
   overflow: hidden;
-  border: 1px solid rgba(255,255,255,0.10);
-  background: rgba(255,255,255,0.05);
-  box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
 }
 
 .thumb img {
@@ -162,7 +182,7 @@ a { color: inherit; }
 .settings-popover {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.45);
+  background: rgba(0, 0, 0, 0.45);
   z-index: 9998;
   display: flex;
   align-items: flex-start;
@@ -173,10 +193,10 @@ a { color: inherit; }
 .settings-popover__panel {
   width: min(420px, calc(100vw - 32px));
   background: rgba(12, 12, 18, 0.72);
-  border: 1px solid rgba(255,255,255,0.10);
+  border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 18px;
   padding: 14px;
-  box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(18px) saturate(140%);
   -webkit-backdrop-filter: blur(18px) saturate(140%);
   max-height: calc(100dvh - 32px);
@@ -211,4 +231,8 @@ a { color: inherit; }
     max-height: 75dvh;
     padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
   }
+}
+
+.ios-textarea {
+  font-size: 16px;
 }
