@@ -1,50 +1,79 @@
 // app/api/auth/[...nextauth]/route.ts
+
 import NextAuth, { type NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import FacebookProvider from "next-auth/providers/facebook";
-
-/**
- * Важливо:
- * - НЕ додаємо EmailProvider, бо без DB adapter буде 500 (EMAIL_REQUIRES_ADAPTER_ERROR)
- * - NEXTAUTH_URL має бути http://localhost:3000 (або твій домен/нгрок)
- * - NEXTAUTH_SECRET обовʼязково
- * - GOOGLE_CLIENT_ID/SECRET + FACEBOOK_CLIENT_ID/SECRET обовʼязково
- */
+import EmailProvider from "next-auth/providers/email";
+import { Resend } from "resend";
 
 export const authOptions: NextAuthOptions = {
   providers: [
+    // ✅ GOOGLE
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID ?? "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
-      // За бажанням: можна вимагати завжди consent
-      // authorization: { params: { prompt: "consent", access_type: "offline", response_type: "code" } },
     }),
 
+    // ✅ FACEBOOK
     FacebookProvider({
       clientId: process.env.FACEBOOK_CLIENT_ID ?? "",
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET ?? "",
     }),
+
+    // ✅ EMAIL MAGIC LINK (через Resend)
+    EmailProvider({
+      from: "Vilna <login@vilna.pro>",
+
+      async sendVerificationRequest({ identifier, url }) {
+        const resend = new Resend(process.env.RESEND_API_KEY);
+
+        await resend.emails.send({
+          from: "Vilna <login@vilna.pro>",
+          to: identifier,
+          subject: "Login to Vilna",
+          html: `
+            <div style="font-family:Arial;padding:24px">
+              <h2>Login to Vilna</h2>
+              <p>Click the button below to sign in:</p>
+
+              <a href="${url}"
+                style="
+                  display:inline-block;
+                  margin-top:12px;
+                  padding:12px 18px;
+                  background:#2563eb;
+                  color:#ffffff;
+                  border-radius:8px;
+                  text-decoration:none;
+                  font-weight:600;
+                ">
+                Sign in
+              </a>
+
+              <p style="margin-top:20px;font-size:12px;color:#666">
+                If you didn’t request this email, you can safely ignore it.
+              </p>
+            </div>
+          `,
+        });
+      },
+    }),
   ],
 
-  // Без бази — використовуємо JWT
+  // ✅ JWT сесії (без БД)
   session: { strategy: "jwt" },
 
-  // Рекомендовано явно задавати
   secret: process.env.NEXTAUTH_SECRET,
 
-  // Сторінка логіну (твій /auth)
   pages: {
     signIn: "/auth",
-    // error: "/auth", // можеш розкоментити, якщо хочеш показувати помилки на /auth
   },
 
   callbacks: {
     async jwt({ token, account, profile }) {
-      // можна зберегти provider + access_token (якщо треба)
       if (account?.provider) token.provider = account.provider;
       if (account?.access_token) token.accessToken = account.access_token;
 
-      // інколи корисно мати email/name з профайла
       if (profile?.email && !token.email) token.email = profile.email;
       if (profile?.name && !token.name) token.name = profile.name;
 
@@ -52,22 +81,18 @@ export const authOptions: NextAuthOptions = {
     },
 
     async session({ session, token }) {
-      // Прокидуємо provider та accessToken у session (за потреби)
       (session as any).provider = token.provider;
       (session as any).accessToken = token.accessToken;
-
       return session;
     },
 
     async redirect({ url, baseUrl }) {
-      // Безпечний redirect: тільки в межах сайту
       if (url.startsWith("/")) return `${baseUrl}${url}`;
       if (url.startsWith(baseUrl)) return url;
       return baseUrl;
     },
   },
 
-  // Для дебагу (можеш вимкнути потім)
   debug: process.env.NODE_ENV === "development",
 };
 

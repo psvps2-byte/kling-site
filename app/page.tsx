@@ -1309,7 +1309,7 @@ export default function Home() {
                         <div className="smallDropdown miniDropdown" role="menu" onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
                           <div
                             className="qtyButtons qtyGrid"
-                            style={{ width: 50, display: "flex", flexDirection: "column" }}
+                            style={{ width: 30, display: "flex", flexDirection: "column" }}
                           >
                             {Array.from({ length: 5 }, (_, i) => i + 1).map((k) => (
                               <button
