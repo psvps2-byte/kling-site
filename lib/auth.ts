@@ -15,6 +15,8 @@ function mustEnv(name: string): string {
 }
 
 export const authOptions: NextAuthOptions = {
+  useSecureCookies: true,
+  
   adapter: SupabaseAdapter({
     url: mustEnv("NEXT_PUBLIC_SUPABASE_URL"),
     secret: mustEnv("SUPABASE_SERVICE_ROLE_KEY"),
