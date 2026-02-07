@@ -17,19 +17,6 @@ function mustEnv(name: string): string {
 export const authOptions: NextAuthOptions = {
   useSecureCookies: true,
 
-  // Важливо для email-login на iPhone/Safari (щоб cookie збереглася після переходу з листа)
-  cookies: {
-    sessionToken: {
-      name: "__Secure-next-auth.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "none",
-        path: "/",
-        secure: true,
-      },
-    },
-  },
-
   adapter: SupabaseAdapter({
     url: mustEnv("NEXT_PUBLIC_SUPABASE_URL"),
     secret: mustEnv("SUPABASE_SERVICE_ROLE_KEY"),
@@ -83,7 +70,6 @@ export const authOptions: NextAuthOptions = {
   secret: mustEnv("NEXTAUTH_SECRET"),
   pages: { signIn: "/auth" },
 
-  // Лишаємо database sessions
   session: { strategy: "database" },
 
   callbacks: {
