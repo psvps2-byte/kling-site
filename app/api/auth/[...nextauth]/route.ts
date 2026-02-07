@@ -78,7 +78,7 @@ export const authOptions: NextAuthOptions = {
   ],
 
   // ЗАЛИШАЄМО JWT, але секрет має бути СТАБІЛЬНИЙ (один і той самий у Railway)
-  session: { strategy: "jwt" },
+  session: { strategy: "database" },
 
   // критично: має бути завжди один і той самий, не міняти після деплоїв
   secret: mustEnv("NEXTAUTH_SECRET"),
