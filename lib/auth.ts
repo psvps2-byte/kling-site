@@ -1,6 +1,5 @@
 /// <reference types="node" />
 
-// lib/auth.ts
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import EmailProvider from "next-auth/providers/email";
@@ -42,7 +41,6 @@ export const authOptions: NextAuthOptions = {
             <div style="font-family:Arial;padding:24px">
               <h2>Login to Vilna</h2>
               <p>Click the button below to sign in:</p>
-
               <a href="${url}"
                 style="
                   display:inline-block;
@@ -56,10 +54,6 @@ export const authOptions: NextAuthOptions = {
                 ">
                 Sign in
               </a>
-
-              <p style="margin-top:20px;font-size:12px;color:#666">
-                If you didn’t request this email, you can safely ignore it.
-              </p>
             </div>
           `,
         });
@@ -71,12 +65,6 @@ export const authOptions: NextAuthOptions = {
   pages: { signIn: "/auth" },
 
   session: { strategy: "database" },
-
-  callbacks: {
-    async session({ session }) {
-      return session;
-    },
-  },
 
   debug: process.env.NODE_ENV === "development",
 };
