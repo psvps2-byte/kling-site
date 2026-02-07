@@ -81,7 +81,7 @@ export default function AuthPage() {
           </button>
 
           {status === "sent" && (
-            <div style={msgOk}>Готово. Перевір пошту (і “Spam/Promotions” теж).</div>
+            <div style={msgOk}>Готово. Перевір пошту.</div>
           )}
           {status === "error" && (
             <div style={msgErr}>Не вийшло надіслати. Перевір RESEND_API_KEY і домен.</div>
