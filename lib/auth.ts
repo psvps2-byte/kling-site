@@ -1,36 +1,36 @@
-// lib/auth.ts
+/// <reference types="node" />
 
+// lib/auth.ts
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import FacebookProvider from "next-auth/providers/facebook";
 import EmailProvider from "next-auth/providers/email";
 
 import { SupabaseAdapter } from "@auth/supabase-adapter";
 import { Resend } from "resend";
 
+function mustEnv(name: string): string {
+  const v = process.env[name];
+  if (!v) throw new Error(`Missing env: ${name}`);
+  return v;
+}
+
 export const authOptions: NextAuthOptions = {
   adapter: SupabaseAdapter({
-    url: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
-    secret: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
+    url: mustEnv("NEXT_PUBLIC_SUPABASE_URL"),
+    secret: mustEnv("SUPABASE_SERVICE_ROLE_KEY"),
   }),
 
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+      clientId: mustEnv("GOOGLE_CLIENT_ID"),
+      clientSecret: mustEnv("GOOGLE_CLIENT_SECRET"),
       authorization: { params: { prompt: "select_account" } },
     }),
-
-    // якщо FB не потрібен — можеш лишити закоментованим
-    // FacebookProvider({
-    //   clientId: process.env.FACEBOOK_CLIENT_ID ?? "",
-    //   clientSecret: process.env.FACEBOOK_CLIENT_SECRET ?? "",
-    // }),
 
     EmailProvider({
       from: "Vilna <login@vilna.pro>",
       async sendVerificationRequest({ identifier, url }) {
-        const resend = new Resend(process.env.RESEND_API_KEY ?? "");
+        const resend = new Resend(mustEnv("RESEND_API_KEY"));
 
         await resend.emails.send({
           from: "Vilna <login@vilna.pro>",
@@ -65,29 +65,15 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
 
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: mustEnv("NEXTAUTH_SECRET"),
   pages: { signIn: "/auth" },
 
-  // ключове: database sessions (прибирає Invalid Compact JWE і проблеми з email login)
+  // Лишаємо database sessions
   session: { strategy: "database" },
 
   callbacks: {
-    // Для database-сесій token може бути undefined — тому не чіпаємо token тут.
     async session({ session }) {
       return session;
-    },
-
-    // Лишаємо мінімально (можна взагалі прибрати, але так безпечніше для гугла)
-    async jwt({ token, account, profile }) {
-      if (account && profile) {
-        // @ts-ignore
-        token.email = profile.email ?? token.email;
-        // @ts-ignore
-        token.name = profile.name ?? token.name;
-        // @ts-ignore
-        token.picture = profile.picture ?? token.picture;
-      }
-      return token;
     },
   },
 
