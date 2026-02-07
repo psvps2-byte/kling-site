@@ -1,34 +1,48 @@
 // app/api/auth/[...nextauth]/route.ts
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 import NextAuth, { type NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import FacebookProvider from "next-auth/providers/facebook";
 import EmailProvider from "next-auth/providers/email";
 
 import { SupabaseAdapter } from "@auth/supabase-adapter";
-import { Resend } from "resend";
+
+/**
+ * Жорстко перевіряємо env, щоб не було "вічного лоадінгу" через порожні ключі.
+ */
+function mustEnv(name: string): string {
+  const v = process.env[name];
+  if (!v) throw new Error(`Missing env: ${name}`);
+  return v;
+}
 
 export const authOptions: NextAuthOptions = {
   adapter: SupabaseAdapter({
-    url: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
-    secret: process.env.SUPABASE_SERVICE_ROLE_KEY ?? "",
+    url: mustEnv("NEXT_PUBLIC_SUPABASE_URL"),
+    secret: mustEnv("SUPABASE_SERVICE_ROLE_KEY"),
   }),
 
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+      clientId: mustEnv("GOOGLE_CLIENT_ID"),
+      clientSecret: mustEnv("GOOGLE_CLIENT_SECRET"),
     }),
 
+    // якщо Facebook не використовуєш — можеш прибрати провайдера і env
     FacebookProvider({
-      clientId: process.env.FACEBOOK_CLIENT_ID ?? "",
-      clientSecret: process.env.FACEBOOK_CLIENT_SECRET ?? "",
+      clientId: mustEnv("FACEBOOK_CLIENT_ID"),
+      clientSecret: mustEnv("FACEBOOK_CLIENT_SECRET"),
     }),
 
     EmailProvider({
       from: "Vilna <login@vilna.pro>",
+
       async sendVerificationRequest({ identifier, url }) {
-        const resend = new Resend(process.env.RESEND_API_KEY ?? "");
+        const { Resend } = await import("resend");
+        const resend = new Resend(mustEnv("RESEND_API_KEY"));
 
         await resend.emails.send({
           from: "Vilna <login@vilna.pro>",
@@ -63,10 +77,11 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
 
-  // Можна лишати JWT, але тоді NEXTAUTH_SECRET має бути стабільним
+  // ЗАЛИШАЄМО JWT, але секрет має бути СТАБІЛЬНИЙ (один і той самий у Railway)
   session: { strategy: "jwt" },
 
-  secret: process.env.NEXTAUTH_SECRET,
+  // критично: має бути завжди один і той самий, не міняти після деплоїв
+  secret: mustEnv("NEXTAUTH_SECRET"),
 
   pages: {
     signIn: "/auth",
@@ -74,18 +89,25 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async jwt({ token, account, profile }) {
-      if (account?.provider) token.provider = account.provider;
-      if (account?.access_token) token.accessToken = account.access_token;
+      // provider + access token
+      if (account?.provider) (token as any).provider = account.provider;
+      if (account?.access_token) (token as any).accessToken = account.access_token;
 
+      // базові поля
       if (profile?.email && !token.email) token.email = profile.email;
-      if (profile?.name && !token.name) token.name = profile.name;
+      if ((profile as any)?.name && !token.name) token.name = (profile as any).name;
 
       return token;
     },
 
     async session({ session, token }) {
+      // додаткові поля в session
       (session as any).provider = (token as any).provider;
       (session as any).accessToken = (token as any).accessToken;
+
+      // інколи корисно мати user.id
+      if (session.user) (session.user as any).id = token.sub;
+
       return session;
     },
 
