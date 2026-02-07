@@ -1,12 +1,17 @@
-// app/api/auth/[...nextauth]/route.ts
-
 import NextAuth, { type NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import FacebookProvider from "next-auth/providers/facebook";
 import EmailProvider from "next-auth/providers/email";
+
+import { SupabaseAdapter } from "@auth/supabase-adapter";
 import { Resend } from "resend";
 
 export const authOptions: NextAuthOptions = {
+  adapter: SupabaseAdapter({
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    secret: process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  }),
+
   providers: [
     // ✅ GOOGLE
     GoogleProvider({
@@ -20,7 +25,7 @@ export const authOptions: NextAuthOptions = {
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET ?? "",
     }),
 
-    // ✅ EMAIL MAGIC LINK (через Resend)
+    // ✅ EMAIL MAGIC LINK (Resend)
     EmailProvider({
       from: "Vilna <login@vilna.pro>",
 
@@ -60,8 +65,9 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
 
-  // ✅ JWT сесії (без БД)
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "database",
+  },
 
   secret: process.env.NEXTAUTH_SECRET,
 
@@ -70,22 +76,6 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
-    async jwt({ token, account, profile }) {
-      if (account?.provider) token.provider = account.provider;
-      if (account?.access_token) token.accessToken = account.access_token;
-
-      if (profile?.email && !token.email) token.email = profile.email;
-      if (profile?.name && !token.name) token.name = profile.name;
-
-      return token;
-    },
-
-    async session({ session, token }) {
-      (session as any).provider = token.provider;
-      (session as any).accessToken = token.accessToken;
-      return session;
-    },
-
     async redirect({ url, baseUrl }) {
       if (url.startsWith("/")) return `${baseUrl}${url}`;
       if (url.startsWith(baseUrl)) return url;
@@ -97,5 +87,4 @@ export const authOptions: NextAuthOptions = {
 };
 
 const handler = NextAuth(authOptions);
-
 export { handler as GET, handler as POST };

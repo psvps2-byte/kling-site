@@ -21,6 +21,20 @@ export default function AuthPage() {
         <img src="/google.svg?v=1" width={18} height={18} alt="Google" />
         Увійти через Google
       </button>
+      <button
+        onClick={() => signIn("email")}
+        style={{
+          ...btnPrimary,
+          background: "rgba(255,255,255,0.08)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 10,
+        }}
+      >
+        <Mail size={18} />
+        Увійти через пошту
+      </button>
 
     </div>
   );
