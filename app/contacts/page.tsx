@@ -15,7 +15,6 @@ export default function ContactsPage() {
             </p>
 
             <p><b>Email:</b> contact.vilna.pro@gmail.com</p>
-            <p><b>Телефон:</b> +380988374851</p>
 
             <hr />
 
@@ -33,7 +32,6 @@ export default function ContactsPage() {
             </p>
 
             <p><b>Email:</b> contact.vilna.pro@gmail.com</p>
-            <p><b>Phone:</b> +380988374851</p>
 
             <hr />
 

@@ -155,7 +155,6 @@ export default function TermsPage() {
               <b>Email:</b> contact.vilna.pro@gmail.com
             </p>
             <p>
-              <b>Телефон:</b> +380988374851
             </p>
           </>
         ),
@@ -293,7 +292,6 @@ export default function TermsPage() {
             <p><b>Registration number:</b> 3210721811</p>
             <p><b>Legal address:</b> 8 Volodymyra Ivasiuka Ave., Building 3, Kyiv, Ukraine</p>
             <p><b>Email:</b> contact.vilna.pro@gmail.com</p>
-            <p><b>Phone:</b> +380988374851</p>
           </>
         ),
       }}
