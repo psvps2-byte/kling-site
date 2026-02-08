@@ -135,13 +135,20 @@ async function pickJob() {
   const { data, error } = await supabase
     .from("generations")
     .select("*")
-    .in("status", ["QUEUED", "RUNNING", "DONE"])
+    .in("status", ["QUEUED", "RUNNING"])
     .not("task_id", "is", null)
     .order("created_at", { ascending: true })
-    .limit(1);
+    .limit(20);
 
   if (error) throw error;
-  return data?.[0] || null;
+
+  for (const job of data || []) {
+    const existing = Array.isArray(job.result_urls) ? job.result_urls : [];
+    const expected = Number(job.cost_points || 1);
+    if (existing.length < expected) return job;
+  }
+
+  return null;
 }
 
 /* ============== MAIN ============== */
