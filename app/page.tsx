@@ -74,7 +74,30 @@ function fileSig(f: File) {
   return `${f.name}|${f.size}|${f.lastModified}`;
 }
 
+const TEMPLATES = [
+  {
+    id: "0001",
+    title: "Valentine’s Day",
+    preview: "/templates/0001.jpg",
+    prompt: "Stylish studio portrait of a woman, shot from a top-down overhead angle (flat lay perspective), with the camera positioned directly above her. She is lying flat on her back on a surface completely covered with unfolded black-and-white newspapers, creating a textured editorial background. Her head is centered in the frame, with voluminous hair symmetrically and artistically spread around it, forming a soft halo shape. The composition is balanced and clean, with a strong central focus. She is wearing a bright red tailored blazer with a deep neckline, revealing a black choker underneath. On her face are fashionable cat-eye sunglasses with a red tortoiseshell frame. The makeup is glamorous and flawless: perfectly sculpted eyebrows, smooth porcelain-like skin, and rich glossy red lips. She is looking straight into the camera lens with a confident, elegant, and subtly seductive expression. Around her are carefully arranged Valentine’s Day elements: vivid red roses placed along the edges of the frame and several red heart-shaped balloons partially entering the composition, adding depth and visual contrast. In her hands, positioned across her torso, she is holding a folded newspaper at a slight diagonal angle. The newspaper is clearly visible and in sharp focus, with a clean white front page and a handwritten-style red headline reading “Valentine’s Day”, bold and legible, resembling editorial calligraphy. Her hands are relaxed and elegant, fingers naturally placed, with neat manicure. The lighting is professional studio lighting, soft and diffused, with gentle shadows that enhance facial features and textures without harsh contrast. The overall mood is a high-end fashion editorial photoshoot — chic, glamorous, photorealistic, ultra-detailed, fashion photography, editorial style, clean composition, 8K resolution, ultra-sharp focus, cinematic lighting."
+  },
+  {
+    id: "business",
+    title: "Business Portrait",
+    preview: "/templates/business.jpg",
+    prompt: "Professional business portrait with clean background, confident pose, sharp focus, professional lighting, corporate style, suitable for LinkedIn and business profiles"
+  },
+  {
+    id: "cinema",
+    title: "Cinema",
+    preview: "/templates/cinema.jpg",
+    prompt: "Cinematic wide-angle shot with dramatic lighting, film grain texture, rich color grading, shallow depth of field, Hollywood movie style composition"
+  }
+];
+
 export default function Home() {
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [templatePrompt, setTemplatePrompt] = useState<string | null>(null);
   // GLOBAL
   const [mediaTab, setMediaTab] = useState<MediaTab>("photo");
   const [loading, setLoading] = useState(false);
@@ -521,12 +544,12 @@ export default function Home() {
       }
 
       // PHOTO (Kling Omni O1)
-      if (!prompt.trim()) throw new Error(lang === "uk" ? "Введи промт" : "Please enter a prompt");
+      const userPrompt = selectedTemplateId ? (templatePrompt ?? "") : prompt.trim();
+      if (!userPrompt) throw new Error(lang === "uk" ? "Введи промт" : "Please enter a prompt");
       if (refUploading) throw new Error(lang === "uk" ? "Зачекай, фото ще завантажується..." : "Please wait, image is still uploading...");
 
       if (srcFile && !srcUrl) throw new Error(lang === "uk" ? "Не вдалось завантажити 1-е фото в R2" : "Failed to upload first image");
 
-      const userPrompt = prompt.trim();
       const tags = srcUrl ? "<<<image_1>>> " : "";
       const finalPrompt = (tags + userPrompt).trim();
 
@@ -594,7 +617,7 @@ export default function Home() {
     (!!session && points <= 0) ||
     (!!session && points > 0 && points < currentCost) ||
     (mediaTab === "photo"
-      ? prompt.trim().length < 1
+      ? (selectedTemplateId ? false : prompt.trim().length < 1)
       : videoMode === "i2v"
         ? !vStartImg
         : !vCharacterImg || !vMotionVideo);
@@ -1084,6 +1107,105 @@ export default function Home() {
         @media (max-width: 640px) { .promptSpacer { margin-top: 12px; } }
 
         /* previously hid the internal LegalMenu open button; removed so the embedded menu remains the sole menu button */
+
+        .uploadTileHome {
+          width: 170px;
+          height: 170px;
+          border-radius: 26px;
+        }
+
+        .templatesRow {
+          margin-top: 16px;
+          display: flex;
+          gap: 14px;
+          overflow-x: auto;
+          padding-bottom: 6px;
+        }
+
+        .templateCard {
+          border: 1px solid rgba(255,255,255,0.12);
+          background: rgba(255,255,255,0.04);
+          border-radius: 18px;
+          padding: 0;
+          height: 240px;
+          aspect-ratio: 9 / 16;
+          flex: 0 0 auto;
+          overflow: hidden;
+          cursor: pointer;
+          position: relative;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .templatePreviewWrap {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(255,255,255,0.02);
+        }
+
+        .templatePreviewWrap img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          object-position: center;
+        }
+
+        .templateCard .templateLabel {
+          position: absolute;
+          bottom: 12px;
+          left: 12px;
+          right: 12px;
+          font-size: 13px;
+          font-weight: 700;
+          color: rgba(255, 255, 255, 0.95);
+          text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+          text-align: center;
+          pointer-events: none;
+        }
+
+        .templateCard.active {
+          border-color: rgba(10,132,255,0.55);
+          box-shadow: 0 0 0 2px rgba(10,132,255,0.25);
+        }
+
+        .uploadTileBig {
+          width: 360px;
+          height: 360px;
+          border-radius: 26px;
+        }
+
+        @media (max-width: 900px) {
+          .uploadTileBig {
+            width: 100%;
+            height: 320px;
+          }
+        }
+
+        .templatePreviewBig {
+          cursor: default;
+        }
+
+        .templatePreviewBig img {
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+        }
+
+        .templatesSection {
+          max-width: 900px;
+          margin: 26px auto 0;
+          padding: 0 6px;
+        }
+
+        .templatesTitle {
+          font-size: 28px;
+          font-weight: 800;
+          color: rgba(255, 255, 255, 0.92);
+          margin: 0 0 14px;
+        }
       `}</style>
 
         {/* Topbar */}
@@ -1176,179 +1298,472 @@ export default function Home() {
           {/* PHOTO UI */}
           {mediaTab === "photo" && (
             <>
-              <div className="uploadRow">
-                <div
-                  className="uploadTile"
-                  role="button"
-                  tabIndex={0}
-                  aria-label={lang === "uk" ? "Завантажити фото" : "Upload image"}
-                  onClick={() => (document.getElementById("file1") as HTMLInputElement | null)?.click()}
-                  onKeyDown={(e) => e.key === "Enter" && (document.getElementById("file1") as HTMLInputElement | null)?.click()}
-                >
-                  {srcPreview ? (
+              {selectedTemplateId ? (
+                <>
+                  {/* РОЗШИРЕНИЙ ВИГЛЯД після вибору шаблону */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+                    <button
+                      type="button"
+                      className="ios-btn ios-btn--ghost"
+                      onClick={() => {
+                        setSelectedTemplateId(null);
+                        setTemplatePrompt(null);
+                      }}
+                      style={{ padding: "8px 12px" }}
+                    >
+                      ← {lang === "uk" ? "Назад" : "Back"}
+                    </button>
+                    <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "rgba(255,255,255,0.92)" }}>
+                      {TEMPLATES.find(t => t.id === selectedTemplateId)?.title}
+                    </h2>
+                  </div>
+
+                  <div className="uploadRow">
+                    <div
+                      className="uploadTile uploadTileBig"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={lang === "uk" ? "Завантажити фото" : "Upload image"}
+                      onClick={() => (document.getElementById("file1") as HTMLInputElement | null)?.click()}
+                      onKeyDown={(e) => e.key === "Enter" && (document.getElementById("file1") as HTMLInputElement | null)?.click()}
+                    >
+                      {srcPreview ? (
+                        <>
+                          <img src={srcPreview} alt="reference1" />
+                          <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
+                          <button
+                            type="button"
+                            className="tile-remove"
+                            aria-label={lang === "uk" ? "Видалити референс" : "Remove reference"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSrcFile(null);
+                              setSrcUrl("");
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="uploadPlus">+</span>
+                          <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="uploadTile uploadTileBig templatePreviewBig">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img 
+                        src={TEMPLATES.find(t => t.id === selectedTemplateId)?.preview} 
+                        alt={TEMPLATES.find(t => t.id === selectedTemplateId)?.title}
+                      />
+                      <span className="tile-label">{lang === "uk" ? "Шаблон" : "Template"}</span>
+                    </div>
+
+                    <input
+                      id="file1"
+                      type="file"
+                      accept={acceptImg}
+                      style={{ display: "none" }}
+                      onChange={async (e) => {
+                        const f = e.target.files?.[0] ?? null;
+
+                        setError(null);
+                        setSrcFile(f);
+                        setSrcUrl("");
+
+                        if (!f) return;
+
+                        try {
+                          setRefUploading(true);
+                          const { url } = await uploadToR2AndGetPublicUrl(f);
+                          setSrcUrl(url);
+                        } catch (err: any) {
+                          setError(normalizeErr(err));
+                        } finally {
+                          setRefUploading(false);
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* Inline Format + Quantity selectors */}
+                  <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
+                    <div ref={inlineSelectorsRef} style={{ display: "flex", gap: 24, alignItems: "center" }}>
+                      {/* Format trigger with label */}
+                      <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                        <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>
+                          {lang === "uk" ? "Формат" : "Format"}
+                        </div>
+                        <div style={{ position: "relative" }}>
+                          <button
+                            type="button"
+                            className="vPill selectTrigger miniSelectTrigger"
+                            onClick={() => {
+                              setFormatOpen((v) => !v);
+                              setQtyOpen(false);
+                            }}
+                            aria-haspopup="menu"
+                            aria-expanded={formatOpen}
+                          >
+                            <span style={{ opacity: 0.95 }}>{aspect}</span>
+                            <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>▾</span>
+                          </button>
+
+                          {formatOpen && (
+                            <div className="smallDropdown miniDropdown" role="menu" onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                {(["1:1", "16:9", "9:16"] as const).map((r) => (
+                                  <button
+                                    key={r}
+                                    type="button"
+                                    className={aspect === r ? "formatOption active numMono" : "formatOption numMono"}
+                                    onClick={() => {
+                                      setAspect(r);
+                                      setFormatOpen(false);
+                                    }}
+                                  >
+                                    <span style={{ display: "inline-flex", justifyContent: "space-between", width: "100%" }}>
+                                      <span>{r}</span>
+                                      {aspect === r && <span>✓</span>}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Quantity trigger with label */}
+                      <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                        <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>
+                          {lang === "uk" ? "Кількість" : "Quantity"}
+                        </div>
+                        <div style={{ position: "relative" }}>
+                          <button
+                            type="button"
+                            className="vPill selectTrigger miniSelectTrigger"
+                            onClick={() => {
+                              setQtyOpen((v) => !v);
+                              setFormatOpen(false);
+                            }}
+                            aria-haspopup="menu"
+                            aria-expanded={qtyOpen}
+                          >
+                            <span style={{ opacity: 0.95 }}>{omniN}</span>
+                            <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>▾</span>
+                          </button>
+
+                          {qtyOpen && (
+                            <div className="smallDropdown miniDropdown" role="menu" onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
+                              <div
+                                className="qtyButtons qtyGrid"
+                                style={{ width: 30, display: "flex", flexDirection: "column" }}
+                              >
+                                {Array.from({ length: 5 }, (_, i) => i + 1).map((k) => (
+                                  <button
+                                    key={k}
+                                    type="button"
+                                    className={omniN === k ? "qtyOption active" : "qtyOption"}
+                                    onClick={() => {
+                                      setOmniN(k);
+                                      setQtyOpen(false);
+                                    }}
+                                  >
+                                    {k}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {refUploading && (
+                      <div className="gen-pill">
+                        <span>
+                          {lang === "uk" ? "Завантаження фото" : "Uploading image"}
+                          <LoadingDots />
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {(!session || (!!session && points <= 0) || (!!session && points > 0 && points < currentCost)) && (
+                    <div style={{ marginTop: 10, opacity: 0.9 }}>
+                      {!session && <div>Щоб генерувати — увійди через Google.</div>}
+                      {!!session && points <= 0 && (
+                        <div>
+                          У тебе 0 балів —{" "}
+                          <Link href="/account" style={{ textDecoration: "underline" }}>
+                            обери пакет балів
+                          </Link>
+                          .
+                        </div>
+                      )}
+                      {!!session && points > 0 && points < currentCost && (
+                        <div>
+                          Недостатньо балів —{" "}
+                          <Link href="/account" style={{ textDecoration: "underline" }}>
+                            поповнити
+                          </Link>
+                          .
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
+                    <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
+                      {generateBtnText}
+                    </button>
+
+                    {(loading || refUploading) && (
+                      <div className="gen-pill">
+                        <span>
+                          {loading ? dict.generating : lang === "uk" ? "Завантаження фото" : "Uploading image"}
+                          <LoadingDots />
+                        </span>
+                      </div>
+                    )}
+
+                    {error && (
+                      <div style={{ color: "rgba(255, 120, 120, 0.95)", maxWidth: 680, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                        {error}
+                      </div>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* ЗВИЧАЙНИЙ ВИГЛЯД */}
+                  <div className="uploadRow">
+                    <div
+                      className="uploadTile uploadTileHome"
+                      role="button"
+                      tabIndex={0}
+                      aria-label={lang === "uk" ? "Завантажити фото" : "Upload image"}
+                      onClick={() => (document.getElementById("file1") as HTMLInputElement | null)?.click()}
+                      onKeyDown={(e) => e.key === "Enter" && (document.getElementById("file1") as HTMLInputElement | null)?.click()}
+                    >
+                      {srcPreview ? (
+                        <>
+                          <img src={srcPreview} alt="reference1" />
+                          <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
+                          <button
+                            type="button"
+                            className="tile-remove"
+                            aria-label={lang === "uk" ? "Видалити референс" : "Remove reference"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSrcFile(null);
+                              setSrcUrl("");
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <span className="uploadPlus">+</span>
+                          <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
+                        </>
+                      )}
+                    </div>
+
+                    <input
+                      id="file1"
+                      type="file"
+                      accept={acceptImg}
+                      style={{ display: "none" }}
+                      onChange={async (e) => {
+                        const f = e.target.files?.[0] ?? null;
+
+                        setError(null);
+                        setSrcFile(f);
+                        setSrcUrl("");
+
+                        if (!f) return;
+
+                        try {
+                          setRefUploading(true);
+                          const { url } = await uploadToR2AndGetPublicUrl(f);
+                          setSrcUrl(url);
+                        } catch (err: any) {
+                          setError(normalizeErr(err));
+                        } finally {
+                          setRefUploading(false);
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* Inline Format + Quantity selectors */}
+                  <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
+                    <div ref={inlineSelectorsRef} style={{ display: "flex", gap: 24, alignItems: "center" }}>
+                      {/* Format trigger with label */}
+                      <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                        <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>
+                          {lang === "uk" ? "Формат" : "Format"}
+                        </div>
+                        <div style={{ position: "relative" }}>
+                          <button
+                            type="button"
+                            className="vPill selectTrigger miniSelectTrigger"
+                            onClick={() => {
+                              setFormatOpen((v) => !v);
+                              setQtyOpen(false);
+                            }}
+                            aria-haspopup="menu"
+                            aria-expanded={formatOpen}
+                          >
+                            <span style={{ opacity: 0.95 }}>{aspect}</span>
+                            <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>▾</span>
+                          </button>
+
+                          {formatOpen && (
+                            <div className="smallDropdown miniDropdown" role="menu" onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
+                              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                {(["1:1", "16:9", "9:16"] as const).map((r) => (
+                                  <button
+                                    key={r}
+                                    type="button"
+                                    className={aspect === r ? "formatOption active numMono" : "formatOption numMono"}
+                                    onClick={() => {
+                                      setAspect(r);
+                                      setFormatOpen(false);
+                                    }}
+                                  >
+                                    <span style={{ display: "inline-flex", justifyContent: "space-between", width: "100%" }}>
+                                      <span>{r}</span>
+                                      {aspect === r && <span>✓</span>}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Quantity trigger with label */}
+                      <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                        <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>
+                          {lang === "uk" ? "Кількість" : "Quantity"}
+                        </div>
+                        <div style={{ position: "relative" }}>
+                          <button
+                            type="button"
+                            className="vPill selectTrigger miniSelectTrigger"
+                            onClick={() => {
+                              setQtyOpen((v) => !v);
+                              setFormatOpen(false);
+                            }}
+                            aria-haspopup="menu"
+                            aria-expanded={qtyOpen}
+                          >
+                            <span style={{ opacity: 0.95 }}>{omniN}</span>
+                            <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>▾</span>
+                          </button>
+
+                          {qtyOpen && (
+                            <div className="smallDropdown miniDropdown" role="menu" onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
+                              <div
+                                className="qtyButtons qtyGrid"
+                                style={{ width: 30, display: "flex", flexDirection: "column" }}
+                              >
+                                {Array.from({ length: 5 }, (_, i) => i + 1).map((k) => (
+                                  <button
+                                    key={k}
+                                    type="button"
+                                    className={omniN === k ? "qtyOption active" : "qtyOption"}
+                                    onClick={() => {
+                                      setOmniN(k);
+                                      setQtyOpen(false);
+                                    }}
+                                  >
+                                    {k}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {refUploading && (
+                      <div className="gen-pill">
+                        <span>
+                          {lang === "uk" ? "Завантаження фото" : "Uploading image"}
+                          <LoadingDots />
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {!selectedTemplateId && (
                     <>
-                      <img src={srcPreview} alt="reference1" />
-                      <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                      <button
-                        type="button"
-                        className="tile-remove"
-                        aria-label={lang === "uk" ? "Видалити референс" : "Remove reference"}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSrcFile(null);
-                          setSrcUrl("");
-                        }}
-                      >
-                        ✕
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <span className="uploadPlus">+</span>
-                      <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
+                      <div className="promptSpacer" />
+                      <textarea
+                        className="ios-textarea"
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                        suppressHydrationWarning={true}
+                        placeholder={lang === "uk" ? "Опиши що потрібно зробити..." : "Describe what you want..."}
+                      />
                     </>
                   )}
-                </div>
 
-                <input
-                  id="file1"
-                  type="file"
-                  accept={acceptImg}
-                  style={{ display: "none" }}
-                  onChange={async (e) => {
-                    const f = e.target.files?.[0] ?? null;
-
-                    setError(null);
-                    setSrcFile(f);
-                    setSrcUrl("");
-
-                    if (!f) return;
-
-                    try {
-                      setRefUploading(true);
-                      const { url } = await uploadToR2AndGetPublicUrl(f);
-                      setSrcUrl(url);
-                    } catch (err: any) {
-                      setError(normalizeErr(err));
-                    } finally {
-                      setRefUploading(false);
-                    }
-                  }}
-                />
-              </div>
-
-              {/* Inline Format + Quantity selectors */}
-              <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
-                <div ref={inlineSelectorsRef} style={{ display: "flex", gap: 24, alignItems: "center" }}>
-                  {/* Format trigger with label */}
-                  <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
-                    <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>
-                      {lang === "uk" ? "Формат" : "Format"}
-                    </div>
-                    <div style={{ position: "relative" }}>
-                      <button
-                        type="button"
-                        className="vPill selectTrigger miniSelectTrigger"
-                        onClick={() => {
-                          setFormatOpen((v) => !v);
-                          setQtyOpen(false);
-                        }}
-                        aria-haspopup="menu"
-                        aria-expanded={formatOpen}
-                      >
-                        <span style={{ opacity: 0.95 }}>{aspect}</span>
-                        <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>▾</span>
-                      </button>
-
-                      {formatOpen && (
-                        <div className="smallDropdown miniDropdown" role="menu" onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                            {(["1:1", "16:9", "9:16"] as const).map((r) => (
-                              <button
-                                key={r}
-                                type="button"
-                                className={aspect === r ? "formatOption active numMono" : "formatOption numMono"}
-                                onClick={() => {
-                                  setAspect(r);
-                                  setFormatOpen(false);
-                                }}
-                              >
-                                <span style={{ display: "inline-flex", justifyContent: "space-between", width: "100%" }}>
-                                  <span>{r}</span>
-                                  {aspect === r && <span>✓</span>}
-                                </span>
-                              </button>
-                            ))}
-                          </div>
+                  {(!session || (!!session && points <= 0) || (!!session && points > 0 && points < currentCost)) && (
+                    <div style={{ marginTop: 10, opacity: 0.9 }}>
+                      {!session && <div>Щоб генерувати — увійди через Google.</div>}
+                      {!!session && points <= 0 && (
+                        <div>
+                          У тебе 0 балів —{" "}
+                          <Link href="/account" style={{ textDecoration: "underline" }}>
+                            обери пакет балів
+                          </Link>
+                          .
+                        </div>
+                      )}
+                      {!!session && points > 0 && points < currentCost && (
+                        <div>
+                          Недостатньо балів —{" "}
+                          <Link href="/account" style={{ textDecoration: "underline" }}>
+                            поповнити
+                          </Link>
+                          .
                         </div>
                       )}
                     </div>
+                  )}
+
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
+                    <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
+                      {generateBtnText}
+                    </button>
+
+                    {(loading || refUploading) && (
+                      <div className="gen-pill">
+                        <span>
+                          {loading ? dict.generating : lang === "uk" ? "Завантаження фото" : "Uploading image"}
+                          <LoadingDots />
+                        </span>
+                      </div>
+                    )}
+
+                    {error && (
+                      <div style={{ color: "rgba(255, 120, 120, 0.95)", maxWidth: 680, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                        {error}
+                      </div>
+                    )}
                   </div>
-
-                  {/* Quantity trigger with label */}
-                  <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
-                    <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>
-                      {lang === "uk" ? "Кількість" : "Quantity"}
-                    </div>
-                    <div style={{ position: "relative" }}>
-                      <button
-                        type="button"
-                        className="vPill selectTrigger miniSelectTrigger"
-                        onClick={() => {
-                          setQtyOpen((v) => !v);
-                          setFormatOpen(false);
-                        }}
-                        aria-haspopup="menu"
-                        aria-expanded={qtyOpen}
-                      >
-                        <span style={{ opacity: 0.95 }}>{omniN}</span>
-                        <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>▾</span>
-                      </button>
-
-                      {qtyOpen && (
-                        <div className="smallDropdown miniDropdown" role="menu" onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
-                          <div
-                            className="qtyButtons qtyGrid"
-                            style={{ width: 30, display: "flex", flexDirection: "column" }}
-                          >
-                            {Array.from({ length: 5 }, (_, i) => i + 1).map((k) => (
-                              <button
-                                key={k}
-                                type="button"
-                                className={omniN === k ? "qtyOption active" : "qtyOption"}
-                                onClick={() => {
-                                  setOmniN(k);
-                                  setQtyOpen(false);
-                                }}
-                              >
-                                {k}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {refUploading && (
-                  <div className="gen-pill">
-                    <span>
-                      {lang === "uk" ? "Завантаження фото" : "Uploading image"}
-                      <LoadingDots />
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              <div className="promptSpacer" />
-              <textarea
-                className="ios-textarea"
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                suppressHydrationWarning={true}
-                placeholder={lang === "uk" ? "Опиши що потрібно зробити..." : "Describe what you want..."}
-              />
+                </>
+              )}
             </>
           )}
 
@@ -1661,58 +2076,82 @@ export default function Home() {
                 suppressHydrationWarning={true}
                 placeholder={lang === "uk" ? "Опиши що потрібно зробити (опційно)..." : "Describe what you want (optional)..."}
               />
+
+              {(!session || (!!session && points <= 0) || (!!session && points > 0 && points < currentCost)) && (
+                <div style={{ marginTop: 10, opacity: 0.9 }}>
+                  {!session && <div>Щоб генерувати — увійди через Google.</div>}
+                  {!!session && points <= 0 && (
+                    <div>
+                      У тебе 0 балів —{" "}
+                      <Link href="/account" style={{ textDecoration: "underline" }}>
+                        обери пакет балів
+                      </Link>
+                      .
+                    </div>
+                  )}
+                  {!!session && points > 0 && points < currentCost && (
+                    <div>
+                      Недостатньо балів —{" "}
+                      <Link href="/account" style={{ textDecoration: "underline" }}>
+                        поповнити
+                      </Link>
+                      .
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
+                <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
+                  {generateBtnText}
+                </button>
+
+                {(loading || refUploading) && (
+                  <div className="gen-pill">
+                    <span>
+                      {loading ? dict.generating : lang === "uk" ? "Завантаження фото" : "Uploading image"}
+                      <LoadingDots />
+                    </span>
+                  </div>
+                )}
+
+                {error && (
+                  <div style={{ color: "rgba(255, 120, 120, 0.95)", maxWidth: 680, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                    {error}
+                  </div>
+                )}
+              </div>
             </>
           )}
-
-          {(!session || (!!session && points <= 0) || (!!session && points > 0 && points < currentCost)) && (
-            <div style={{ marginTop: 10, opacity: 0.9 }}>
-              {!session && <div>Щоб генерувати — увійди через Google.</div>}
-              {!!session && points <= 0 && (
-                <div>
-                  У тебе 0 балів —{" "}
-                  <Link href="/account" style={{ textDecoration: "underline" }}>
-                    обери пакет балів
-                  </Link>
-                  .
-                </div>
-              )}
-              {!!session && points > 0 && points < currentCost && (
-                <div>
-                  Недостатньо балів —{" "}
-                  <Link href="/account" style={{ textDecoration: "underline" }}>
-                    поповнити
-                  </Link>
-                  .
-                </div>
-              )}
-            </div>
-          )}
-
-          <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
-            <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
-              {generateBtnText}
-            </button>
-
-            {(loading || refUploading) && (
-              <div className="gen-pill">
-                <span>
-                  {loading ? dict.generating : lang === "uk" ? "Завантаження фото" : "Uploading image"}
-                  <LoadingDots />
-                </span>
-              </div>
-            )}
-
-            {error && (
-              <div style={{ color: "rgba(255, 120, 120, 0.95)", maxWidth: 680, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                {error}
-              </div>
-            )}
-          </div>
         </div>
 
-        {loading && imageUrls.length === 0 && (
-          <div style={{ marginTop: 14 }}>
-            <div className="skeleton" />
+        {mediaTab === "photo" && (
+          <div className="templatesSection">
+            <h2 className="templatesTitle">{lang === "uk" ? "Шаблони" : "Templates"}</h2>
+            <div className="templatesRow">
+              {TEMPLATES.map((tpl) => (
+                <button
+                  key={tpl.id}
+                  type="button"
+                  className={`templateCard ${selectedTemplateId === tpl.id ? "active" : ""}`}
+                  onClick={() => {
+                    if (selectedTemplateId === tpl.id) {
+                      setSelectedTemplateId(null);
+                      setTemplatePrompt(null);
+                    } else {
+                      setSelectedTemplateId(tpl.id);
+                      setTemplatePrompt(tpl.prompt);
+                    }
+                  }}
+                >
+                  <div className="templatePreviewWrap">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={tpl.preview} alt={tpl.title} />
+                  </div>
+                  <div className="templateLabel">{tpl.title}</div>
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
