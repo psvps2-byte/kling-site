@@ -137,7 +137,6 @@ async function pickJob() {
     .select("*")
     .in("status", ["QUEUED", "RUNNING", "DONE"])
     .not("task_id", "is", null)
-    .eq("result_urls", "[]")
     .order("created_at", { ascending: true })
     .limit(1);
 
