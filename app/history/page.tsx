@@ -34,6 +34,9 @@ export default function HistoryPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // ✅ НОВЕ: показуємо по 20 елементів
+  const [visibleCount, setVisibleCount] = useState(20);
+
   const mountedRef = useRef(true);
 
   async function loadHistory() {
@@ -71,6 +74,11 @@ export default function HistoryPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ✅ НОВЕ: при зміні пошуку/фільтра/сорту — повертаємось до перших 20
+  useEffect(() => {
+    setVisibleCount(20);
+  }, [search, filter, sort]);
 
   // 🔁 auto-poll while there are "processing" entries (urls empty)
   useEffect(() => {
@@ -146,7 +154,8 @@ export default function HistoryPage() {
     return isVideoUrl(url) ? dict.video : dict.image;
   }
 
-  const filtered = useMemo(() => {
+  // ✅ Спочатку рахуємо повний відфільтрований список
+  const filteredAll = useMemo(() => {
     const s = search.trim().toLowerCase();
     let arr = items.slice();
 
@@ -163,6 +172,11 @@ export default function HistoryPage() {
     arr.sort((a, b) => (sort === "newest" ? b.createdAt - a.createdAt : a.createdAt - b.createdAt));
     return arr;
   }, [items, search, filter, sort]);
+
+  // ✅ А тут показуємо тільки перші visibleCount
+  const visibleItems = useMemo(() => {
+    return filteredAll.slice(0, visibleCount);
+  }, [filteredAll, visibleCount]);
 
   function openModal(item: Entry) {
     if (!item?.urls?.length) return;
@@ -240,6 +254,8 @@ export default function HistoryPage() {
   const modalItem = selected ? items.find((x) => x.id === selected.id) : null;
   const modalUrl = modalItem ? modalItem.urls[selected!.urlIndex] : "";
   const modalIsVideo = modalUrl ? isVideoUrl(modalUrl) : false;
+
+  const hasMore = filteredAll.length > visibleItems.length;
 
   return (
     <div className="page-wrap">
@@ -320,12 +336,7 @@ export default function HistoryPage() {
             </button>
           </div>
 
-          <select
-            className="ios-select"
-            value={sort}
-            onChange={(e) => setSort(e.target.value as any)}
-            style={{ width: 180 }}
-          >
+          <select className="ios-select" value={sort} onChange={(e) => setSort(e.target.value as any)} style={{ width: 180 }}>
             <option value="newest">{dict.sortNewest}</option>
             <option value="oldest">{dict.sortOldest}</option>
           </select>
@@ -336,144 +347,149 @@ export default function HistoryPage() {
         </div>
 
         {error && (
-          <div style={{ marginTop: 10, color: "rgba(255,120,120,0.95)", whiteSpace: "pre-wrap" }}>
-            {error}
-          </div>
+          <div style={{ marginTop: 10, color: "rgba(255,120,120,0.95)", whiteSpace: "pre-wrap" }}>{error}</div>
         )}
       </div>
 
       {/* grid */}
-      {filtered.length === 0 ? (
+      {visibleItems.length === 0 ? (
         <div className="helper" style={{ textAlign: "center", marginTop: 30 }}>
           {dict.emptyMessage}
         </div>
       ) : (
-        <div className="grid" style={{ marginTop: 14 }}>
-          {filtered.map((it) => {
-            const first = it.urls?.[0] ?? "";
-            const type = first ? previewType(first) : dict.image;
-            const badge = it.urls?.length ? dict.done : dict.processing;
+        <>
+          <div className="grid" style={{ marginTop: 14 }}>
+            {visibleItems.map((it) => {
+              const first = it.urls?.[0] ?? "";
+              const type = first ? previewType(first) : dict.image;
+              const badge = it.urls?.length ? dict.done : dict.processing;
 
-            const busy = deletingId === it.id;
+              const busy = deletingId === it.id;
 
-            return (
-              <div
-                key={it.id}
-                className="thumb"
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  opacity: busy ? 0.6 : 1,
-                  pointerEvents: busy ? "none" : "auto",
-                }}
-              >
+              return (
                 <div
+                  key={it.id}
+                  className="thumb"
                   style={{
-                    position: "relative",
-                    paddingTop: "56.25%",
-                    cursor: first ? "pointer" : "default",
-                    background: "rgba(255,255,255,0.04)",
+                    display: "flex",
+                    flexDirection: "column",
+                    opacity: busy ? 0.6 : 1,
+                    pointerEvents: busy ? "none" : "auto",
                   }}
-                  onClick={() => openModal(it)}
                 >
-                  {first ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={first}
-                      alt={it.prompt || dict.noPreview}
-                      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-                    />
-                  ) : (
-                    <div
-                      style={{
-                        position: "absolute",
-                        inset: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "rgba(255,255,255,0.55)",
-                        fontSize: 13,
-                      }}
-                    >
-                      {dict.noPreview}
-                    </div>
-                  )}
-                </div>
-
-                <div style={{ padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-                  <div style={{ fontSize: 13, opacity: 0.92 }}>{type}</div>
                   <div
                     style={{
-                      fontSize: 12,
-                      padding: "5px 10px",
-                      borderRadius: 999,
-                      background: badge === dict.done ? "rgba(52,199,89,0.22)" : "rgba(255,159,10,0.22)",
-                      border: "1px solid rgba(255,255,255,0.10)",
-                      color: "rgba(255,255,255,0.92)",
+                      position: "relative",
+                      paddingTop: "56.25%",
+                      cursor: first ? "pointer" : "default",
+                      background: "rgba(255,255,255,0.04)",
+                    }}
+                    onClick={() => openModal(it)}
+                  >
+                    {first ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={first}
+                        alt={it.prompt || dict.noPreview}
+                        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "rgba(255,255,255,0.55)",
+                          fontSize: 13,
+                        }}
+                      >
+                        {dict.noPreview}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                    <div style={{ fontSize: 13, opacity: 0.92 }}>{type}</div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        padding: "5px 10px",
+                        borderRadius: 999,
+                        background: badge === dict.done ? "rgba(52,199,89,0.22)" : "rgba(255,159,10,0.22)",
+                        border: "1px solid rgba(255,255,255,0.10)",
+                        color: "rgba(255,255,255,0.92)",
+                      }}
+                    >
+                      {badge}
+                    </div>
+                  </div>
+
+                  <div style={{ padding: "0 12px 12px", fontSize: 12, color: "rgba(255,255,255,0.72)", flex: 1 }}>
+                    {it.prompt ?? ""}
+                  </div>
+
+                  <div
+                    style={{
+                      padding: "0 12px 14px",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 10,
+                      flexWrap: "wrap",
                     }}
                   >
-                    {badge}
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}>{new Date(it.createdAt).toLocaleString()}</div>
+
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        type="button"
+                        className="ios-btn ios-btn--ghost"
+                        onClick={() => it.urls?.[0] && window.open(it.urls?.[0], "_blank")}
+                        disabled={!it.urls?.[0]}
+                      >
+                        {dict.open}
+                      </button>
+                      <button
+                        type="button"
+                        className="ios-btn ios-btn--ghost"
+                        onClick={() => copyLink(it.urls?.[0])}
+                        disabled={!it.urls?.[0]}
+                      >
+                        {dict.copyLink}
+                      </button>
+                      <button
+                        type="button"
+                        className="ios-btn ios-btn--ghost"
+                        onClick={() => shareLink(it.urls?.[0])}
+                        disabled={!it.urls?.[0]}
+                      >
+                        {dict.share}
+                      </button>
+                      <button type="button" className="ios-btn ios-btn--danger" onClick={() => deleteItem(it)} disabled={busy}>
+                        {busy ? (dict.deleting ?? "Видаляю...") : dict.delete}
+                      </button>
+                    </div>
                   </div>
+
+                  {Array.isArray(it.r2Keys) && it.r2Keys.length ? (
+                    <div style={{ padding: "0 12px 12px", fontSize: 11, opacity: 0.55 }}>R2: {it.r2Keys.length} files</div>
+                  ) : null}
                 </div>
+              );
+            })}
+          </div>
 
-                <div style={{ padding: "0 12px 12px", fontSize: 12, color: "rgba(255,255,255,0.72)", flex: 1 }}>
-                  {it.prompt ?? ""}
-                </div>
-
-                <div
-                  style={{
-                    padding: "0 12px 14px",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 10,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}>
-                    {new Date(it.createdAt).toLocaleString()}
-                  </div>
-
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    <button
-                      type="button"
-                      className="ios-btn ios-btn--ghost"
-                      onClick={() => it.urls?.[0] && window.open(it.urls?.[0], "_blank")}
-                      disabled={!it.urls?.[0]}
-                    >
-                      {dict.open}
-                    </button>
-                    <button
-                      type="button"
-                      className="ios-btn ios-btn--ghost"
-                      onClick={() => copyLink(it.urls?.[0])}
-                      disabled={!it.urls?.[0]}
-                    >
-                      {dict.copyLink}
-                    </button>
-                    <button
-                      type="button"
-                      className="ios-btn ios-btn--ghost"
-                      onClick={() => shareLink(it.urls?.[0])}
-                      disabled={!it.urls?.[0]}
-                    >
-                      {dict.share}
-                    </button>
-                    <button type="button" className="ios-btn ios-btn--danger" onClick={() => deleteItem(it)} disabled={busy}>
-                      {busy ? (dict.deleting ?? "Видаляю...") : dict.delete}
-                    </button>
-                  </div>
-                </div>
-
-                {Array.isArray(it.r2Keys) && it.r2Keys.length ? (
-                  <div style={{ padding: "0 12px 12px", fontSize: 11, opacity: 0.55 }}>
-                    R2: {it.r2Keys.length} files
-                  </div>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
+          {/* ✅ Кнопка "Завантажити ще" */}
+          {hasMore && (
+            <div style={{ textAlign: "center", margin: "24px 0" }}>
+              <button type="button" className="ios-btn ios-btn--ghost" onClick={() => setVisibleCount((v) => v + 20)}>
+                {dict.loadMore ?? "Завантажити ще"}
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* modal */}
@@ -566,11 +582,7 @@ export default function HistoryPage() {
                 <video src={modalUrl} controls style={{ maxWidth: "100%", maxHeight: "78vh", borderRadius: 18 }} />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={modalUrl}
-                  alt={modalItem.prompt || "preview"}
-                  style={{ maxWidth: "100%", maxHeight: "78vh", borderRadius: 18 }}
-                />
+                <img src={modalUrl} alt={modalItem.prompt || "preview"} style={{ maxWidth: "100%", maxHeight: "78vh", borderRadius: 18 }} />
               )}
             </div>
 
