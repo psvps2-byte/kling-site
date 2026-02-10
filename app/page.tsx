@@ -1390,7 +1390,7 @@ export default function Home() {
                     <div className="uploadTile uploadTileBig templatePreviewBig">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img 
-                        src={templates.find(t => t.id === selectedTemplateId)?.preview} 
+                        src={templates.find(t => t.id === selectedTemplateId)?.preview_url} 
                         alt={templates.find(t => t.id === selectedTemplateId)?.title}
                       />
                       <span className="tile-label">{lang === "uk" ? "Шаблон" : "Template"}</span>
