@@ -2181,7 +2181,7 @@ export default function Home() {
                 >
                   <div className="templatePreviewWrap">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={tpl.preview} alt={tpl.title} />
+                    <img src={tpl.preview_url} alt={tpl.title} />
                   </div>
                   <div className="templateLabel">{tpl.title}</div>
                 </button>
