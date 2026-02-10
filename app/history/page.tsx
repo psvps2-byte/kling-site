@@ -384,18 +384,6 @@ export default function HistoryPage() {
           object-position: center;
         }
 
-        .preview-badge {
-          position: absolute;
-          left: 10px;
-          top: 10px;
-          font-size: 12px;
-          padding: 6px 10px;
-          border-radius: 999px;
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          background: rgba(0, 0, 0, 0.28);
-          color: rgba(255, 255, 255, 0.92);
-          pointer-events: none;
-        }
       `}</style>
 
       {/* top bar */}
@@ -517,7 +505,6 @@ export default function HistoryPage() {
                   onClick={() => openModal(it)}
                   title={it.prompt ?? ""}
                 >
-                  <div className="preview-badge">{isVid ? (dict.video ?? "Відео") : (dict.image ?? "Зображення")}</div>
 
                   {url ? (
                     <>
