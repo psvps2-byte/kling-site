@@ -9,6 +9,10 @@ const supabase = createClient(
 );
 
 export default function AdminPage() {
+  const [authenticated, setAuthenticated] = useState(false);
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState('');
+
   const [title, setTitle] = useState('');
   const [prompt, setPrompt] = useState('');
   const [sortOrder, setSortOrder] = useState<number>(0);
@@ -17,6 +21,35 @@ export default function AdminPage() {
 
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string>('');
+
+  // Check localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('admin_ok');
+      if (stored === '1') {
+        setAuthenticated(true);
+      }
+    }
+  }, []);
+
+  const handleLogin = () => {
+    const correctPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
+    
+    if (!correctPassword) {
+      setAuthError('❌ NEXT_PUBLIC_ADMIN_PASSWORD не налаштовано');
+      return;
+    }
+
+    if (password === correctPassword) {
+      setAuthenticated(true);
+      setAuthError('');
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('admin_ok', '1');
+      }
+    } else {
+      setAuthError('❌ Неправильний пароль');
+    }
+  };
 
   const canSave = useMemo(() => {
     return title.trim().length > 0 && prompt.trim().length > 0 && !!file && !saving;
@@ -77,7 +110,36 @@ export default function AdminPage() {
     <div style={{ maxWidth: 720, margin: '40px auto', padding: 16 }}>
       <h1 style={{ fontSize: 28, fontWeight: 700, marginBottom: 16 }}>Admin: Templates</h1>
 
-      <div style={{ display: 'grid', gap: 12 }}>
+      {!authenticated ? (
+        <div style={{ display: 'grid', gap: 12, maxWidth: 400 }}>
+          <label>
+            Пароль
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+              style={{ width: '100%', padding: 10, marginTop: 6 }}
+              placeholder="Введи пароль..."
+            />
+          </label>
+
+          <button
+            onClick={handleLogin}
+            style={{
+              padding: 12,
+              borderRadius: 10,
+              cursor: 'pointer',
+              fontWeight: 600,
+            }}
+          >
+            Увійти
+          </button>
+
+          {authError && <div style={{ color: '#ff6b6b', marginTop: 8 }}>{authError}</div>}
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 12 }}>
         <label>
           Назва (title)
           <input
@@ -147,6 +209,7 @@ export default function AdminPage() {
           Відкрий: <b>/admin</b>
         </div>
       </div>
+      )}
     </div>
   );
 }
