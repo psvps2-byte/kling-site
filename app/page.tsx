@@ -1506,7 +1506,7 @@ export default function Home() {
 
                   {(!session || (!!session && points <= 0) || (!!session && points > 0 && points < currentCost)) && (
                     <div style={{ marginTop: 10, opacity: 0.9 }}>
-                      {!session && <div>Щоб генерувати — увійди через Google.</div>}
+                      {!session && <div>{dict.authRequired}</div>}
                       {!!session && points <= 0 && (
                         <div>
                           У тебе 0 балів —{" "}
@@ -1732,7 +1732,7 @@ export default function Home() {
 
                   {(!session || (!!session && points <= 0) || (!!session && points > 0 && points < currentCost)) && (
                     <div style={{ marginTop: 10, opacity: 0.9 }}>
-                      {!session && <div>Щоб генерувати — увійди через Google.</div>}
+                      {!session && <div>{dict.authRequired}</div>}
                       {!!session && points <= 0 && (
                         <div>
                           У тебе 0 балів —{" "}
@@ -2091,7 +2091,7 @@ export default function Home() {
 
               {(!session || (!!session && points <= 0) || (!!session && points > 0 && points < currentCost)) && (
                 <div style={{ marginTop: 10, opacity: 0.9 }}>
-                  {!session && <div>Щоб генерувати — увійди через Google.</div>}
+                  {!session && <div>{dict.authRequired}</div>}
                   {!!session && points <= 0 && (
                     <div>
                       У тебе 0 балів —{" "}

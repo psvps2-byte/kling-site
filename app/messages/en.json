@@ -26,5 +26,6 @@
   "signIn": "Sign in",
   "signOut": "Sign out",
   "history": "History",
-  "appName": "Kling"
+  "appName": "Kling",
+  "authRequired": "To get started, you need to sign in"
 }

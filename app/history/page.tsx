@@ -9,7 +9,24 @@ type Entry = {
   createdAt: number;
   urls: string[];
   prompt?: string;
-  r2Keys?: string[]; // ✅ ДОДАЛИ (для видалення з R2)
+  r2Keys?: string[];
+};
+
+type DisplayItem = {
+  // унікальний id для кожного превʼю
+  uid: string;
+
+  // посилання на оригінальний запис
+  entryId: string;
+  createdAt: number;
+  prompt?: string;
+
+  // конкретний файл з масиву urls
+  url: string;
+  urlIndex: number;
+
+  // відповідний r2Key (якщо є)
+  r2Key?: string;
 };
 
 async function readJsonOrRaw(res: Response) {
@@ -21,20 +38,50 @@ async function readJsonOrRaw(res: Response) {
   }
 }
 
+function isVideoUrl(url: string) {
+  return !!url.match(/\.(mp4|webm|mov|mkv)(\?|$)/i);
+}
+
+// додає або замінює параметр у URL
+function withParam(url: string, key: string, value: string) {
+  try {
+    const u = new URL(url);
+    u.searchParams.set(key, value);
+    return u.toString();
+  } catch {
+    // якщо раптом не валідний URL — повернемо як є
+    return url;
+  }
+}
+
+// прибирає параметр w (щоб модалка відкривала оригінал)
+function withoutW(url: string) {
+  try {
+    const u = new URL(url);
+    u.searchParams.delete("w");
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 export default function HistoryPage() {
   const router = useRouter();
+
   const [items, setItems] = useState<Entry[]>([]);
-  const [selected, setSelected] = useState<{ id: string; urlIndex: number } | null>(null);
+  const [selected, setSelected] = useState<DisplayItem | null>(null);
+
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<"all" | "images" | "videos">("all");
   const [sort, setSort] = useState<"newest" | "oldest">("newest");
+
   const [lang, setLangState] = useState<Lang>(() => getLang());
   const dict = t(lang);
 
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingUid, setDeletingUid] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ НОВЕ: показуємо по 20 елементів
+  // ✅ Показуємо по 20 (кнопка “Ще”)
   const [visibleCount, setVisibleCount] = useState(20);
 
   const mountedRef = useRef(true);
@@ -46,10 +93,8 @@ export default function HistoryPage() {
       const data = await readJsonOrRaw(res);
 
       if (!mountedRef.current) return;
-
       if (!res.ok) throw new Error(data?.error || "failed to fetch history");
 
-      // Підтримка двох форматів: або масив, або {items: [...]}
       const arr = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
       if (Array.isArray(arr)) setItems(arr);
       else setItems([]);
@@ -60,7 +105,6 @@ export default function HistoryPage() {
     }
   }
 
-  // initial load + focus reload
   useEffect(() => {
     mountedRef.current = true;
 
@@ -75,12 +119,12 @@ export default function HistoryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ НОВЕ: при зміні пошуку/фільтра/сорту — повертаємось до перших 20
+  // ✅ Скидаємо “показати ще”, коли змінився пошук/фільтр/сорт
   useEffect(() => {
     setVisibleCount(20);
   }, [search, filter, sort]);
 
-  // 🔁 auto-poll while there are "processing" entries (urls empty)
+  // 🔁 авто-оновлення, якщо є записи “в процесі” (urls порожній)
   useEffect(() => {
     let alive = true;
     let timer: any = null;
@@ -113,27 +157,6 @@ export default function HistoryPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);
 
-  // modal keyboard navigation
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setSelected(null);
-      if (!selected) return;
-
-      const item = items.find((x) => x.id === selected.id);
-      if (!item) return;
-
-      if (e.key === "ArrowRight") {
-        setSelected({ id: selected.id, urlIndex: Math.min(selected.urlIndex + 1, item.urls.length - 1) });
-      }
-      if (e.key === "ArrowLeft") {
-        setSelected({ id: selected.id, urlIndex: Math.max(selected.urlIndex - 1, 0) });
-      }
-    }
-
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [selected, items]);
-
   // update lang when storage changes
   useEffect(() => {
     function onStorage(e: StorageEvent) {
@@ -146,41 +169,65 @@ export default function HistoryPage() {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  function isVideoUrl(url: string) {
-    return !!url.match(/\.(mp4|webm|mov|mkv)(\?|$)/i);
-  }
+  // ✅ Головне: розгортання “групи” (urls[]) в окремі елементи (1 url = 1 плитка)
+  const expandedAll = useMemo<DisplayItem[]>(() => {
+    const out: DisplayItem[] = [];
+    for (const entry of items) {
+      const urls = Array.isArray(entry.urls) ? entry.urls : [];
+      urls.forEach((url, idx) => {
+        out.push({
+          uid: `${entry.id}__${idx}`,
+          entryId: entry.id,
+          createdAt: entry.createdAt,
+          prompt: entry.prompt,
+          url,
+          urlIndex: idx,
+          r2Key: Array.isArray(entry.r2Keys) ? entry.r2Keys[idx] : undefined,
+        });
+      });
 
-  function previewType(url: string) {
-    return isVideoUrl(url) ? dict.video : dict.image;
-  }
+      // якщо ще в процесі (urls пусті) — покажемо 1 “порожню” плитку
+      if (!urls.length) {
+        out.push({
+          uid: `${entry.id}__pending`,
+          entryId: entry.id,
+          createdAt: entry.createdAt,
+          prompt: entry.prompt,
+          url: "",
+          urlIndex: 0,
+          r2Key: undefined,
+        });
+      }
+    }
+    return out;
+  }, [items]);
 
-  // ✅ Спочатку рахуємо повний відфільтрований список
+  // ✅ фільтри/пошук/сортування вже над “розгорнутими” елементами
   const filteredAll = useMemo(() => {
     const s = search.trim().toLowerCase();
-    let arr = items.slice();
+    let arr = expandedAll.slice();
 
-    if (s) arr = arr.filter((it) => String(it.prompt ?? "").toLowerCase().includes(s));
+    if (s) {
+      arr = arr.filter((it) => String(it.prompt ?? "").toLowerCase().includes(s));
+    }
 
     if (filter !== "all") {
       arr = arr.filter((it) => {
-        const first = it.urls?.[0] ?? "";
-        const isVideo = isVideoUrl(first);
-        return filter === "videos" ? isVideo : !isVideo;
+        const isVid = it.url ? isVideoUrl(it.url) : false;
+        return filter === "videos" ? isVid : !isVid;
       });
     }
 
     arr.sort((a, b) => (sort === "newest" ? b.createdAt - a.createdAt : a.createdAt - b.createdAt));
     return arr;
-  }, [items, search, filter, sort]);
+  }, [expandedAll, search, filter, sort]);
 
-  // ✅ А тут показуємо тільки перші visibleCount
-  const visibleItems = useMemo(() => {
-    return filteredAll.slice(0, visibleCount);
-  }, [filteredAll, visibleCount]);
+  const visibleItems = useMemo(() => filteredAll.slice(0, visibleCount), [filteredAll, visibleCount]);
+  const hasMore = filteredAll.length > visibleItems.length;
 
-  function openModal(item: Entry) {
-    if (!item?.urls?.length) return;
-    setSelected({ id: item.id, urlIndex: 0 });
+  function openModal(it: DisplayItem) {
+    if (!it.url) return;
+    setSelected(it);
   }
 
   function closeModal() {
@@ -206,59 +253,151 @@ export default function HistoryPage() {
         await navAny.share({ url });
         return;
       } catch {
-        // fallback to copy
+        // fallback
       }
     }
-
     await copyLink(url);
   }
 
-  // ✅ НОВЕ: справжнє видалення (R2 + history)
-  async function deleteItem(entry: Entry) {
-    const ok = confirm(dict.deleteConfirm ?? "Видалити цей запис і файли з R2?");
+  function downloadFile(url?: string) {
+    if (!url) return;
+    // найпростіше: відкриваємо у новій вкладці, далі "Save as…"
+    window.open(url, "_blank");
+  }
+
+  // ✅ Видалити 1 конкретний файл (а не всю “пʼятірку”)
+  async function deleteOne(it: DisplayItem) {
+    const ok = confirm(dict.deleteConfirm ?? "Видалити цей файл?");
     if (!ok) return;
 
     setError(null);
-    setDeletingId(entry.id);
+    setDeletingUid(it.uid);
 
     try {
-      // 1) видаляємо файли з R2
-      if (Array.isArray(entry.r2Keys) && entry.r2Keys.length) {
-        for (const key of entry.r2Keys) {
-          const r = await fetch("/api/r2/delete", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ key }),
-          });
-          const d = await readJsonOrRaw(r);
-          if (!r.ok) throw new Error(d?.error || `R2 delete failed (${r.status})`);
-        }
+      // 1) видаляємо файл з R2 (якщо є ключ)
+      if (it.r2Key) {
+        const r = await fetch("/api/r2/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: it.r2Key }),
+        });
+        const d = await readJsonOrRaw(r);
+        if (!r.ok) throw new Error(d?.error || `R2 delete failed (${r.status})`);
       }
 
-      // 2) видаляємо запис з history
-      // ⚠️ Потрібно щоб /api/history підтримував DELETE
-      const res = await fetch(`/api/history?id=${encodeURIComponent(entry.id)}`, { method: "DELETE" });
-      const data = await readJsonOrRaw(res);
-      if (!res.ok) throw new Error(data?.error || `History delete failed (${res.status})`);
+      // 2) оновлюємо локально items: прибираємо цей url з entry.urls
+      setItems((prev) => {
+        return prev
+          .map((entry) => {
+            if (entry.id !== it.entryId) return entry;
 
-      // 3) прибираємо зі списку
-      setItems((prev) => prev.filter((x) => x.id !== entry.id));
-      if (selected?.id === entry.id) setSelected(null);
+            const newUrls = (entry.urls || []).slice();
+            newUrls.splice(it.urlIndex, 1);
+
+            const newKeys = Array.isArray(entry.r2Keys) ? entry.r2Keys.slice() : undefined;
+            if (newKeys) newKeys.splice(it.urlIndex, 1);
+
+            return { ...entry, urls: newUrls, r2Keys: newKeys };
+          })
+          // якщо в записі не лишилось файлів — видаляємо запис історії повністю
+          .filter((entry) => entry.id !== it.entryId || (entry.urls && entry.urls.length > 0));
+      });
+
+      // 3) якщо це був останній файл у записі — просимо бекенд видалити сам запис history
+      const original = items.find((x) => x.id === it.entryId);
+      const wasLast = (original?.urls?.length ?? 0) <= 1;
+      if (wasLast) {
+        const res = await fetch(`/api/history?id=${encodeURIComponent(it.entryId)}`, { method: "DELETE" });
+        const data = await readJsonOrRaw(res);
+        if (!res.ok) throw new Error(data?.error || `History delete failed (${res.status})`);
+      }
+
+      if (selected?.uid === it.uid) setSelected(null);
     } catch (e: any) {
       setError(e?.message || "Delete error");
     } finally {
-      setDeletingId(null);
+      setDeletingUid(null);
     }
   }
 
-  const modalItem = selected ? items.find((x) => x.id === selected.id) : null;
-  const modalUrl = modalItem ? modalItem.urls[selected!.urlIndex] : "";
+  const modalUrl = selected?.url ? withoutW(selected.url) : "";
   const modalIsVideo = modalUrl ? isVideoUrl(modalUrl) : false;
 
-  const hasMore = filteredAll.length > visibleItems.length;
+  // ✅ URL превʼю: просимо маленьке через ?w=600
+  function thumbUrl(url: string) {
+    // 600 px — норм для плитки
+    return withParam(url, "w", "600");
+  }
 
   return (
     <div className="page-wrap">
+      {/* ✅ стилі для нової сітки превʼю */}
+      <style jsx global>{`
+        .history-grid {
+          display: grid;
+          gap: 14px;
+          margin-top: 14px;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        @media (max-width: 720px) {
+          .history-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+
+        .preview-tile {
+          position: relative;
+          width: 100%;
+          aspect-ratio: 1 / 1; /* ✅ квадрат */
+          border-radius: 18px;
+          overflow: hidden;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(255, 255, 255, 0.06);
+          backdrop-filter: blur(14px) saturate(140%);
+          -webkit-backdrop-filter: blur(14px) saturate(140%);
+          cursor: pointer;
+          box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
+        }
+
+        .preview-bg {
+          position: absolute;
+          inset: 0;
+          transform: scale(1.08);
+          filter: blur(18px);
+          opacity: 0.45;
+          background-size: cover;
+          background-position: center;
+        }
+
+        .preview-glass {
+          position: absolute;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.18);
+        }
+
+        .preview-img {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: contain; /* ✅ повністю вміщається */
+          object-position: center;
+        }
+
+        .preview-badge {
+          position: absolute;
+          left: 10px;
+          top: 10px;
+          font-size: 12px;
+          padding: 6px 10px;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          background: rgba(0, 0, 0, 0.28);
+          color: rgba(255, 255, 255, 0.92);
+          pointer-events: none;
+        }
+      `}</style>
+
       {/* top bar */}
       <div className="topbar">
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -266,10 +405,7 @@ export default function HistoryPage() {
             type="button"
             className="ios-btn ios-btn--ghost"
             style={{ textDecoration: "none" }}
-            onClick={() => {
-              // ✅ 100% працює завжди (повний перехід + оновлення)
-              window.location.assign("/");
-            }}
+            onClick={() => window.location.assign("/")}
           >
             ← {dict.home}
           </button>
@@ -347,141 +483,74 @@ export default function HistoryPage() {
         </div>
 
         {error && (
-          <div style={{ marginTop: 10, color: "rgba(255,120,120,0.95)", whiteSpace: "pre-wrap" }}>{error}</div>
+          <div style={{ marginTop: 10, color: "rgba(255,120,120,0.95)", whiteSpace: "pre-wrap" }}>
+            {error}
+          </div>
         )}
       </div>
 
-      {/* grid */}
+      {/* grid: only preview tiles */}
       {visibleItems.length === 0 ? (
         <div className="helper" style={{ textAlign: "center", marginTop: 30 }}>
           {dict.emptyMessage}
         </div>
       ) : (
         <>
-          <div className="grid" style={{ marginTop: 14 }}>
+          <div className="history-grid">
             {visibleItems.map((it) => {
-              const first = it.urls?.[0] ?? "";
-              const type = first ? previewType(first) : dict.image;
-              const badge = it.urls?.length ? dict.done : dict.processing;
+              const url = it.url;
+              const isVid = url ? isVideoUrl(url) : false;
+              const busy = deletingUid === it.uid;
 
-              const busy = deletingId === it.id;
+              // статус: якщо url пустий — “processing”
+              const badge = url ? (dict.done ?? "Готово") : (dict.processing ?? "Генерується");
 
               return (
                 <div
-                  key={it.id}
-                  className="thumb"
+                  key={it.uid}
+                  className="preview-tile"
                   style={{
-                    display: "flex",
-                    flexDirection: "column",
                     opacity: busy ? 0.6 : 1,
                     pointerEvents: busy ? "none" : "auto",
+                    cursor: url ? "pointer" : "default",
                   }}
+                  onClick={() => openModal(it)}
+                  title={it.prompt ?? ""}
                 >
-                  <div
-                    style={{
-                      position: "relative",
-                      paddingTop: "56.25%",
-                      cursor: first ? "pointer" : "default",
-                      background: "rgba(255,255,255,0.04)",
-                    }}
-                    onClick={() => openModal(it)}
-                  >
-                    {first ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={first}
-                        alt={it.prompt || dict.noPreview}
-                        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          position: "absolute",
-                          inset: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "rgba(255,255,255,0.55)",
-                          fontSize: 13,
-                        }}
-                      >
-                        {dict.noPreview}
-                      </div>
-                    )}
-                  </div>
+                  <div className="preview-badge">{isVid ? (dict.video ?? "Відео") : (dict.image ?? "Зображення")}</div>
 
-                  <div style={{ padding: 12, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-                    <div style={{ fontSize: 13, opacity: 0.92 }}>{type}</div>
+                  {url ? (
+                    <>
+                      <div
+                        className="preview-bg"
+                        style={{
+                          backgroundImage: `url("${thumbUrl(url)}")`,
+                        }}
+                      />
+                      <div className="preview-glass" />
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img className="preview-img" src={thumbUrl(url)} alt={it.prompt || dict.noPreview} />
+                    </>
+                  ) : (
                     <div
                       style={{
-                        fontSize: 12,
-                        padding: "5px 10px",
-                        borderRadius: 999,
-                        background: badge === dict.done ? "rgba(52,199,89,0.22)" : "rgba(255,159,10,0.22)",
-                        border: "1px solid rgba(255,255,255,0.10)",
-                        color: "rgba(255,255,255,0.92)",
+                        position: "absolute",
+                        inset: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "rgba(255,255,255,0.65)",
+                        fontSize: 13,
                       }}
                     >
                       {badge}
                     </div>
-                  </div>
-
-                  <div style={{ padding: "0 12px 12px", fontSize: 12, color: "rgba(255,255,255,0.72)", flex: 1 }}>
-                    {it.prompt ?? ""}
-                  </div>
-
-                  <div
-                    style={{
-                      padding: "0 12px 14px",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: 10,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}>{new Date(it.createdAt).toLocaleString()}</div>
-
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <button
-                        type="button"
-                        className="ios-btn ios-btn--ghost"
-                        onClick={() => it.urls?.[0] && window.open(it.urls?.[0], "_blank")}
-                        disabled={!it.urls?.[0]}
-                      >
-                        {dict.open}
-                      </button>
-                      <button
-                        type="button"
-                        className="ios-btn ios-btn--ghost"
-                        onClick={() => copyLink(it.urls?.[0])}
-                        disabled={!it.urls?.[0]}
-                      >
-                        {dict.copyLink}
-                      </button>
-                      <button
-                        type="button"
-                        className="ios-btn ios-btn--ghost"
-                        onClick={() => shareLink(it.urls?.[0])}
-                        disabled={!it.urls?.[0]}
-                      >
-                        {dict.share}
-                      </button>
-                      <button type="button" className="ios-btn ios-btn--danger" onClick={() => deleteItem(it)} disabled={busy}>
-                        {busy ? (dict.deleting ?? "Видаляю...") : dict.delete}
-                      </button>
-                    </div>
-                  </div>
-
-                  {Array.isArray(it.r2Keys) && it.r2Keys.length ? (
-                    <div style={{ padding: "0 12px 12px", fontSize: 11, opacity: 0.55 }}>R2: {it.r2Keys.length} files</div>
-                  ) : null}
+                  )}
                 </div>
               );
             })}
           </div>
 
-          {/* ✅ Кнопка "Завантажити ще" */}
           {hasMore && (
             <div style={{ textAlign: "center", margin: "24px 0" }}>
               <button type="button" className="ios-btn ios-btn--ghost" onClick={() => setVisibleCount((v) => v + 20)}>
@@ -493,7 +562,7 @@ export default function HistoryPage() {
       )}
 
       {/* modal */}
-      {selected && modalItem && modalUrl && (
+      {selected && modalUrl && (
         <div
           onClick={closeModal}
           style={{
@@ -535,43 +604,7 @@ export default function HistoryPage() {
                 zIndex: 2,
               }}
             >
-              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                {modalItem.urls.length > 1 && (
-                  <button
-                    type="button"
-                    className="ios-btn ios-btn--ghost"
-                    onClick={() => setSelected({ id: modalItem.id, urlIndex: Math.max(selected.urlIndex - 1, 0) })}
-                  >
-                    ←
-                  </button>
-                )}
-                {modalItem.urls.length > 1 && (
-                  <button
-                    type="button"
-                    className="ios-btn ios-btn--ghost"
-                    onClick={() =>
-                      setSelected({ id: modalItem.id, urlIndex: Math.min(selected.urlIndex + 1, modalItem.urls.length - 1) })
-                    }
-                  >
-                    →
-                  </button>
-                )}
-
-                <div
-                  style={{
-                    alignSelf: "center",
-                    fontSize: 12,
-                    padding: "6px 10px",
-                    borderRadius: 999,
-                    border: "1px solid rgba(255,255,255,0.14)",
-                    background: "rgba(0,0,0,0.25)",
-                    color: "rgba(255,255,255,0.9)",
-                  }}
-                >
-                  {`${selected.urlIndex + 1}/${modalItem.urls.length}`}
-                </div>
-              </div>
-
+              <div />
               <button type="button" className="ios-btn ios-btn--ghost" onClick={closeModal}>
                 ✕
               </button>
@@ -582,13 +615,18 @@ export default function HistoryPage() {
                 <video src={modalUrl} controls style={{ maxWidth: "100%", maxHeight: "78vh", borderRadius: 18 }} />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={modalUrl} alt={modalItem.prompt || "preview"} style={{ maxWidth: "100%", maxHeight: "78vh", borderRadius: 18 }} />
+                <img
+                  src={modalUrl}
+                  alt={selected.prompt || "preview"}
+                  style={{ maxWidth: "100%", maxHeight: "78vh", borderRadius: 18 }}
+                />
               )}
             </div>
 
+            {/* ✅ кнопки тільки в модалці */}
             <div style={{ padding: 16, display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
-              <button type="button" className="ios-btn ios-btn--ghost" onClick={() => window.open(modalUrl, "_blank")}>
-                {dict.open}
+              <button type="button" className="ios-btn ios-btn--ghost" onClick={() => downloadFile(modalUrl)}>
+                {dict.download ?? "Скачати"}
               </button>
               <button type="button" className="ios-btn ios-btn--ghost" onClick={() => copyLink(modalUrl)}>
                 {dict.copyLink}
@@ -599,10 +637,10 @@ export default function HistoryPage() {
               <button
                 type="button"
                 className="ios-btn ios-btn--danger"
-                onClick={() => deleteItem(modalItem)}
-                disabled={deletingId === modalItem.id}
+                onClick={() => deleteOne(selected)}
+                disabled={deletingUid === selected.uid}
               >
-                {deletingId === modalItem.id ? (dict.deleting ?? "Видаляю...") : dict.delete}
+                {deletingUid === selected.uid ? (dict.deleting ?? "Видаляю...") : dict.delete}
               </button>
             </div>
           </div>
