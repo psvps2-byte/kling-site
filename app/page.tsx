@@ -585,7 +585,7 @@ export default function Home() {
 
       if (srcFile && !srcUrl) throw new Error(lang === "uk" ? "Не вдалось завантажити 1-е фото в R2" : "Failed to upload first image");
 
-      const tags = srcUrl ? "<<<image_1>>> " : "";
+      const tags = `${srcUrl ? "<<<image_1>>> " : ""}${srcUrl2 ? "<<<image_2>>> " : ""}`;
       const finalPrompt = (tags + userPrompt).trim();
 
       const n = Math.max(1, Math.min(9, Number(omniN) || 1));
@@ -599,6 +599,7 @@ export default function Home() {
       };
 
       if (srcUrl) body.image_1 = srcUrl;
+      if (srcUrl2) body.image_2 = srcUrl2;
 
       const res = await fetch("/api/kling/omni-image", {
         method: "POST",
@@ -1374,6 +1375,8 @@ export default function Home() {
                               e.stopPropagation();
                               setSrcFile(null);
                               setSrcUrl("");
+                              setSrcFile2(null);
+                              setSrcUrl2("");
                             }}
                           >
                             ✕
@@ -1386,6 +1389,41 @@ export default function Home() {
                         </>
                       )}
                     </div>
+
+                    {(srcFile || srcUrl) && (
+                      <div
+                        className="uploadTile uploadTileBig"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={lang === "uk" ? "Завантажити друге фото" : "Upload second image"}
+                        onClick={() => (document.getElementById("file2t") as HTMLInputElement | null)?.click()}
+                        onKeyDown={(e) => e.key === "Enter" && (document.getElementById("file2t") as HTMLInputElement | null)?.click()}
+                      >
+                        {srcPreview2 ? (
+                          <>
+                            <img src={srcPreview2} alt="reference2" />
+                            <span className="tile-label">{lang === "uk" ? "Фото 2" : "Photo 2"}</span>
+                            <button
+                              type="button"
+                              className="tile-remove"
+                              aria-label={lang === "uk" ? "Видалити" : "Remove"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSrcFile2(null);
+                                setSrcUrl2("");
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="uploadPlus">+</span>
+                            <span className="tile-label">{lang === "uk" ? "Фото 2" : "Photo 2"}</span>
+                          </>
+                        )}
+                      </div>
+                    )}
 
                     <div className="uploadTile uploadTileBig templatePreviewBig">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1414,6 +1452,31 @@ export default function Home() {
                           setRefUploading(true);
                           const { url } = await uploadToR2AndGetPublicUrl(f);
                           setSrcUrl(url);
+                        } catch (err: any) {
+                          setError(normalizeErr(err));
+                        } finally {
+                          setRefUploading(false);
+                        }
+                      }}
+                    />
+                    <input
+                      id="file2t"
+                      type="file"
+                      accept={acceptImg}
+                      style={{ display: "none" }}
+                      onChange={async (e) => {
+                        const f = e.target.files?.[0] ?? null;
+
+                        setError(null);
+                        setSrcFile2(f);
+                        setSrcUrl2("");
+
+                        if (!f) return;
+
+                        try {
+                          setRefUploading(true);
+                          const { url } = await uploadToR2AndGetPublicUrl(f);
+                          setSrcUrl2(url);
                         } catch (err: any) {
                           setError(normalizeErr(err));
                         } finally {
@@ -1596,6 +1659,8 @@ export default function Home() {
                               e.stopPropagation();
                               setSrcFile(null);
                               setSrcUrl("");
+                              setSrcFile2(null);
+                              setSrcUrl2("");
                             }}
                           >
                             ✕
@@ -1608,6 +1673,41 @@ export default function Home() {
                         </>
                       )}
                     </div>
+
+                    {(srcFile || srcUrl) && (
+                      <div
+                        className="uploadTile uploadTileHome"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={lang === "uk" ? "Завантажити друге фото" : "Upload second image"}
+                        onClick={() => (document.getElementById("file2") as HTMLInputElement | null)?.click()}
+                        onKeyDown={(e) => e.key === "Enter" && (document.getElementById("file2") as HTMLInputElement | null)?.click()}
+                      >
+                        {srcPreview2 ? (
+                          <>
+                            <img src={srcPreview2} alt="reference2" />
+                            <span className="tile-label">{lang === "uk" ? "Фото 2" : "Photo 2"}</span>
+                            <button
+                              type="button"
+                              className="tile-remove"
+                              aria-label={lang === "uk" ? "Видалити" : "Remove"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSrcFile2(null);
+                                setSrcUrl2("");
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="uploadPlus">+</span>
+                            <span className="tile-label">{lang === "uk" ? "Фото 2" : "Photo 2"}</span>
+                          </>
+                        )}
+                      </div>
+                    )}
 
                     <input
                       id="file1"
@@ -1627,6 +1727,31 @@ export default function Home() {
                           setRefUploading(true);
                           const { url } = await uploadToR2AndGetPublicUrl(f);
                           setSrcUrl(url);
+                        } catch (err: any) {
+                          setError(normalizeErr(err));
+                        } finally {
+                          setRefUploading(false);
+                        }
+                      }}
+                    />
+                    <input
+                      id="file2"
+                      type="file"
+                      accept={acceptImg}
+                      style={{ display: "none" }}
+                      onChange={async (e) => {
+                        const f = e.target.files?.[0] ?? null;
+
+                        setError(null);
+                        setSrcFile2(f);
+                        setSrcUrl2("");
+
+                        if (!f) return;
+
+                        try {
+                          setRefUploading(true);
+                          const { url } = await uploadToR2AndGetPublicUrl(f);
+                          setSrcUrl2(url);
                         } catch (err: any) {
                           setError(normalizeErr(err));
                         } finally {
