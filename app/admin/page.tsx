@@ -1,12 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export default function AdminPage() {
   const [authenticated, setAuthenticated] = useState(false);
@@ -55,21 +49,6 @@ export default function AdminPage() {
     return title.trim().length > 0 && prompt.trim().length > 0 && !!file && !saving;
   }, [title, prompt, file, saving]);
 
-  const uploadPreview = async (f: File) => {
-    const ext = f.name.split('.').pop() || 'jpg';
-    const path = `previews/${Date.now()}-${Math.random().toString(16).slice(2)}.${ext}`;
-
-    const { error: uploadErr } = await supabase
-      .storage
-      .from('template-previews')
-      .upload(path, f, { upsert: false });
-
-    if (uploadErr) throw uploadErr;
-
-    const { data } = supabase.storage.from('template-previews').getPublicUrl(path);
-    return data.publicUrl;
-  };
-
   const onCreate = async () => {
     try {
       setSaving(true);
@@ -80,17 +59,23 @@ export default function AdminPage() {
         return;
       }
 
-      const previewUrl = await uploadPreview(file);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('title', title.trim());
+      formData.append('prompt', prompt.trim());
+      formData.append('sort_order', String(sortOrder));
+      formData.append('is_active', String(isActive));
 
-      const { error } = await supabase.from('templates').insert({
-        title: title.trim(),
-        prompt: prompt.trim(),
-        preview_url: previewUrl,
-        is_active: isActive,
-        sort_order: sortOrder,
+      const res = await fetch('/api/admin/templates', {
+        method: 'POST',
+        body: formData,
       });
 
-      if (error) throw error;
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Помилка збереження');
+      }
 
       setTitle('');
       setPrompt('');
