@@ -486,7 +486,10 @@ export default function AccountPage() {
           margin-top: 12px;
           display: grid;
           grid-template-columns: 1fr;
-          gap: 12px;
+          gap: 14px;
+          align-items: stretch;
+          justify-items: stretch;
+          grid-auto-flow: row;
         }
 
         @media (min-width: 900px) {
@@ -494,7 +497,7 @@ export default function AccountPage() {
             padding: 24px;
           }
           .acc-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
           }
           .acc-email {
             max-width: 520px;
@@ -517,7 +520,17 @@ export default function AccountPage() {
           -webkit-tap-highlight-color: transparent;
           position: relative;
           overflow: hidden;
+          transform: none;
           transition: transform 0.14s ease, filter 0.14s ease;
+        }
+
+        .acc-pack:hover {
+          transform: translateY(-2px);
+        }
+
+        .acc-pack:active {
+          transform: scale(0.985);
+          filter: brightness(1.05);
         }
 
         /* gradient border */
@@ -547,11 +560,6 @@ export default function AccountPage() {
           filter: blur(18px);
           opacity: 0.55;
           pointer-events: none;
-        }
-
-        .acc-pack:active {
-          transform: scale(0.985);
-          filter: brightness(1.05);
         }
 
         .acc-packTop {
@@ -664,8 +672,8 @@ export default function AccountPage() {
           animation-delay: 110ms;
         }
         .acc-stagger {
-          opacity: 0;
-          transform: translateY(10px);
+          opacity: 1;
+          transform: none;
           animation: accCardIn 420ms ease-out both;
           animation-delay: var(--d, 0ms);
         }
@@ -676,7 +684,7 @@ export default function AccountPage() {
         }
         @keyframes accCardIn {
           from { opacity: 0; transform: translateY(14px); }
-          to { opacity: 1; transform: translateY(0); }
+          to { opacity: 1; transform: none; }
         }
 
         @media (prefers-reduced-motion: reduce) {
