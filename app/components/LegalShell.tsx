@@ -239,6 +239,7 @@ export default function LegalShell({
                   border: active ? "1px solid rgba(120,160,255,0.32)" : "1px solid rgba(255,255,255,0.10)",
                   color: "white",
                   textDecoration: "none",
+                  fontSize: mounted && isMobile ? 20 : 18,
                 }}
               >
                 {t(it.label.uk, it.label.en)}
