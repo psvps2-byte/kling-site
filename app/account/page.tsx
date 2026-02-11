@@ -134,8 +134,6 @@ export default function AccountPage() {
     }
   }
 
-  const packEntries = Object.entries(PACKAGES) as [PackId, (typeof PACKAGES)[PackId]][];
-
   if (loading) {
     return (
       <div style={{ padding: 18, maxWidth: 980, margin: "0 auto" }}>
@@ -251,10 +249,11 @@ export default function AccountPage() {
 
         {/* Packages */}
         <div className="acc-grid">
-          {packEntries.map(([packId, p], idx) => {
+          {(["starter", "plus", "pro", "max", "ultra"] as const).map((packId, idx) => {
+            const p = PACKAGES[packId];
             const note = (p as any)?.note as string | undefined;
             const badgeKey = (p as any)?.badgeKey as string | undefined;
-            const isFeatured = packId === "plus"; // можна змінити
+            const isFeatured = packId === "plus";
 
             const delayMs = clamp(90 + idx * 75, 0, 520);
 
