@@ -244,7 +244,6 @@ export default function AccountPage() {
         {/* Section */}
         <div className="acc-section acc-appear2">
           <h2 className="acc-title">{dict.buyPoints}</h2>
-          <div className="acc-subtitle">{dict.buyPointsSubtitle}</div>
         </div>
 
         {/* Packages */}
@@ -286,7 +285,6 @@ export default function AccountPage() {
           })}
         </div>
 
-        <div className="acc-hint acc-appear3">{dict.afterPayHint}</div>
       </div>
 
       {/* Bottom sheet */}
