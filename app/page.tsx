@@ -2285,7 +2285,7 @@ export default function Home() {
           )}
         </div>
 
-        {mediaTab === "photo" && (
+        {false && mediaTab === "photo" && (
           <div className="templatesSection">
             <h2 className="templatesTitle">{lang === "uk" ? "Шаблони" : "Templates"}</h2>
             <div className="templatesRow">
