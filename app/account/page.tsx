@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { getLang, setLang, t, type Lang } from "../i18n";
 
 type MeResponse =
   | { authenticated: false }
@@ -18,7 +19,7 @@ type MeResponse =
 
 const PACKAGES = {
   starter: { name: "Starter", priceUsd: 7, points: 140 },
-  plus: { name: "Plus", priceUsd: 20, points: 440, note: "-10%" },
+  plus: { name: "Plus", priceUsd: 20, points: 440, note: "-10%", badgeKey: "bestValue" },
   pro: { name: "Pro", priceUsd: 50, points: 1200, note: "-20%" },
   max: { name: "Max", priceUsd: 100, points: 2600, note: "-30%" },
   ultra: { name: "Ultra", priceUsd: 200, points: 5600, note: "-40%" },
@@ -32,6 +33,10 @@ function clamp(n: number, a: number, b: number) {
 
 export default function AccountPage() {
   const router = useRouter();
+
+  const [lang, setLangState] = useState<Lang>("uk");
+  const dict = t(lang);
+
   const [data, setData] = useState<MeResponse | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -39,6 +44,10 @@ export default function AccountPage() {
   const [selectedPack, setSelectedPack] = useState<PackId | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [paying, setPaying] = useState(false);
+
+  useEffect(() => {
+    setLangState(getLang());
+  }, []);
 
   useEffect(() => {
     fetch("/api/me", { cache: "no-store", credentials: "include" })
@@ -89,7 +98,7 @@ export default function AccountPage() {
       const payload = await res.json();
 
       if (!res.ok) {
-        alert(payload?.error || "Помилка створення платежу");
+        alert(payload?.error || dict.paymentCreateError);
         setPaying(false);
         return;
       }
@@ -120,17 +129,19 @@ export default function AccountPage() {
       document.body.appendChild(form);
       form.submit();
     } catch {
-      alert("Помилка мережі");
+      alert(dict.networkError);
       setPaying(false);
     }
   }
+
+  const packEntries = Object.entries(PACKAGES) as [PackId, (typeof PACKAGES)[PackId]][];
 
   if (loading) {
     return (
       <div style={{ padding: 18, maxWidth: 980, margin: "0 auto" }}>
         <div className="acc-skel" />
-        <div className="acc-skel" style={{ height: 90, marginTop: 14 }} />
-        <div className="acc-skel" style={{ height: 320, marginTop: 14 }} />
+        <div className="acc-skel" style={{ height: 92, marginTop: 14 }} />
+        <div className="acc-skel" style={{ height: 340, marginTop: 14 }} />
         <style jsx>{`
           .acc-skel {
             border-radius: 18px;
@@ -174,70 +185,84 @@ export default function AccountPage() {
   if (!data || data.authenticated === false || !u) {
     return (
       <div style={{ padding: 18, maxWidth: 980, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 24, marginBottom: 8 }}>Кабінет</h1>
-        <p>Спочатку увійди через Google.</p>
+        <h1 style={{ fontSize: 24, marginBottom: 8 }}>{dict.accountTitle}</h1>
+        <p>{dict.signInFirst}</p>
       </div>
     );
   }
 
-  const packEntries = Object.entries(PACKAGES) as [PackId, (typeof PACKAGES)[PackId]][];
-
   return (
     <>
       <div className="acc-page">
-        {/* Top actions */}
+        {/* Topbar */}
         <div className="acc-topbar">
-          <button
-            className="ios-btn ios-btn--ghost"
-            onClick={() => router.push("/")}
-            style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
-          >
-            ← На головну
+          <button className="ios-btn ios-btn--ghost" onClick={() => router.push("/")}>
+            ← {dict.backHome}
           </button>
 
-          <button
-            className="ios-btn ios-btn--danger"
-            onClick={() => signOut({ callbackUrl: "/" })}
-            style={{ marginLeft: "auto" }}
-          >
-            Вийти
+          <div className="acc-lang">
+            <button
+              className={`ios-btn ${lang === "uk" ? "ios-btn--primary" : "ios-btn--ghost"}`}
+              onClick={() => {
+                setLang("uk");
+                setLangState("uk");
+              }}
+            >
+              UA
+            </button>
+            <button
+              className={`ios-btn ${lang === "en" ? "ios-btn--primary" : "ios-btn--ghost"}`}
+              onClick={() => {
+                setLang("en");
+                setLangState("en");
+              }}
+            >
+              EN
+            </button>
+          </div>
+
+          <button className="ios-btn ios-btn--danger" onClick={() => signOut({ callbackUrl: "/" })}>
+            {dict.signOut}
           </button>
         </div>
 
-        {/* Header card */}
-        <div className="acc-card acc-card--header acc-appear">
-          <div className="acc-user">
-            <div className="acc-userMeta">
-              <div className="acc-name">{u.name ?? "Користувач"}</div>
+        {/* Header */}
+        <div className="acc-header acc-appear">
+          <div className="acc-headerInner">
+            <div className="acc-user">
+              <div className="acc-name">{u.name ?? dict.userFallback}</div>
               <div className="acc-email">{u.email}</div>
             </div>
 
             <div className="acc-balance">
-              <div className="acc-balanceLabel">Баланс</div>
+              <div className="acc-balanceLabel">{dict.balance}</div>
               <div className="acc-balanceValue">
-                <span className="acc-balanceNum">{u.points}</span> балів
+                <span className="acc-balanceNum">{u.points}</span> {dict.pointsWord}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Section title */}
+        {/* Section */}
         <div className="acc-section acc-appear2">
-          <h2 className="acc-title">Купити бали</h2>
-          <div className="acc-subtitle">Вибери пакет — оплата займає ~30 секунд</div>
+          <h2 className="acc-title">{dict.buyPoints}</h2>
+          <div className="acc-subtitle">{dict.buyPointsSubtitle}</div>
         </div>
 
         {/* Packages */}
         <div className="acc-grid">
           {packEntries.map(([packId, p], idx) => {
             const note = (p as any)?.note as string | undefined;
-            const delayMs = clamp(80 + idx * 70, 0, 420);
+            const badgeKey = (p as any)?.badgeKey as string | undefined;
+            const isFeatured = packId === "plus"; // можна змінити
+
+            const delayMs = clamp(90 + idx * 75, 0, 520);
 
             return (
               <button
                 key={packId}
                 type="button"
-                className={`acc-pack acc-stagger`}
+                className={`acc-pack acc-stagger ${isFeatured ? "featured" : ""}`}
                 style={{ ["--d" as any]: `${delayMs}ms` }}
                 onClick={() => {
                   setSelectedPack(packId);
@@ -246,29 +271,28 @@ export default function AccountPage() {
               >
                 <div className="acc-packTop">
                   <div className="acc-packName">{p.name}</div>
-                  {note ? <div className="acc-packNote">{note}</div> : <div />}
+
+                  {badgeKey ? <div className="acc-badge">{dict[badgeKey] ?? ""}</div> : null}
+                  {note ? <div className="acc-note">{note}</div> : <div />}
                 </div>
 
                 <div className="acc-packMid">
                   <div className="acc-packPrice">${p.priceUsd}</div>
-                  <div className="acc-packPoints">{p.points} балів</div>
+                  <div className="acc-packPoints">{p.points} {dict.pointsWord}</div>
                 </div>
 
-                <div className="acc-packCta">Купити</div>
+                <div className="acc-packCta">{dict.buy}</div>
               </button>
             );
           })}
         </div>
 
-        {/* Small hint */}
-        <div className="acc-hint acc-appear3">
-          Після оплати бали зарахуються автоматично. Якщо щось піде не так — напиши в підтримку.
-        </div>
+        <div className="acc-hint acc-appear3">{dict.afterPayHint}</div>
       </div>
 
-      {/* Bottom Sheet */}
+      {/* Bottom sheet */}
       <div
-        className={`acc-sheetOverlay ${sheetOpen ? "open" : ""}`}
+        className={`acc-overlay ${sheetOpen ? "open" : ""}`}
         onMouseDown={() => {
           if (!paying) {
             setSheetOpen(false);
@@ -287,16 +311,15 @@ export default function AccountPage() {
           onMouseDown={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
         >
-          <div className="acc-sheetHandle" />
-
-          <div className="acc-sheetTitle">Підтвердження</div>
+          <div className="acc-handle" />
+          <div className="acc-sheetTitle">{dict.confirmTitle}</div>
 
           {selectedPackData ? (
             <div className="acc-sheetCard">
-              <div className="acc-sheetRow">
-                <div style={{ fontWeight: 800, fontSize: 18 }}>{selectedPackData.name}</div>
+              <div className="acc-row">
+                <div className="acc-sheetPack">{selectedPackData.name}</div>
                 {"note" in (selectedPackData as any) ? (
-                  <div className="acc-packNote" style={{ marginLeft: "auto" }}>
+                  <div className="acc-note" style={{ marginLeft: "auto" }}>
                     {(selectedPackData as any).note}
                   </div>
                 ) : (
@@ -304,12 +327,14 @@ export default function AccountPage() {
                 )}
               </div>
 
-              <div className="acc-sheetRow" style={{ marginTop: 10 }}>
-                <div className="acc-sheetBig">${selectedPackData.priceUsd}</div>
-                <div className="acc-sheetSmall">{selectedPackData.points} балів</div>
+              <div className="acc-row" style={{ marginTop: 10 }}>
+                <div className="acc-sheetPrice">${selectedPackData.priceUsd}</div>
+                <div className="acc-sheetPts">
+                  {selectedPackData.points} {dict.pointsWord}
+                </div>
               </div>
 
-              <div className="acc-sheetActions">
+              <div className="acc-actions">
                 <button
                   type="button"
                   className="ios-btn ios-btn--ghost"
@@ -319,7 +344,7 @@ export default function AccountPage() {
                     setSelectedPack(null);
                   }}
                 >
-                  Назад
+                  {dict.back}
                 </button>
 
                 <button
@@ -332,70 +357,89 @@ export default function AccountPage() {
                   }}
                   style={{ flex: 1 }}
                 >
-                  {paying ? "Переходимо до оплати..." : "Купити пакет"}
+                  {paying ? dict.paying : dict.buyPack}
                 </button>
               </div>
             </div>
           ) : (
-            <div className="acc-sheetCard">
-              <div style={{ opacity: 0.85 }}>Оберіть пакет</div>
+            <div className="acc-sheetCard" style={{ opacity: 0.85 }}>
+              {dict.choosePack}
             </div>
           )}
         </div>
       </div>
 
-      {/* Styles */}
       <style jsx global>{`
+        /* Layout */
         .acc-page {
           padding: 16px;
           max-width: 980px;
           margin: 0 auto;
-          padding-bottom: 42px;
+          padding-bottom: 44px;
         }
 
         .acc-topbar {
           position: sticky;
           top: 0;
-          z-index: 5;
+          z-index: 6;
           display: flex;
           gap: 10px;
+          align-items: center;
           padding: 10px 0;
           backdrop-filter: blur(14px) saturate(140%);
           -webkit-backdrop-filter: blur(14px) saturate(140%);
         }
 
-        .acc-card {
-          border-radius: 18px;
+        .acc-lang {
+          display: inline-flex;
+          gap: 8px;
+          margin-left: auto;
+        }
+
+        .acc-header {
+          border-radius: 20px;
           border: 1px solid rgba(255, 255, 255, 0.12);
           background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
           box-shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
           backdrop-filter: blur(18px) saturate(140%);
           -webkit-backdrop-filter: blur(18px) saturate(140%);
+          position: relative;
+          overflow: hidden;
         }
 
-        .acc-card--header {
+        /* Neon background like mockup */
+        .acc-header::before {
+          content: "";
+          position: absolute;
+          inset: -80px;
+          background:
+            radial-gradient(800px 400px at 15% 10%, rgba(10,132,255,0.25), transparent 60%),
+            radial-gradient(900px 420px at 85% 0%, rgba(255,70,120,0.22), transparent 62%),
+            radial-gradient(700px 460px at 50% 120%, rgba(120,80,255,0.18), transparent 60%);
+          filter: blur(18px);
+          opacity: 0.95;
+          pointer-events: none;
+        }
+
+        .acc-headerInner {
+          position: relative;
+          display: flex;
+          gap: 12px;
+          align-items: center;
           padding: 16px;
         }
 
         .acc-user {
-          display: flex;
-          gap: 12px;
-          align-items: center;
-        }
-
-        .acc-userMeta {
           min-width: 0;
         }
-
         .acc-name {
-          font-size: 20px;
-          font-weight: 850;
+          font-size: 22px;
+          font-weight: 900;
           color: rgba(255, 255, 255, 0.94);
-          line-height: 1.15;
+          line-height: 1.12;
         }
-
         .acc-email {
-          margin-top: 4px;
+          margin-top: 5px;
           font-size: 14px;
           color: rgba(255, 255, 255, 0.75);
           overflow: hidden;
@@ -408,36 +452,31 @@ export default function AccountPage() {
           margin-left: auto;
           text-align: right;
         }
-
         .acc-balanceLabel {
           font-size: 13px;
           color: rgba(255, 255, 255, 0.75);
         }
-
         .acc-balanceValue {
           margin-top: 2px;
           font-size: 18px;
-          font-weight: 800;
+          font-weight: 850;
           color: rgba(255, 255, 255, 0.92);
         }
-
         .acc-balanceNum {
-          font-size: 30px;
-          font-weight: 900;
-          letter-spacing: -0.4px;
+          font-size: 34px;
+          font-weight: 950;
+          letter-spacing: -0.5px;
         }
 
         .acc-section {
           margin-top: 18px;
         }
-
         .acc-title {
           margin: 0;
-          font-size: 20px;
-          font-weight: 900;
+          font-size: 22px;
+          font-weight: 950;
           color: rgba(255, 255, 255, 0.94);
         }
-
         .acc-subtitle {
           margin-top: 6px;
           font-size: 14px;
@@ -451,7 +490,6 @@ export default function AccountPage() {
           gap: 12px;
         }
 
-        /* desktop/tablet */
         @media (min-width: 900px) {
           .acc-page {
             padding: 24px;
@@ -464,57 +502,99 @@ export default function AccountPage() {
           }
         }
 
+        /* Package card with neon gradient border */
         .acc-pack {
           text-align: left;
           padding: 14px;
-          border-radius: 18px;
+          border-radius: 22px;
           border: 1px solid rgba(255, 255, 255, 0.12);
-          background: radial-gradient(
-              1200px 400px at 20% -20%,
-              rgba(10, 132, 255, 0.18),
-              rgba(0, 0, 0, 0)
-            ),
-            linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
-          box-shadow: 0 18px 60px rgba(0, 0, 0, 0.35);
+          background: rgba(255, 255, 255, 0.04);
+          box-shadow: 0 22px 70px rgba(0, 0, 0, 0.42);
           backdrop-filter: blur(18px) saturate(140%);
           -webkit-backdrop-filter: blur(18px) saturate(140%);
           cursor: pointer;
           outline: none;
           user-select: none;
           -webkit-tap-highlight-color: transparent;
-          transition: transform 0.14s ease, border-color 0.14s ease, filter 0.14s ease;
+          position: relative;
+          overflow: hidden;
+          transition: transform 0.14s ease, filter 0.14s ease;
+        }
+
+        /* gradient border */
+        .acc-pack::before {
+          content: "";
+          position: absolute;
+          inset: 0;
+          padding: 1px;
+          border-radius: 22px;
+          background: linear-gradient(90deg, rgba(10,132,255,0.9), rgba(255,70,120,0.9), rgba(120,80,255,0.9));
+          -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+          -webkit-mask-composite: xor;
+          mask-composite: exclude;
+          opacity: 0.45;
+          pointer-events: none;
+        }
+
+        /* glow */
+        .acc-pack::after {
+          content: "";
+          position: absolute;
+          inset: -40px;
+          background:
+            radial-gradient(420px 180px at 10% 10%, rgba(10,132,255,0.28), transparent 60%),
+            radial-gradient(420px 180px at 90% 10%, rgba(255,70,120,0.20), transparent 62%),
+            radial-gradient(520px 220px at 50% 120%, rgba(120,80,255,0.18), transparent 60%);
+          filter: blur(18px);
+          opacity: 0.55;
+          pointer-events: none;
         }
 
         .acc-pack:active {
           transform: scale(0.985);
-          filter: brightness(1.04);
-          border-color: rgba(10, 132, 255, 0.35);
+          filter: brightness(1.05);
         }
 
         .acc-packTop {
+          position: relative;
           display: flex;
           align-items: center;
           gap: 10px;
+          z-index: 1;
         }
 
         .acc-packName {
-          font-weight: 900;
+          font-weight: 950;
           font-size: 18px;
           color: rgba(255, 255, 255, 0.94);
         }
 
-        .acc-packNote {
+        .acc-note {
           margin-left: auto;
           font-size: 13px;
-          font-weight: 850;
-          color: rgba(255, 255, 255, 0.9);
+          font-weight: 900;
+          color: rgba(255, 255, 255, 0.92);
           padding: 6px 10px;
           border-radius: 999px;
           border: 1px solid rgba(255, 255, 255, 0.14);
-          background: rgba(255, 255, 255, 0.06);
+          background: rgba(0, 0, 0, 0.22);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+        }
+
+        .acc-badge {
+          font-size: 12px;
+          font-weight: 950;
+          padding: 6px 10px;
+          border-radius: 999px;
+          border: 1px solid rgba(10, 132, 255, 0.35);
+          background: rgba(10, 132, 255, 0.18);
+          color: rgba(255, 255, 255, 0.95);
         }
 
         .acc-packMid {
+          position: relative;
+          z-index: 1;
           margin-top: 12px;
           display: flex;
           justify-content: space-between;
@@ -523,8 +603,8 @@ export default function AccountPage() {
         }
 
         .acc-packPrice {
-          font-size: 28px;
-          font-weight: 950;
+          font-size: 30px;
+          font-weight: 980;
           letter-spacing: -0.6px;
           color: rgba(255, 255, 255, 0.94);
         }
@@ -532,29 +612,47 @@ export default function AccountPage() {
         .acc-packPoints {
           font-size: 14px;
           color: rgba(255, 255, 255, 0.78);
-          font-weight: 700;
+          font-weight: 800;
         }
 
         .acc-packCta {
+          position: relative;
+          z-index: 1;
           margin-top: 12px;
           width: 100%;
           padding: 12px 12px;
-          border-radius: 14px;
+          border-radius: 16px;
           text-align: center;
-          font-weight: 900;
+          font-weight: 950;
           color: rgba(255, 255, 255, 0.95);
           background: rgba(255, 255, 255, 0.06);
           border: 1px solid rgba(255, 255, 255, 0.12);
         }
 
+        /* featured: slightly stronger glow + subtle breathing (optional) */
+        .acc-pack.featured::before {
+          opacity: 0.75;
+        }
+        .acc-pack.featured::after {
+          opacity: 0.75;
+        }
+        .acc-pack.featured {
+          animation: glowPulse 3.2s ease-in-out infinite;
+        }
+        @keyframes glowPulse {
+          0% { filter: brightness(1); }
+          50% { filter: brightness(1.08); }
+          100% { filter: brightness(1); }
+        }
+
         .acc-hint {
           margin-top: 14px;
           font-size: 13px;
-          color: rgba(255, 255, 255, 0.7);
+          color: rgba(255, 255, 255, 0.72);
           line-height: 1.35;
         }
 
-        /* page appear */
+        /* Appear animations */
         .acc-appear {
           animation: accIn 380ms ease-out both;
         }
@@ -566,8 +664,6 @@ export default function AccountPage() {
           animation: accIn 460ms ease-out both;
           animation-delay: 110ms;
         }
-
-        /* stagger cards */
         .acc-stagger {
           opacity: 0;
           transform: translateY(10px);
@@ -576,55 +672,35 @@ export default function AccountPage() {
         }
 
         @keyframes accIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-            filter: blur(6px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-            filter: blur(0);
-          }
+          from { opacity: 0; transform: translateY(10px); filter: blur(6px); }
+          to { opacity: 1; transform: translateY(0); filter: blur(0); }
         }
-
         @keyframes accCardIn {
-          from {
-            opacity: 0;
-            transform: translateY(14px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(14px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .acc-appear,
-          .acc-appear2,
-          .acc-appear3,
-          .acc-stagger {
+          .acc-appear, .acc-appear2, .acc-appear3, .acc-stagger, .acc-pack.featured {
             animation: none !important;
             opacity: 1 !important;
             transform: none !important;
             filter: none !important;
           }
-          .acc-pack {
-            transition: none !important;
-          }
+          .acc-pack { transition: none !important; }
         }
 
         /* Sheet */
-        .acc-sheetOverlay {
+        .acc-overlay {
           position: fixed;
           inset: 0;
           z-index: 1000;
-          background: rgba(0, 0, 0, 0.45);
+          background: rgba(0, 0, 0, 0.48);
           opacity: 0;
           pointer-events: none;
           transition: opacity 180ms ease;
         }
-        .acc-sheetOverlay.open {
+        .acc-overlay.open {
           opacity: 1;
           pointer-events: auto;
         }
@@ -637,19 +713,19 @@ export default function AccountPage() {
           transform: translateY(105%);
           transition: transform 240ms cubic-bezier(0.2, 0.85, 0.2, 1);
           padding: 10px 14px 16px;
-          border-top-left-radius: 22px;
-          border-top-right-radius: 22px;
+          border-top-left-radius: 24px;
+          border-top-right-radius: 24px;
           border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(8, 10, 14, 0.78);
+          background: rgba(8, 10, 14, 0.82);
           backdrop-filter: blur(18px) saturate(140%);
           -webkit-backdrop-filter: blur(18px) saturate(140%);
-          box-shadow: 0 -20px 70px rgba(0, 0, 0, 0.55);
+          box-shadow: 0 -22px 80px rgba(0, 0, 0, 0.65);
         }
         .acc-sheet.open {
           transform: translateY(0);
         }
 
-        .acc-sheetHandle {
+        .acc-handle {
           width: 52px;
           height: 5px;
           border-radius: 99px;
@@ -659,7 +735,7 @@ export default function AccountPage() {
 
         .acc-sheetTitle {
           text-align: center;
-          font-weight: 900;
+          font-weight: 950;
           font-size: 16px;
           color: rgba(255, 255, 255, 0.92);
           margin-bottom: 10px;
@@ -672,26 +748,32 @@ export default function AccountPage() {
           padding: 14px;
         }
 
-        .acc-sheetRow {
+        .acc-row {
           display: flex;
           align-items: center;
           gap: 10px;
         }
 
-        .acc-sheetBig {
-          font-size: 28px;
+        .acc-sheetPack {
           font-weight: 950;
+          font-size: 18px;
           color: rgba(255, 255, 255, 0.94);
         }
 
-        .acc-sheetSmall {
+        .acc-sheetPrice {
+          font-size: 28px;
+          font-weight: 980;
+          color: rgba(255, 255, 255, 0.94);
+        }
+
+        .acc-sheetPts {
           margin-left: auto;
           font-size: 14px;
           color: rgba(255, 255, 255, 0.78);
-          font-weight: 800;
+          font-weight: 900;
         }
 
-        .acc-sheetActions {
+        .acc-actions {
           margin-top: 12px;
           display: flex;
           gap: 10px;
