@@ -14,9 +14,19 @@ export default function LegalMenu({ email = "contact.vilna.pro@gmail.com" }: { e
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [lang, setLangState] = useState<Lang>("uk");
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     setLangState(getLang());
+  }, []);
+
+  useEffect(() => {
+    const mql = window.matchMedia("(max-width: 980px)");
+    setIsMobile(mql.matches);
+
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
   }, []);
 
   const items: Item[] = useMemo(
@@ -201,6 +211,8 @@ export default function LegalMenu({ email = "contact.vilna.pro@gmail.com" }: { e
                   cursor: "pointer",
                   background: active ? "rgba(120,160,255,0.18)" : "rgba(255,255,255,0.04)",
                   border: active ? "1px solid rgba(120,160,255,0.35)" : "1px solid rgba(255,255,255,0.08)",
+                  fontSize: isMobile ? 20 : 18,
+                  fontWeight: 500,
                 }}
               >
                 {lang === "uk" ? it.label.uk : it.label.en}
