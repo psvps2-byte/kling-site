@@ -581,28 +581,24 @@ export default function Home() {
         return;
       }
 
-      // PHOTO (Kling Omni O1)
+      // PHOTO (OpenAI via Supabase queue)
       const userPrompt = selectedTemplateId ? (templatePrompt ?? "") : prompt.trim();
       if (!userPrompt) throw new Error(lang === "uk" ? "Введи промт" : "Please enter a prompt");
       if (refUploading) throw new Error(lang === "uk" ? "Зачекай, фото ще завантажується..." : "Please wait, image is still uploading...");
 
       if (srcFile && !srcUrl) throw new Error(lang === "uk" ? "Не вдалось завантажити 1-е фото в R2" : "Failed to upload first image");
 
-      const tags = `${srcUrl ? "<<<image_1>>> " : ""}${srcUrl2 ? "<<<image_2>>> " : ""}`;
-      const finalPrompt = (tags + userPrompt).trim();
+      const finalPrompt = userPrompt.trim();
 
       const n = 1;
 
       const body: any = {
-        model_name: "kling-image-o1",
         prompt: finalPrompt,
-        n,
-        resolution: OMNI_RESOLUTION,
         aspect_ratio: aspect,
+        n: 1,
+        image_1: srcUrl || null,
+        image_2: srcUrl2 || null,
       };
-
-      if (srcUrl) body.image_1 = srcUrl;
-      if (srcUrl2) body.image_2 = srcUrl2;
 
       const res = await fetch("/api/kling/omni-image", {
         method: "POST",
@@ -622,26 +618,13 @@ export default function Home() {
       const taskId = extractTaskId(data);
       if (!taskId) throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
 
-      const urls = await pollOmniImageTask(taskId);
-
-      const imported = await Promise.all(urls.map((u, idx) => importRemoteToR2(u, `kling_omni_${taskId}_${idx + 1}_${Date.now()}.jpg`)));
-
-      const r2Keys = imported.map((x) => x.key);
-      const publicUrls = imported.map((x, i) => x.publicUrl || urls[i]);
-
-      setImageUrls(publicUrls);
-
-      await fetch("/api/history", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: taskId,
-          createdAt: Date.now(),
-          prompt: userPrompt,
-          r2Keys,
-          urls: publicUrls,
-        }),
-      });
+      // Enqueued successfully - worker will process it
+      setImageUrls([]);
+      setError(
+        lang === "uk"
+          ? `✅ Генерацію розпочато! ID: ${taskId}. Перевір історію через хвилину.`
+          : `✅ Generation started! ID: ${taskId}. Check history in a minute.`
+      );
     } catch (e: any) {
       setError(normalizeErr(e));
     } finally {
