@@ -170,6 +170,15 @@ function pickOpenAISizeFromAspect(job) {
 
 /* ============== OPENAI + R2 ============== */
 
+async function downloadToBuffer(url) {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Failed to download ${url}: ${res.status}`);
+  }
+  const arrayBuffer = await res.arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
+
 async function processPhotoWithOpenAI(job) {
   try {
     const prompt = String(job?.payload?.prompt || "").trim();
@@ -181,26 +190,63 @@ async function processPhotoWithOpenAI(job) {
 
     const size = pickOpenAISizeFromAspect(job);
 
-    // 1) Call OpenAI Images API
-    const openaiRes = await fetch("https://api.openai.com/v1/images/generations", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: OPENAI_IMAGE_MODEL,
-        prompt,
-        n: 1,
-        size,
-        quality: OPENAI_IMAGE_QUALITY,
-      }),
-    });
+    // Check for reference images
+    const image1 = job?.payload?.image_1 || null;
+    const image2 = job?.payload?.image_2 || null;
+    const hasReference = image1 || image2;
 
-    const openaiData = await openaiRes.json();
+    let openaiData;
 
-    if (!openaiRes.ok) {
-      throw new Error(`OpenAI error ${openaiRes.status}: ${JSON.stringify(openaiData).slice(0, 300)}`);
+    if (hasReference) {
+      // Use /v1/images/edits with reference image
+      console.log("Using /v1/images/edits with reference image");
+
+      const refUrl = image1 || image2;
+      const refBuffer = await downloadToBuffer(refUrl);
+
+      const formData = new FormData();
+      formData.append("model", OPENAI_IMAGE_MODEL);
+      formData.append("prompt", prompt);
+      formData.append("n", "1");
+      formData.append("size", size);
+      formData.append("quality", OPENAI_IMAGE_QUALITY);
+      formData.append("image", new Blob([refBuffer], { type: "image/jpeg" }), "ref.jpg");
+
+      const openaiRes = await fetch("https://api.openai.com/v1/images/edits", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: formData,
+      });
+
+      openaiData = await openaiRes.json();
+
+      if (!openaiRes.ok) {
+        throw new Error(`OpenAI error ${openaiRes.status}: ${JSON.stringify(openaiData).slice(0, 300)}`);
+      }
+    } else {
+      // Use /v1/images/generations (no reference)
+      const openaiRes = await fetch("https://api.openai.com/v1/images/generations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: OPENAI_IMAGE_MODEL,
+          prompt,
+          n: 1,
+          size,
+          quality: OPENAI_IMAGE_QUALITY,
+        }),
+      });
+
+      openaiData = await openaiRes.json();
+
+      if (!openaiRes.ok) {
+        throw new Error(`OpenAI error ${openaiRes.status}: ${JSON.stringify(openaiData).slice(0, 300)}`);
+      }
     }
 
     const b64 = openaiData?.data?.[0]?.b64_json;
