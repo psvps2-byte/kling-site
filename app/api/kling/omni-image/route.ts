@@ -33,7 +33,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing prompt" }, { status: 400 });
   }
 
-  // 4) COST (Фото: завжди 2 бали)
+  // 4) Reference images (if provided)
+  const image_1 = body?.image_1 ? asStr(body.image_1).trim() : null;
+  const image_2 = body?.image_2 ? asStr(body.image_2).trim() : null;
+
+  // 5) COST (Фото: завжди 2 бали)
   const costPoints = 2;
 
   // 5) списати бали + створити запис генерації (атомарно)
@@ -73,6 +77,10 @@ export async function POST(req: Request) {
     n,
     aspect_ratio,
   };
+
+  // Add reference images to payload if provided
+  if (image_1) payload.image_1 = image_1;
+  if (image_2) payload.image_2 = image_2;
 
   await supabaseAdmin
     .from("generations")
