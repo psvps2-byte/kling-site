@@ -184,6 +184,10 @@ export default function Home() {
   // ✅ кількість генерацій (Omni O1 зазвичай 1..5)
   const [omniN, setOmniN] = useState<number>(1);
 
+  useEffect(() => {
+    setOmniN(1);
+  }, []);
+
   // Inline small dropdowns (Format / Quantity)
   const [formatOpen, setFormatOpen] = useState(false);
   const [qtyOpen, setQtyOpen] = useState(false);
@@ -449,8 +453,7 @@ export default function Home() {
   // ✅ ЦІНИ
   const currentCost = useMemo(() => {
     if (mediaTab === "photo") {
-      const n = Math.max(1, Math.min(9, Number(omniN) || 1));
-      return n;
+      return 2;
     }
 
     if (videoMode === "i2v") {
@@ -588,7 +591,7 @@ export default function Home() {
       const tags = `${srcUrl ? "<<<image_1>>> " : ""}${srcUrl2 ? "<<<image_2>>> " : ""}`;
       const finalPrompt = (tags + userPrompt).trim();
 
-      const n = Math.max(1, Math.min(9, Number(omniN) || 1));
+      const n = 1;
 
       const body: any = {
         model_name: "kling-image-o1",
@@ -1533,51 +1536,6 @@ export default function Home() {
                           )}
                         </div>
                       </div>
-
-                      {/* Quantity trigger with label */}
-                      <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
-                        <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>
-                          {lang === "uk" ? "Кількість" : "Quantity"}
-                        </div>
-                        <div style={{ position: "relative" }}>
-                          <button
-                            type="button"
-                            className="vPill selectTrigger miniSelectTrigger"
-                            onClick={() => {
-                              setQtyOpen((v) => !v);
-                              setFormatOpen(false);
-                            }}
-                            aria-haspopup="menu"
-                            aria-expanded={qtyOpen}
-                          >
-                            <span style={{ opacity: 0.95 }}>{omniN}</span>
-                            <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>▾</span>
-                          </button>
-
-                          {qtyOpen && (
-                            <div className="smallDropdown miniDropdown" role="menu" onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
-                              <div
-                                className="qtyButtons qtyGrid"
-                                style={{ width: 30, display: "flex", flexDirection: "column" }}
-                              >
-                                {Array.from({ length: 5 }, (_, i) => i + 1).map((k) => (
-                                  <button
-                                    key={k}
-                                    type="button"
-                                    className={omniN === k ? "qtyOption active" : "qtyOption"}
-                                    onClick={() => {
-                                      setOmniN(k);
-                                      setQtyOpen(false);
-                                    }}
-                                  >
-                                    {k}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
                     </div>
 
                     {refUploading && (
@@ -1801,51 +1759,6 @@ export default function Home() {
                                       <span>{r}</span>
                                       {aspect === r && <span>✓</span>}
                                     </span>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Quantity trigger with label */}
-                      <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
-                        <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>
-                          {lang === "uk" ? "Кількість" : "Quantity"}
-                        </div>
-                        <div style={{ position: "relative" }}>
-                          <button
-                            type="button"
-                            className="vPill selectTrigger miniSelectTrigger"
-                            onClick={() => {
-                              setQtyOpen((v) => !v);
-                              setFormatOpen(false);
-                            }}
-                            aria-haspopup="menu"
-                            aria-expanded={qtyOpen}
-                          >
-                            <span style={{ opacity: 0.95 }}>{omniN}</span>
-                            <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>▾</span>
-                          </button>
-
-                          {qtyOpen && (
-                            <div className="smallDropdown miniDropdown" role="menu" onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
-                              <div
-                                className="qtyButtons qtyGrid"
-                                style={{ width: 30, display: "flex", flexDirection: "column" }}
-                              >
-                                {Array.from({ length: 5 }, (_, i) => i + 1).map((k) => (
-                                  <button
-                                    key={k}
-                                    type="button"
-                                    className={omniN === k ? "qtyOption active" : "qtyOption"}
-                                    onClick={() => {
-                                      setOmniN(k);
-                                      setQtyOpen(false);
-                                    }}
-                                  >
-                                    {k}
                                   </button>
                                 ))}
                               </div>

@@ -105,8 +105,7 @@ export async function POST(req: Request) {
   const model_name = asStr(body?.model_name) || "kling-image-o1";
   const resolution = asStr(body?.resolution) || "1k";
   const aspect_ratio = asStr(body?.aspect_ratio) || "auto";
-  const nRaw = typeof body?.n === "number" ? body.n : Number(body?.n ?? 1);
-  const n = Math.max(1, Math.min(9, Number.isFinite(nRaw) ? nRaw : 1)); // Omni: 1..9
+  const n = 1;
 
   const callback_url = body?.callback_url ? asStr(body.callback_url) : undefined;
   const external_task_id = body?.external_task_id ? asStr(body.external_task_id) : undefined;
@@ -146,8 +145,8 @@ export async function POST(req: Request) {
     prompt = ensurePromptHasKlingImageTags(prompt, images.length);
   }
 
-  // 5) COST (Фото: 1 фото = 1 бал) => cost = n
-  const costPoints = n;
+  // 5) COST (Фото: завжди 2 бали)
+  const costPoints = 2;
 
   // 6) списати бали + створити запис генерації (атомарно)
   const { data: genId, error: genErr } = await supabaseAdmin.rpc(
@@ -177,7 +176,7 @@ export async function POST(req: Request) {
 
   const generationId = String(genId);
 
-  // 7) Call Kling
+  // 7) Prepare payload and set status to QUEUED
   const payload: any = {
     model_name,
     prompt,
@@ -190,73 +189,17 @@ export async function POST(req: Request) {
   if (external_task_id) payload.external_task_id = external_task_id;
   if (image_list) payload.image_list = image_list;
 
-  let res: Response;
-
-  try {
-    res = await safeFetch(
-      `${base}/v1/images/omni-image`,
-      {
-        method: "POST",
-        headers: {
-          ...klingHeaders(),
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      },
-      { timeoutMs: 30_000, retries: 3 }
-    );
-  } catch (e: any) {
-    const details = stringifyFetchError(e);
-
-    // refund + FAILED
-    await supabaseAdmin.rpc("refund_points", { p_email: email, p_amount: costPoints });
-    await supabaseAdmin.from("generations").update({ status: "FAILED" }).eq("id", generationId);
-
-    console.error("Kling fetch failed", details);
-
-    return NextResponse.json(
-      { error: "fetch failed", details, generation_id: generationId },
-      { status: 502 }
-    );
-  }
-
-  const data = await readJsonOrRaw(res);
-
-  // 8) якщо Kling одразу повернув помилку -> REFUND + FAILED
-  if (!res.ok) {
-    await supabaseAdmin.rpc("refund_points", { p_email: email, p_amount: costPoints });
-    await supabaseAdmin.from("generations").update({ status: "FAILED" }).eq("id", generationId);
-
-    return NextResponse.json({ ...data, generation_id: generationId }, { status: res.status });
-  }
-
-  // 9) якщо Kling повернув code != 0
-  if (typeof (data as any)?.code === "number" && (data as any).code !== 0) {
-    await supabaseAdmin.rpc("refund_points", { p_email: email, p_amount: costPoints });
-    await supabaseAdmin.from("generations").update({ status: "FAILED" }).eq("id", generationId);
-
-    return NextResponse.json({ ...data, generation_id: generationId }, { status: 400 });
-  }
-
-  // 10) успіх -> RUNNING + task_id
-  const taskId =
-    (data as any)?.data?.task_id ||
-    (data as any)?.task_id ||
-    (data as any)?.data?.id ||
-    (data as any)?.id ||
-    null;
-
   await supabaseAdmin
     .from("generations")
     .update({
-      status: "RUNNING",
-      task_id: taskId ? String(taskId) : null,
+      status: "QUEUED",
+      payload,
       result_url: null,
     })
     .eq("id", generationId);
 
   return NextResponse.json(
-    { ...data, generation_id: generationId, cost_points: costPoints },
+    { code: 0, data: { task_id: generationId } },
     { status: 200 }
   );
 }
