@@ -1,6 +1,8 @@
 import { createClient } from "@supabase/supabase-js";
 import jwt from "jsonwebtoken";
 import http from "http";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import crypto from "crypto";
 
 /* ================= ENV ================= */
 
@@ -10,6 +12,16 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const KLING_API_KEY = (process.env.KLING_API_KEY || "").trim();
 const KLING_SECRET_KEY = (process.env.KLING_SECRET_KEY || "").trim();
 const KLING_API_BASE = (process.env.KLING_API_BASE || "https://api-singapore.klingai.com").trim();
+
+const OPENAI_API_KEY = (process.env.OPENAI_API_KEY || "").trim();
+const OPENAI_IMAGE_MODEL = (process.env.OPENAI_IMAGE_MODEL || "gpt-image-1.5").trim();
+const OPENAI_IMAGE_QUALITY = (process.env.OPENAI_IMAGE_QUALITY || "medium").trim();
+
+const R2_ENDPOINT = process.env.R2_ENDPOINT;
+const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
+const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY;
+const R2_BUCKET = process.env.R2_BUCKET;
+const R2_PUBLIC_BASE = process.env.R2_PUBLIC_BASE;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("Missing env vars: SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY");
@@ -21,8 +33,27 @@ if (!KLING_API_KEY || !KLING_SECRET_KEY) {
   process.exit(1);
 }
 
+if (!OPENAI_API_KEY) {
+  console.error("Missing env var: OPENAI_API_KEY");
+  process.exit(1);
+}
+
+if (!R2_ENDPOINT || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET || !R2_PUBLIC_BASE) {
+  console.error("Missing R2 env vars: R2_ENDPOINT / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_BUCKET / R2_PUBLIC_BASE");
+  process.exit(1);
+}
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
+});
+
+const r2Client = new S3Client({
+  region: "auto",
+  endpoint: R2_ENDPOINT,
+  credentials: {
+    accessKeyId: R2_ACCESS_KEY_ID,
+    secretAccessKey: R2_SECRET_ACCESS_KEY,
+  },
 });
 
 /* ============== KLING AUTH ============== */
@@ -119,6 +150,89 @@ function expectedCount(job) {
   return Math.max(1, Math.min(9, val));
 }
 
+/* ============== OPENAI + R2 ============== */
+
+async function processPhotoWithOpenAI(job) {
+  try {
+    const prompt = String(job?.payload?.prompt || "").trim();
+    if (!prompt) {
+      throw new Error("Missing prompt in job payload");
+    }
+
+    console.log("Processing PHOTO with OpenAI", job.id, "prompt:", prompt);
+
+    // 1) Call OpenAI Images API
+    const openaiRes = await fetch("https://api.openai.com/v1/images/generations", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: OPENAI_IMAGE_MODEL,
+        prompt,
+        n: 1,
+        quality: OPENAI_IMAGE_QUALITY,
+        response_format: "b64_json",
+      }),
+    });
+
+    const openaiData = await openaiRes.json();
+
+    if (!openaiRes.ok) {
+      throw new Error(`OpenAI error ${openaiRes.status}: ${JSON.stringify(openaiData).slice(0, 300)}`);
+    }
+
+    const b64 = openaiData?.data?.[0]?.b64_json;
+    if (!b64) {
+      throw new Error("No b64_json in OpenAI response");
+    }
+
+    // 2) Convert to buffer
+    const buffer = Buffer.from(b64, "base64");
+
+    // 3) Upload to R2
+    const randomId = crypto.randomBytes(8).toString("hex");
+    const key = `generations/${job.id}-${randomId}.png`;
+
+    await r2Client.send(
+      new PutObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: key,
+        Body: buffer,
+        ContentType: "image/png",
+      })
+    );
+
+    const publicUrl = `${R2_PUBLIC_BASE}/${key}`;
+
+    // 4) Update Supabase
+    await supabase
+      .from("generations")
+      .update({
+        status: "DONE",
+        result_urls: [publicUrl],
+        result_url: publicUrl,
+        finished_at: new Date().toISOString(),
+      })
+      .eq("id", job.id);
+
+    console.log("PHOTO processed successfully", job.id, publicUrl);
+  } catch (e) {
+    console.error("processPhotoWithOpenAI error:", e?.message || e);
+
+    await supabase
+      .from("generations")
+      .update({
+        status: "ERROR",
+        finished_at: new Date().toISOString(),
+      })
+      .eq("id", job.id);
+
+    throw e;
+  }
+}
+
 async function fetchJson(url) {
   const res = await fetch(url, {
     method: "GET",
@@ -161,20 +275,9 @@ async function runOnce() {
   const job = await pickJob();
   if (!job) return;
 
-  // Якщо PHOTO без task_id → помічаємо як DONE з фейковим URL
+  // PHOTO without task_id -> process with OpenAI
   if (!job.task_id && String(job.kind || "").toUpperCase().trim() === "PHOTO") {
-    const fakeUrl = "https://example.com/debug.png";
-    await supabase
-      .from("generations")
-      .update({
-        status: "DONE",
-        result_urls: [fakeUrl],
-        result_url: fakeUrl,
-        finished_at: new Date().toISOString(),
-      })
-      .eq("id", job.id);
-
-    console.log("PHOTO without task_id marked as DONE", job.id);
+    await processPhotoWithOpenAI(job);
     return;
   }
 
