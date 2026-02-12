@@ -170,6 +170,33 @@ function pickOpenAISizeFromAspect(job) {
 
 /* ============== OPENAI + R2 ============== */
 
+function sanitizePromptForOpenAI(prompt) {
+  let p = prompt || "";
+  
+  // Remove image tokens
+  p = p.replace(/<<<image_\d+>>>/gi, "");
+  
+  // Replace NSFW words with neutral alternatives
+  const replacements = {
+    sensual: "elegant",
+    seductive: "stylish",
+    erotic: "artistic",
+    lingerie: "fashion",
+    "deep neckline": "elegant neckline",
+    provocative: "fashionable",
+    sexy: "glamorous",
+    "low cut": "elegant cut",
+    cleavage: "neckline",
+  };
+  
+  for (const [bad, good] of Object.entries(replacements)) {
+    const re = new RegExp(bad, "gi");
+    p = p.replace(re, good);
+  }
+  
+  return p.replace(/\s+/g, " ").trim();
+}
+
 async function downloadToBuffer(url) {
   const res = await fetch(url);
   if (!res.ok) {
@@ -181,12 +208,10 @@ async function downloadToBuffer(url) {
 
 async function processPhotoWithOpenAI(job) {
   try {
-    const prompt = String(job?.payload?.prompt || "").trim();
+    let prompt = String(job?.payload?.prompt || "").trim();
     if (!prompt) {
       throw new Error("Missing prompt in job payload");
     }
-
-    console.log("Processing PHOTO with OpenAI", job.id, "prompt:", prompt);
 
     const size = pickOpenAISizeFromAspect(job);
 
@@ -195,38 +220,70 @@ async function processPhotoWithOpenAI(job) {
     const image2 = job?.payload?.image_2 || null;
     const hasReference = image1 || image2;
 
+    // Sanitize prompt
+    prompt = sanitizePromptForOpenAI(prompt);
+
+    // Add identity preservation instruction when using reference
+    if (hasReference) {
+      prompt = `Keep the person's identity and facial features the same as in the reference image. Do not change face shape, eyes, nose, lips. ${prompt}`;
+    }
+
+    console.log("Processing PHOTO with OpenAI", job.id, "prompt:", prompt);
+
     let openaiData;
+    let usedFallback = false;
 
     if (hasReference) {
-      // Use /v1/images/edits with reference image
-      console.log("Using /v1/images/edits with reference image");
+      // Try /v1/images/edits with reference image
+      try {
+        console.log("Using /v1/images/edits with reference image");
 
-      const refUrl = image1 || image2;
-      const refBuffer = await downloadToBuffer(refUrl);
+        const refUrl = image1 || image2;
+        const refBuffer = await downloadToBuffer(refUrl);
 
-      const formData = new FormData();
-      formData.append("model", OPENAI_IMAGE_MODEL);
-      formData.append("prompt", prompt);
-      formData.append("n", "1");
-      formData.append("size", size);
-      formData.append("quality", OPENAI_IMAGE_QUALITY);
-      formData.append("image", new Blob([refBuffer], { type: "image/jpeg" }), "ref.jpg");
+        const formData = new FormData();
+        formData.append("model", OPENAI_IMAGE_MODEL);
+        formData.append("prompt", prompt);
+        formData.append("n", "1");
+        formData.append("size", size);
+        formData.append("quality", OPENAI_IMAGE_QUALITY);
+        formData.append("image", new Blob([refBuffer], { type: "image/png" }), "ref.png");
 
-      const openaiRes = await fetch("https://api.openai.com/v1/images/edits", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-        },
-        body: formData,
-      });
+        const openaiRes = await fetch("https://api.openai.com/v1/images/edits", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${OPENAI_API_KEY}`,
+          },
+          body: formData,
+        });
 
-      openaiData = await openaiRes.json();
+        openaiData = await openaiRes.json();
 
-      if (!openaiRes.ok) {
-        throw new Error(`OpenAI error ${openaiRes.status}: ${JSON.stringify(openaiData).slice(0, 300)}`);
+        if (!openaiRes.ok) {
+          const errorMsg = JSON.stringify(openaiData).toLowerCase();
+          
+          // Check if it's a safety/moderation error
+          if (errorMsg.includes("safety") || errorMsg.includes("moderation") || errorMsg.includes("policy")) {
+            console.warn("OpenAI edits blocked by safety, falling back to generations without reference");
+            usedFallback = true;
+            // Continue to fallback below
+          } else {
+            throw new Error(`OpenAI error ${openaiRes.status}: ${JSON.stringify(openaiData).slice(0, 300)}`);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to use edits endpoint:", e?.message);
+        usedFallback = true;
+        // Continue to fallback below
       }
-    } else {
-      // Use /v1/images/generations (no reference)
+    }
+
+    // Use generations if no reference or if edits failed
+    if (!hasReference || usedFallback) {
+      if (usedFallback) {
+        console.log("Using fallback: /v1/images/generations without reference");
+      }
+
       const openaiRes = await fetch("https://api.openai.com/v1/images/generations", {
         method: "POST",
         headers: {
