@@ -155,11 +155,15 @@ function pickOpenAISizeFromAspect(job) {
   const aspect = String(job?.payload?.aspect_ratio || job?.payload?.aspect || job?.payload?.format || "").trim();
   switch (aspect) {
     case "9:16":
-      return "1024x1792";
+      return "1024x1536";
     case "16:9":
-      return "1792x1024";
+      return "1536x1024";
     case "1:1":
+      return "1024x1024";
+    case "":
+      return "1024x1024"; // default
     default:
+      console.warn(`Unknown aspect ratio "${aspect}", using 1024x1024`);
       return "1024x1024";
   }
 }
