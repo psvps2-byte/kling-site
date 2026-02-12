@@ -15,6 +15,7 @@ function mustEnv(name: string) {
 export const r2 = new S3Client({
   region: "auto",
   endpoint: mustEnv("R2_ENDPOINT"),
+  forcePathStyle: true,
   credentials: {
     accessKeyId: mustEnv("R2_ACCESS_KEY_ID"),
     secretAccessKey: mustEnv("R2_SECRET_ACCESS_KEY"),
