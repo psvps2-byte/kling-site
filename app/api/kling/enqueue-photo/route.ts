@@ -45,19 +45,20 @@ export async function POST(req: NextRequest) {
   }
 
   // Підлаштуй під твій фронт (ratio/output можуть називатись інакше)
-  const ratio = asStr(body?.ratio || body?.aspect_ratio).trim() || "1:1";
+  const aspect_ratio = asStr(body?.aspect_ratio || body?.ratio).trim() || "1:1";
   const output = asNum(body?.output ?? body?.n ?? 1, 1);
   const cost_points = Math.max(1, Math.floor(output));
 
-  // ref image (опційно)
-  const ref_image_url = body?.ref_image_url ? asStr(body.ref_image_url).trim() : null;
+  const image_1 = body?.image_1 ? asStr(body.image_1).trim() : null;
+  const image_2 = body?.image_2 ? asStr(body.image_2).trim() : null;
 
-  // 3) payload — ВСЕ, що треба воркеру/клингу
+  // 3) payload — ВСЕ, що треба воркеру/клінгу
   const payload = {
-    prompt,
-    ratio,
-    output,
-    ref_image_url,
+    prompt,          // БЕЗ <<<image_1>>>
+    aspect_ratio,
+    n: output,
+    image_1,
+    image_2,
   };
 
   // 4) user_id — беремо з таблиці users по email (безпечно)
