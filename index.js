@@ -151,6 +151,19 @@ function expectedCount(job) {
   return Math.max(1, Math.min(9, val));
 }
 
+function pickOpenAISizeFromAspect(job) {
+  const aspect = String(job?.payload?.aspect_ratio || job?.payload?.aspect || job?.payload?.format || "").trim();
+  switch (aspect) {
+    case "9:16":
+      return "1024x1792";
+    case "16:9":
+      return "1792x1024";
+    case "1:1":
+    default:
+      return "1024x1024";
+  }
+}
+
 /* ============== OPENAI + R2 ============== */
 
 async function processPhotoWithOpenAI(job) {
@@ -161,6 +174,8 @@ async function processPhotoWithOpenAI(job) {
     }
 
     console.log("Processing PHOTO with OpenAI", job.id, "prompt:", prompt);
+
+    const size = pickOpenAISizeFromAspect(job);
 
     // 1) Call OpenAI Images API
     const openaiRes = await fetch("https://api.openai.com/v1/images/generations", {
@@ -173,7 +188,7 @@ async function processPhotoWithOpenAI(job) {
         model: OPENAI_IMAGE_MODEL,
         prompt,
         n: 1,
-        size: "1024x1024",
+        size,
         quality: OPENAI_IMAGE_QUALITY,
       }),
     });
