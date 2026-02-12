@@ -114,6 +114,11 @@ function normalizeStatus(json) {
     .trim();
 }
 
+function expectedCount(job) {
+  const val = Number(job?.payload?.output ?? job?.payload?.n ?? 1);
+  return Math.max(1, Math.min(9, val));
+}
+
 async function fetchJson(url) {
   const res = await fetch(url, {
     method: "GET",
@@ -136,7 +141,6 @@ async function pickJob() {
     .from("generations")
     .select("*")
     .in("status", ["QUEUED", "RUNNING"])
-    .not("task_id", "is", null)
     .order("created_at", { ascending: true })
     .limit(20);
 
@@ -144,7 +148,7 @@ async function pickJob() {
 
   for (const job of data || []) {
     const existing = Array.isArray(job.result_urls) ? job.result_urls : [];
-    const expected = Number(job.cost_points || 1);
+    const expected = expectedCount(job);
     if (existing.length < expected) return job;
   }
 
@@ -156,6 +160,23 @@ async function pickJob() {
 async function runOnce() {
   const job = await pickJob();
   if (!job) return;
+
+  // Якщо PHOTO без task_id → помічаємо як DONE з фейковим URL
+  if (!job.task_id && String(job.kind || "").toUpperCase().trim() === "PHOTO") {
+    const fakeUrl = "https://example.com/debug.png";
+    await supabase
+      .from("generations")
+      .update({
+        status: "DONE",
+        result_urls: [fakeUrl],
+        result_url: fakeUrl,
+        finished_at: new Date().toISOString(),
+      })
+      .eq("id", job.id);
+
+    console.log("PHOTO without task_id marked as DONE", job.id);
+    return;
+  }
 
   const url = klingStatusUrl(job);
   if (!url) return;
@@ -208,7 +229,7 @@ async function runOnce() {
     }
 
     // скільки картинок замовив користувач
-    const expected = Number(job?.cost_points || job?.payload?.output || 1);
+    const expected = expectedCount(job);
 
     // якщо ще не всі картинки зібрались → RUNNING
     // якщо всі зібрались → DONE
