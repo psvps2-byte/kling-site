@@ -171,7 +171,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const base = process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
+    const base = process.env.R2_PUBLIC_BASE_URL;
     const publicUrl = base
       ? `${base.replace(/\/+$/, "")}/${String(pres.key).replace(/^\/+/, "")}`
       : null;

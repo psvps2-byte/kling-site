@@ -335,7 +335,7 @@ export default function Home() {
 
     if (!put.ok) throw new Error(`Upload failed: ${put.status}`);
 
-    const base = process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
+    const base = process.env.R2_PUBLIC_BASE_URL;
     if (!base) throw new Error("Missing NEXT_PUBLIC_R2_PUBLIC_BASE_URL");
     const url = `${base.replace(/\/+$/, "")}/${String(pres.key).replace(/^\/+/, "")}`;
 
