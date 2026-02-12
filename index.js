@@ -172,8 +172,8 @@ async function processPhotoWithOpenAI(job) {
         model: OPENAI_IMAGE_MODEL,
         prompt,
         n: 1,
+        size: "1024x1024",
         quality: OPENAI_IMAGE_QUALITY,
-        response_format: "b64_json",
       }),
     });
 
