@@ -89,10 +89,10 @@ export default function Home() {
   useEffect(() => {
     const loadTemplates = async () => {
       const { data } = await supabase
-        .from('templates')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order');
+        .from("templates")
+        .select("*")
+        .eq("is_active", true)
+        .order("sort_order");
 
       if (data) setTemplates(data);
     };
@@ -103,41 +103,53 @@ export default function Home() {
   // GLOBAL
   const [mediaTab, setMediaTab] = useState<MediaTab>("photo");
   const localTemplates = [
-  {
-    id: "0001",
-    title: "Valentine’s Day",
-    preview: "/templates/0001.jpg",
-    prompt: "Stylish studio portrait of a woman, shot from a top-down overhead angle (flat lay perspective), with the camera positioned directly above her. She is lying flat on her back on a surface completely covered with unfolded black-and-white newspapers, creating a textured editorial background. Her head is centered in the frame, with voluminous hair symmetrically and artistically spread around it, forming a soft halo shape. The composition is balanced and clean, with a strong central focus. She is wearing a bright red tailored blazer with a deep neckline, revealing a black choker underneath. On her face are fashionable cat-eye sunglasses with a red tortoiseshell frame. The makeup is glamorous and flawless: perfectly sculpted eyebrows, smooth porcelain-like skin, and rich glossy red lips. She is looking straight into the camera lens with a confident, elegant, and subtly seductive expression. Around her are carefully arranged Valentine’s Day elements: vivid red roses placed along the edges of the frame and several red heart-shaped balloons partially entering the composition, adding depth and visual contrast. In her hands, positioned across her torso, she is holding a folded newspaper at a slight diagonal angle. The newspaper is clearly visible and in sharp focus, with a clean white front page and a handwritten-style red headline reading “Valentine’s Day”, bold and legible, resembling editorial calligraphy. Her hands are relaxed and elegant, fingers naturally placed, with neat manicure. The lighting is professional studio lighting, soft and diffused, with gentle shadows that enhance facial features and textures without harsh contrast. The overall mood is a high-end fashion editorial photoshoot — chic, glamorous, photorealistic, ultra-detailed, fashion photography, editorial style, clean composition, 8K resolution, ultra-sharp focus, cinematic lighting."
-  },
-  {
-    id: "0003",
-    title: "Valentine’s Day",
-    preview: "/templates/0003.jpg",
-    prompt: "A photorealistic artistic fashion portrait of a woman styled as a modern Cupid, shot from a precise top-down overhead angle (flat lay). The model is lying on her back on a warm wooden parquet floor, fully aligned along the vertical axis of the frame. The camera is positioned directly above her, creating a symmetrical, carefully composed editorial layout. She is holding a Cupid’s bow, pulling back the bowstring, with the arrow aimed directly at the camera, creating a strong sense of depth and dramatic perspective. The arrowhead is shaped like a metal heart and remains in sharp focus. Her arms are extended forward, fingers elegant and tense, with a neat manicure. Her outfit consists of a soft powder-pink corset with ruffles and lace-up detailing that accentuates the waist, paired with a light flowing skirt made of delicate fabric. She wears sheer lace gloves on her hands and a refined pearl choker around her neck. Behind her back are white fluffy angel wings, carefully spread on both sides of her body. The makeup is romantic and glamorous: soft pink eyeshadow, long lashes, glowing skin, and glossy lips in a delicate pink shade. Small red heart shapes decorate her cheeks as a playful accent. Her hair is light-colored, voluminous, and wavy, artistically arranged around her head. She looks directly into the lens with a sensual, confident, and captivating expression. Surrounding the model are Valentine’s Day elements: handwritten letters tied with ribbons, pink and white peonies, and small red heart-shaped candies. All elements are carefully styled, creating the atmosphere of a romantic fairytale and a high-end editorial photoshoot. Lighting is soft, warm, and natural, with gentle shadows that enhance body contours, fabric textures, and prop details. The overall mood is tender, sensual, and cinematic, blending classic romance with modern fashion aesthetics. Photorealistic, high detail, editorial fashion photography, Valentine’s Day aesthetic, Cupid concept, soft cinematic lighting, shallow depth of field, ultra-sharp focus, 8K resolution, luxury mood."
-  },
-  {
-    id: "0002",
-    title: "Valentine’s Day",
-    preview: "/templates/0002.jpg",
-    prompt: "A dynamic, photorealistic fashion portrait of a woman, shot from a low wide-angle perspective (fisheye / wide-angle lens), as if the camera is very close to her face while she slightly leans toward the lens. She is blowing a kiss, which transforms into vivid red smoke that gradually breaks apart into pixelated hearts in an 8-bit / glitch-art style, floating in the air. The model has a confident, bold, slightly ironic facial expression. She is wearing red frameless sunglasses with semi-transparent lenses. Around her neck is a metal spiked choker, adding a punk edge. Outfit: a distressed red denim vest in a Diesel-inspired style, dyed in a deep oxblood red tone, layered over a sheer crystal mesh top that reflects neon light beautifully. Accessories are metallic, futuristic, with a subtle industrial feel. The background is a chaotic cyberpunk nighttime megacity, filled with neon signs, digital artifacts, light trails, and datamosh effects. Around the model, floating neon holograms display the text “ERROR: LOVE NOT FOUND” in glowing red, appearing as digital signage. The city feels alive, overloaded with information, featuring deep perspective and cinematic bokeh lights. Lighting is high-contrast and cinematic: cool neon rim light from behind combined with warm red light from the front. Visible effects include film grain, chromatic aberration, light bloom, glow, and subtle noise reminiscent of nighttime street photography. Skin texture is hyper-detailed and natural, with a slight sheen. The overall mood conveys anti-romantic Valentine energy, cyberpunk irony, and digital loneliness, presented as a high-end fashion editorial. Photorealistic, ultra-detailed, fashion photography, cyberpunk aesthetic, neon noir, glitch art, cinematic lighting, shallow depth of field, 8K, ultra-sharp, dramatic mood."
-  },
-  {
-    id: "0004",
-    title: "Valentine’s Day",
-    preview: "/templates/0004.jpg",
-    prompt: "A photorealistic full-body fashion portrait of a woman, shot in a studio from a frontal, eye-level angle. The model stands confidently in the center of the frame, with her legs slightly apart and a subtle asymmetry in her pose that accentuates her silhouette. She looks directly into the camera with a confident, bold, and elegant expression. She is wearing a bright red classic tailored suit: a fitted blazer and trousers with sharp creases. Under the blazer, she wears black lace lingerie (a bralette), creating a daring, sensual accent and a striking contrast with the red suit. On her feet are red high-heeled pumps. The look is stylish and modern, with notes of power dressing and high-fashion eroticism. Her hair is light-colored, voluminous, and softly styled in waves. The makeup is glamorous and clean: even skin tone, defined eyebrows, emphasized eyes, and rich red lipstick. The background is a studio art installation: transparent plastic sheets stretched on metal stands, featuring large red spray-painted lettering reading “LOVE”, along with chaotically scattered hearts, lines, and abstract symbols. Along the edges of the frame are red heart-shaped balloons, some placed on the floor, creating depth in the composition. The lighting is professional studio lighting—soft, even, and flattering—with a subtle focus on the model. Shadows are clean, without harsh contrast. The overall atmosphere is a modern Valentine’s Day fashion editorial: bold, stylish, slightly provocative, combining romance and strength. Photorealistic, high detail, editorial fashion photography, Valentine’s Day aesthetic, modern studio setup, clean background, bold red color palette, ultra-sharp, 8K, cinematic studio lighting, luxury fashion mood."
-  },
-  {
-    id: "0005",
-    title: "Valentine’s Day",
-    preview: "/templates/0005.jpg",
-    prompt: "A photorealistic fantasy-glam fashion portrait of a woman, shot in a studio from a frontal angle, with the camera positioned slightly below eye level to emphasize the grandeur of the look. The model is seated at the center of the frame on the hood of a vintage pink car from the 1950s–1960s, with a symmetrical composition and sharp focus on her figure. Behind her are large pink angel wings made of feathers, fully spread to both sides, creating a sense of power, magic, and divine presence. The wings are highly detailed, soft, and fluffy, with rich feather texture. Her look features a luxurious bright pink gown with a voluminous, multi-layered tulle tutu skirt and a corset lavishly embellished with crystals and shimmer. The neckline is deep yet elegant. On her feet are pink high-heeled shoes encrusted with gemstones. Her legs are crossed, and her pose is confident, glamorous, and iconic. The makeup is flawless glam: glowing skin, sculpted contouring, emphasis on the eyes, long lashes, and glossy lips in a pink palette. Her facial expression is calm and confident, with a touch of cool elegance and pop-diva attitude. Surrounding the car is dense pink smoke or mist, enveloping the scene and adding mystique and depth. The background is dark, almost black, creating strong contrast and enhancing the pink color palette. The lighting is cinematic studio lighting: soft frontal light to flatter the skin, rim lighting to highlight the wings and silhouette, with subtle glow and bloom effects. The overall atmosphere is luxury fantasy fashion, pop-culture icon, modern angel aesthetic, blending gloss, fairytale elements, and high fashion. Photorealistic, ultra-high detail, fantasy fashion photography, pink monochrome palette, cinematic studio lighting, ultra-sharp focus, shallow depth of field, 8K resolution, dramatic glamorous mood."
-  }
-];
+    {
+      id: "0001",
+      title: "Valentine’s Day",
+      preview: "/templates/0001.jpg",
+      prompt:
+        "Stylish studio portrait of a woman, shot from a top-down overhead angle (flat lay perspective), with the camera positioned directly above her. She is lying flat on her back on a surface completely covered with unfolded black-and-white newspapers, creating a textured editorial background. Her head is centered in the frame, with voluminous hair symmetrically and artistically spread around it, forming a soft halo shape. The composition is balanced and clean, with a strong central focus. She is wearing a bright red tailored blazer with a deep neckline, revealing a black choker underneath. On her face are fashionable cat-eye sunglasses with a red tortoiseshell frame. The makeup is glamorous and flawless: perfectly sculpted eyebrows, smooth porcelain-like skin, and rich glossy red lips. She is looking straight into the camera lens with a confident, elegant, and subtly seductive expression. Around her are carefully arranged Valentine’s Day elements: vivid red roses placed along the edges of the frame and several red heart-shaped balloons partially entering the composition, adding depth and visual contrast. In her hands, positioned across her torso, she is holding a folded newspaper at a slight diagonal angle. The newspaper is clearly visible and in sharp focus, with a clean white front page and a handwritten-style red headline reading “Valentine’s Day”, bold and legible, resembling editorial calligraphy. Her hands are relaxed and elegant, fingers naturally placed, with neat manicure. The lighting is professional studio lighting, soft and diffused, with gentle shadows that enhance facial features and textures without harsh contrast. The overall mood is a high-end fashion editorial photoshoot — chic, glamorous, photorealistic, ultra-detailed, fashion photography, editorial style, clean composition, 8K resolution, ultra-sharp focus, cinematic lighting.",
+    },
+    {
+      id: "0003",
+      title: "Valentine’s Day",
+      preview: "/templates/0003.jpg",
+      prompt:
+        "A photorealistic artistic fashion portrait of a woman styled as a modern Cupid, shot from a precise top-down overhead angle (flat lay). The model is lying on her back on a warm wooden parquet floor, fully aligned along the vertical axis of the frame. The camera is positioned directly above her, creating a symmetrical, carefully composed editorial layout. She is holding a Cupid’s bow, pulling back the bowstring, with the arrow aimed directly at the camera, creating a strong sense of depth and dramatic perspective. The arrowhead is shaped like a metal heart and remains in sharp focus. Her arms are extended forward, fingers elegant and tense, with a neat manicure. Her outfit consists of a soft powder-pink corset with ruffles and lace-up detailing that accentuates the waist, paired with a light flowing skirt made of delicate fabric. She wears sheer lace gloves on her hands and a refined pearl choker around her neck. Behind her back are white fluffy angel wings, carefully spread on both sides of her body. The makeup is romantic and glamorous: soft pink eyeshadow, long lashes, glowing skin, and glossy lips in a delicate pink shade. Small red heart shapes decorate her cheeks as a playful accent. Her hair is light-colored, voluminous, and wavy, artistically arranged around her head. She looks directly into the lens with a sensual, confident, and captivating expression. Surrounding the model are Valentine’s Day elements: handwritten letters tied with ribbons, pink and white peonies, and small red heart-shaped candies. All elements are carefully styled, creating the atmosphere of a romantic fairytale and a high-end editorial photoshoot. Lighting is soft, warm, and natural, with gentle shadows that enhance body contours, fabric textures, and prop details. The overall mood is tender, sensual, and cinematic, blending classic romance with modern fashion aesthetics. Photorealistic, high detail, editorial fashion photography, Valentine’s Day aesthetic, Cupid concept, soft cinematic lighting, shallow depth of field, ultra-sharp focus, 8K resolution, luxury mood.",
+    },
+    {
+      id: "0002",
+      title: "Valentine’s Day",
+      preview: "/templates/0002.jpg",
+      prompt:
+        "A dynamic, photorealistic fashion portrait of a woman, shot from a low wide-angle perspective (fisheye / wide-angle lens), as if the camera is very close to her face while she slightly leans toward the lens. She is blowing a kiss, which transforms into vivid red smoke that gradually breaks apart into pixelated hearts in an 8-bit / glitch-art style, floating in the air. The model has a confident, bold, slightly ironic facial expression. She is wearing red frameless sunglasses with semi-transparent lenses. Around her neck is a metal spiked choker, adding a punk edge. Outfit: a distressed red denim vest in a Diesel-inspired style, dyed in a deep oxblood red tone, layered over a sheer crystal mesh top that reflects neon light beautifully. Accessories are metallic, futuristic, with a subtle industrial feel. The background is a chaotic cyberpunk nighttime megacity, filled with neon signs, digital artifacts, light trails, and datamosh effects. Around the model, floating neon holograms display the text “ERROR: LOVE NOT FOUND” in glowing red, appearing as digital signage. The city feels alive, overloaded with information, featuring deep perspective and cinematic bokeh lights. Lighting is high-contrast and cinematic: cool neon rim light from behind combined with warm red light from the front. Visible effects include film grain, chromatic aberration, light bloom, glow, and subtle noise reminiscent of nighttime street photography. Skin texture is hyper-detailed and natural, with a slight sheen. The overall mood conveys anti-romantic Valentine energy, cyberpunk irony, and digital loneliness, presented as a high-end fashion editorial. Photorealistic, ultra-detailed, fashion photography, cyberpunk aesthetic, neon noir, glitch art, cinematic lighting, shallow depth of field, 8K, ultra-sharp, dramatic mood.",
+    },
+    {
+      id: "0004",
+      title: "Valentine’s Day",
+      preview: "/templates/0004.jpg",
+      prompt:
+        "A photorealistic full-body fashion portrait of a woman, shot in a studio from a frontal, eye-level angle. The model stands confidently in the center of the frame, with her legs slightly apart and a subtle asymmetry in her pose that accentuates her silhouette. She looks directly into the camera with a confident, bold, and elegant expression. She is wearing a bright red classic tailored suit: a fitted blazer and trousers with sharp creases. Under the blazer, she wears black lace lingerie (a bralette), creating a daring, sensual accent and a striking contrast with the red suit. On her feet are red high-heeled pumps. The look is stylish and modern, with notes of power dressing and high-fashion eroticism. Her hair is light-colored, voluminous, and softly styled in waves. The makeup is glamorous and clean: even skin tone, defined eyebrows, emphasized eyes, and rich red lipstick. The background is a studio art installation: transparent plastic sheets stretched on metal stands, featuring large red spray-painted lettering reading “LOVE”, along with chaotically scattered hearts, lines, and abstract symbols. Along the edges of the frame are red heart-shaped balloons, some placed on the floor, creating depth in the composition. The lighting is professional studio lighting—soft, even, and flattering—with a subtle focus on the model. Shadows are clean, without harsh contrast. The overall atmosphere is a modern Valentine’s Day fashion editorial: bold, stylish, slightly provocative, combining romance and strength. Photorealistic, high detail, editorial fashion photography, Valentine’s Day aesthetic, modern studio setup, clean background, bold red color palette, ultra-sharp, 8K, cinematic studio lighting, luxury fashion mood.",
+    },
+    {
+      id: "0005",
+      title: "Valentine’s Day",
+      preview: "/templates/0005.jpg",
+      prompt:
+        "A photorealistic fantasy-glam fashion portrait of a woman, shot in a studio from a frontal angle, with the camera positioned slightly below eye level to emphasize the grandeur of the look. The model is seated at the center of the frame on the hood of a vintage pink car from the 1950s–1960s, with a symmetrical composition and sharp focus on her figure. Behind her are large pink angel wings made of feathers, fully spread to both sides, creating a sense of power, magic, and divine presence. The wings are highly detailed, soft, and fluffy, with rich feather texture. Her look features a luxurious bright pink gown with a voluminous, multi-layered tulle tutu skirt and a corset lavishly embellished with crystals and shimmer. The neckline is deep yet elegant. On her feet are pink high-heeled shoes encrusted with gemstones. Her legs are crossed, and her pose is confident, glamorous, and iconic. The makeup is flawless glam: glowing skin, sculpted contouring, emphasis on the eyes, long lashes, and glossy lips in a pink palette. Her facial expression is calm and confident, with a touch of cool elegance and pop-diva attitude. Surrounding the car is dense pink smoke or mist, enveloping the scene and adding mystique and depth. The background is dark, almost black, creating strong contrast and enhancing the pink color palette. The lighting is cinematic studio lighting: soft frontal light to flatter the skin, rim lighting to highlight the wings and silhouette, with subtle glow and bloom effects. The overall atmosphere is luxury fantasy fashion, pop-culture icon, modern angel aesthetic, blending gloss, fairytale elements, and high fashion. Photorealistic, ultra-high detail, fantasy fashion photography, pink monochrome palette, cinematic studio lighting, ultra-sharp focus, shallow depth of field, 8K resolution, dramatic glamorous mood.",
+    },
+  ];
 
   const [loading, setLoading] = useState(false);
+
+  // queued = “процес триває” (після POST і під час polling)
   const [queued, setQueued] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
+
+  // ✅ NEW: photo task tracking (для анімації між кнопкою і шаблонами)
+  const [photoTaskId, setPhotoTaskId] = useState<string | null>(null);
+  const [photoProgressText, setPhotoProgressText] = useState<string>("");
 
   const [lang, setLangState] = useState<Lang>("uk");
   const dict = t(lang);
@@ -161,7 +173,7 @@ export default function Home() {
       .then((j) => {
         if (j?.authenticated) setPoints(Number(j.user?.points ?? 0));
       })
-      .catch(() => { });
+      .catch(() => {});
   }, [session]);
 
   // COMMON PROMPT
@@ -222,11 +234,16 @@ export default function Home() {
     };
   }, []);
 
-
-
-  const acceptImg = "image/jpeg,image/png,image/heic,image/heif,.heic,.heif,.jpg,.jpeg,.png";
-  const srcPreview = useMemo(() => (srcFile ? URL.createObjectURL(srcFile) : ""), [srcFile]);
-  const srcPreview2 = useMemo(() => (srcFile2 ? URL.createObjectURL(srcFile2) : ""), [srcFile2]);
+  const acceptImg =
+    "image/jpeg,image/png,image/heic,image/heif,.heic,.heif,.jpg,.jpeg,.png";
+  const srcPreview = useMemo(
+    () => (srcFile ? URL.createObjectURL(srcFile) : ""),
+    [srcFile]
+  );
+  const srcPreview2 = useMemo(
+    () => (srcFile2 ? URL.createObjectURL(srcFile2) : ""),
+    [srcFile2]
+  );
 
   // VIDEO
   const [videoMode, setVideoMode] = useState<VideoMode>("i2v");
@@ -244,17 +261,29 @@ export default function Home() {
   const [vMotionVideo, setVMotionVideo] = useState<File | null>(null);
   const [motionPreviewUrl, setMotionPreviewUrl] = useState<string>("");
   const [vCharacterImg, setVCharacterImg] = useState<File | null>(null);
-  const [characterOrientation, setCharacterOrientation] = useState<CharacterOrientation>("image");
+  const [characterOrientation, setCharacterOrientation] =
+    useState<CharacterOrientation>("image");
   const [keepOriginalSound, setKeepOriginalSound] = useState(true);
   const [refVideoSeconds, setRefVideoSeconds] = useState<number>(0);
 
   const acceptVid = "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov";
-  const vStartPreview = useMemo(() => (vStartImg ? URL.createObjectURL(vStartImg) : ""), [vStartImg]);
-  const vEndPreview = useMemo(() => (vEndImg ? URL.createObjectURL(vEndImg) : ""), [vEndImg]);
-  const vCharPreview = useMemo(() => (vCharacterImg ? URL.createObjectURL(vCharacterImg) : ""), [vCharacterImg]);
+  const vStartPreview = useMemo(
+    () => (vStartImg ? URL.createObjectURL(vStartImg) : ""),
+    [vStartImg]
+  );
+  const vEndPreview = useMemo(
+    () => (vEndImg ? URL.createObjectURL(vEndImg) : ""),
+    [vEndImg]
+  );
+  const vCharPreview = useMemo(
+    () => (vCharacterImg ? URL.createObjectURL(vCharacterImg) : ""),
+    [vCharacterImg]
+  );
 
   // ✅ anti-double-upload cache (fileSig -> url)
-  const uploadCacheRef = useRef<Map<string, { key: string; url: string }>>(new Map());
+  const uploadCacheRef = useRef<Map<string, { key: string; url: string }>>(
+    new Map()
+  );
 
   useEffect(() => {
     return () => {
@@ -278,9 +307,13 @@ export default function Home() {
     };
   }, [vMotionVideo]);
 
+  // при зміні табу — скидаємо UI генерації
   useEffect(() => {
     setError(null);
     setImageUrls([]);
+    setQueued(false);
+    setPhotoTaskId(null);
+    setPhotoProgressText("");
   }, [mediaTab]);
 
   useEffect(() => {
@@ -312,7 +345,9 @@ export default function Home() {
   }, [videoQuality, videoMode, vEndImg]);
 
   // ---- R2 upload (presign-put) ----
-  async function uploadToR2AndGetPublicUrl(file: File): Promise<{ key: string; url: string }> {
+  async function uploadToR2AndGetPublicUrl(
+    file: File
+  ): Promise<{ key: string; url: string }> {
     const sig = fileSig(file);
     const cached = uploadCacheRef.current.get(sig);
     if (cached) return cached;
@@ -338,7 +373,10 @@ export default function Home() {
 
     const base = process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
     if (!base) throw new Error("Missing NEXT_PUBLIC_R2_PUBLIC_BASE_URL");
-    const url = `${base.replace(/\/+$/, "")}/${String(pres.key).replace(/^\/+/, "")}`;
+    const url = `${base.replace(/\/+$/, "")}/${String(pres.key).replace(
+      /^\/+/,
+      ""
+    )}`;
 
     const result = { key: String(pres.key), url };
     uploadCacheRef.current.set(sig, result);
@@ -358,10 +396,15 @@ export default function Home() {
     return data as { ok: true; key: string; publicUrl?: string | null };
   }
 
-  async function pollVideoTask(opts: { kind: "image2video" | "motion-control"; taskId: string }) {
+  async function pollVideoTask(opts: {
+    kind: "image2video" | "motion-control";
+    taskId: string;
+  }) {
     const { kind, taskId } = opts;
     const endpoint =
-      kind === "image2video" ? `/api/kling/image2video/${taskId}` : `/api/kling/motion-control/${taskId}`;
+      kind === "image2video"
+        ? `/api/kling/image2video/${taskId}`
+        : `/api/kling/motion-control/${taskId}`;
 
     const started = Date.now();
     const maxMs = 10 * 60 * 1000;
@@ -372,7 +415,11 @@ export default function Home() {
       const data = await readJsonOrRaw(res);
 
       if (!res.ok) {
-        const msg = data?.error || data?.message || data?.details?.message || "Server error";
+        const msg =
+          data?.error ||
+          data?.message ||
+          data?.details?.message ||
+          "Server error";
         throw new Error(msg);
       }
 
@@ -381,9 +428,16 @@ export default function Home() {
       if (status === "succeed") {
         const vurl = extractVideoUrlFromTask(data);
         if (!vurl)
-          throw new Error(lang === "uk" ? "Задача успішна, але нема URL відео" : "Task succeeded but no video URL");
+          throw new Error(
+            lang === "uk"
+              ? "Задача успішна, але нема URL відео"
+              : "Task succeeded but no video URL"
+          );
 
-        const imp = await importRemoteToR2(vurl, `kling_${kind}_${taskId}_${Date.now()}.mp4`);
+        const imp = await importRemoteToR2(
+          vurl,
+          `kling_${kind}_${taskId}_${Date.now()}.mp4`
+        );
 
         await fetch("/api/history", {
           method: "POST",
@@ -424,7 +478,11 @@ export default function Home() {
       const data = await readJsonOrRaw(res);
 
       if (!res.ok) {
-        const msg = data?.error || data?.message || data?.details?.message || "Server error";
+        const msg =
+          data?.error ||
+          data?.message ||
+          data?.details?.message ||
+          "Server error";
         throw new Error(msg);
       }
 
@@ -436,7 +494,12 @@ export default function Home() {
 
       if (status === "succeed") {
         const urls = extractUrlsFromOmniTask(data);
-        if (!urls.length) throw new Error(lang === "uk" ? "Нема URL зображень у task_result" : "No image URLs");
+        if (!urls.length)
+          throw new Error(
+            lang === "uk"
+              ? "Нема URL зображень у task_result"
+              : "No image URLs"
+          );
         return urls;
       }
 
@@ -450,6 +513,41 @@ export default function Home() {
 
     throw new Error(lang === "uk" ? "Час очікування задачі вичерпано" : "Task timeout");
   }
+
+  // ✅ NEW: polling для photo task — тримає анімацію до succeed/failed
+  useEffect(() => {
+    if (!photoTaskId) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        setQueued(true);
+        setPhotoProgressText(lang === "uk" ? "Генерація у процесі..." : "Generation in progress...");
+
+        const urls = await pollOmniImageTask(photoTaskId);
+
+        if (cancelled) return;
+
+        // показуємо результат на цій сторінці (якщо хочеш тільки History — прибери це)
+        setImageUrls(urls);
+
+        setQueued(false);
+        setPhotoTaskId(null);
+        setPhotoProgressText("");
+      } catch (e: any) {
+        if (cancelled) return;
+        setError(normalizeErr(e));
+        setQueued(false);
+        setPhotoTaskId(null);
+        setPhotoProgressText("");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [photoTaskId, lang]);
 
   // ✅ ЦІНИ
   const currentCost = useMemo(() => {
@@ -473,7 +571,11 @@ export default function Home() {
 
   async function generate() {
     setError(null);
+
+    // скидаємо попередній фото-таск
     setQueued(false);
+    setPhotoTaskId(null);
+    setPhotoProgressText("");
 
     if (!session) {
       window.location.href = "/auth";
@@ -482,7 +584,9 @@ export default function Home() {
 
     if (points <= 0) {
       setError(
-        lang === "uk" ? "У тебе 0 балів. Обери пакет у кабінеті." : "You have 0 points. Choose a package in your account."
+        lang === "uk"
+          ? "У тебе 0 балів. Обери пакет у кабінеті."
+          : "You have 0 points. Choose a package in your account."
       );
       return;
     }
@@ -496,13 +600,31 @@ export default function Home() {
       return;
     }
 
-    if (mediaTab === "video" && videoMode === "i2v" && videoQuality === "standard" && vEndImg) {
-      setError(lang === "uk" ? "Кінцеве фото (start+end) доступне тільки в PRO." : "End image (start+end) works only in PRO.");
+    if (
+      mediaTab === "video" &&
+      videoMode === "i2v" &&
+      videoQuality === "standard" &&
+      vEndImg
+    ) {
+      setError(
+        lang === "uk"
+          ? "Кінцеве фото (start+end) доступне тільки в PRO."
+          : "End image (start+end) works only in PRO."
+      );
       return;
     }
 
-    if (mediaTab === "video" && videoMode === "motion" && vMotionVideo && (refVideoSeconds || 0) <= 0) {
-      setError(lang === "uk" ? "Ще зчитую тривалість відео..." : "Still reading video duration...");
+    if (
+      mediaTab === "video" &&
+      videoMode === "motion" &&
+      vMotionVideo &&
+      (refVideoSeconds || 0) <= 0
+    ) {
+      setError(
+        lang === "uk"
+          ? "Ще зчитую тривалість відео..."
+          : "Still reading video duration..."
+      );
       return;
     }
 
@@ -512,7 +634,10 @@ export default function Home() {
     try {
       if (mediaTab === "video") {
         if (videoMode === "i2v") {
-          if (!vStartImg) throw new Error(lang === "uk" ? "Потрібне початкове фото" : "Start image is required");
+          if (!vStartImg)
+            throw new Error(
+              lang === "uk" ? "Потрібне початкове фото" : "Start image is required"
+            );
 
           const imageB64 = await fileToBase64NoPrefix(vStartImg);
           const imageTailB64 = vEndImg ? await fileToBase64NoPrefix(vEndImg) : null;
@@ -535,20 +660,31 @@ export default function Home() {
 
           const data = await readJsonOrRaw(res);
           if (!res.ok) {
-            const msg = data?.error || data?.message || data?.details?.message || "Server error";
+            const msg =
+              data?.error ||
+              data?.message ||
+              data?.details?.message ||
+              "Server error";
             const reqId = data?.details?.request_id || data?.request_id;
             throw new Error(reqId ? `${msg} (request_id: ${reqId})` : msg);
           }
 
           const taskId = extractTaskId(data);
-          if (!taskId) throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
+          if (!taskId)
+            throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
 
           await pollVideoTask({ kind: "image2video", taskId });
           return;
         }
 
-        if (!vCharacterImg) throw new Error(lang === "uk" ? "Потрібне фото персонажа" : "Character image is required");
-        if (!vMotionVideo) throw new Error(lang === "uk" ? "Потрібне відео з рухами" : "Motion video is required");
+        if (!vCharacterImg)
+          throw new Error(
+            lang === "uk" ? "Потрібне фото персонажа" : "Character image is required"
+          );
+        if (!vMotionVideo)
+          throw new Error(
+            lang === "uk" ? "Потрібне відео з рухами" : "Motion video is required"
+          );
 
         const { url: motionUrl } = await uploadToR2AndGetPublicUrl(vMotionVideo);
         const { url: characterUrl } = await uploadToR2AndGetPublicUrl(vCharacterImg);
@@ -571,31 +707,45 @@ export default function Home() {
 
         const data = await readJsonOrRaw(res);
         if (!res.ok) {
-          const msg = data?.error || data?.message || data?.details?.message || "Server error";
+          const msg =
+            data?.error ||
+            data?.message ||
+            data?.details?.message ||
+            "Server error";
           const reqId = data?.details?.request_id || data?.request_id;
           throw new Error(reqId ? `${msg} (request_id: ${reqId})` : msg);
         }
 
         const taskId = extractTaskId(data);
-        if (!taskId) throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
+        if (!taskId)
+          throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
 
         await pollVideoTask({ kind: "motion-control", taskId });
         return;
       }
 
-      // PHOTO (OpenAI via Supabase queue)
-      const userPrompt = selectedTemplateId ? (templatePrompt ?? "") : prompt.trim();
+      // PHOTO
+      const userPrompt = selectedTemplateId ? templatePrompt ?? "" : prompt.trim();
       if (!userPrompt) throw new Error(lang === "uk" ? "Введи промт" : "Please enter a prompt");
-      if (refUploading) throw new Error(lang === "uk" ? "Зачекай, фото ще завантажується..." : "Please wait, image is still uploading...");
+      if (refUploading)
+        throw new Error(
+          lang === "uk"
+            ? "Зачекай, фото ще завантажується..."
+            : "Please wait, image is still uploading..."
+        );
 
-      if (srcFile && !srcUrl) throw new Error(lang === "uk" ? "Не вдалось завантажити 1-е фото в R2" : "Failed to upload first image");
+      if (srcFile && !srcUrl)
+        throw new Error(
+          lang === "uk"
+            ? "Не вдалось завантажити 1-е фото в R2"
+            : "Failed to upload first image"
+        );
 
-      const finalPrompt = userPrompt.trim();
-
-      const n = 1;
+      setQueued(true);
+      setPhotoProgressText(lang === "uk" ? "Створюю задачу..." : "Creating task...");
 
       const body: any = {
-        prompt: finalPrompt,
+        prompt: userPrompt.trim(),
         aspect_ratio: aspect,
         n: 1,
         image_1: srcUrl || null,
@@ -618,11 +768,16 @@ export default function Home() {
       }
 
       const taskId = extractTaskId(data);
-      if (!taskId) throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
+      if (!taskId)
+        throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
 
-      setQueued(true);
+      setPhotoTaskId(taskId);
+      setPhotoProgressText(lang === "uk" ? "Генерація у процесі..." : "Generation in progress...");
+      return;
     } catch (e: any) {
       setQueued(false);
+      setPhotoTaskId(null);
+      setPhotoProgressText("");
       setError(normalizeErr(e));
     } finally {
       setLoading(false);
@@ -631,22 +786,31 @@ export default function Home() {
 
   const generateDisabled =
     loading ||
+    queued || // ✅ блокуємо повторний клік під час photo polling
     refUploading ||
     !session ||
     (!!session && points <= 0) ||
     (!!session && points > 0 && points < currentCost) ||
     (mediaTab === "photo"
-      ? (selectedTemplateId ? false : prompt.trim().length < 1)
+      ? selectedTemplateId
+        ? false
+        : prompt.trim().length < 1
       : videoMode === "i2v"
-        ? !vStartImg
-        : !vCharacterImg || !vMotionVideo);
+      ? !vStartImg
+      : !vCharacterImg || !vMotionVideo);
 
   const generateBtnText = useMemo(() => {
     if (!session) return lang === "uk" ? "Увійти" : "Sign in";
     if (points <= 0) return lang === "uk" ? "Купити бали" : "Buy points";
     if (points < currentCost) return lang === "uk" ? "Мало балів" : "Not enough points";
 
-    const base = loading ? (lang === "uk" ? "Генерація" : "Generating") : (lang === "uk" ? "Згенерувати" : "Generate");
+    const base = loading
+      ? lang === "uk"
+        ? "Генерація"
+        : "Generating"
+      : lang === "uk"
+      ? "Згенерувати"
+      : "Generate";
     return `${base} · ${currentCost}`;
   }, [session, points, currentCost, loading, lang]);
 
@@ -669,563 +833,554 @@ export default function Home() {
   return (
     <>
       <div className="page-wrap">
-
-
         <style jsx global>{`
-        @media (prefers-reduced-motion: reduce) {
-          .ldots span,
-          .skeleton::after {
-            animation: none !important;
+          @media (prefers-reduced-motion: reduce) {
+            .ldots span,
+            .skeleton::after {
+              animation: none !important;
+            }
           }
-        }
 
-        .ldots {
-          display: inline-flex;
-          gap: 2px;
-          margin-left: 2px;
-        }
-        .ldots span {
-          display: inline-block;
-          transform: translateY(0);
-          opacity: 0.55;
-          animation: dot 1.05s ease-in-out infinite;
-        }
-        .ldots span:nth-child(2) {
-          animation-delay: 0.15s;
-        }
-        .ldots span:nth-child(3) {
-          animation-delay: 0.3s;
-        }
-        @keyframes dot {
-          0%,
-          100% {
+          .ldots {
+            display: inline-flex;
+            gap: 2px;
+            margin-left: 2px;
+          }
+          .ldots span {
+            display: inline-block;
             transform: translateY(0);
             opacity: 0.55;
+            animation: dot 1.05s ease-in-out infinite;
           }
-          50% {
-            transform: translateY(-3px);
+          .ldots span:nth-child(2) {
+            animation-delay: 0.15s;
+          }
+          .ldots span:nth-child(3) {
+            animation-delay: 0.3s;
+          }
+          @keyframes dot {
+            0%,
+            100% {
+              transform: translateY(0);
+              opacity: 0.55;
+            }
+            50% {
+              transform: translateY(-3px);
+              opacity: 0.95;
+            }
+          }
+
+          .gen-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(18px) saturate(140%);
+            -webkit-backdrop-filter: blur(18px) saturate(140%);
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 650;
+          }
+
+          .skeleton {
+            position: relative;
+            overflow: hidden;
+            border-radius: 22px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.06);
+            height: 260px;
+            max-width: 520px;
+          }
+          .skeleton::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            transform: translateX(-60%);
+            background: linear-gradient(
+              90deg,
+              rgba(255, 255, 255, 0) 0%,
+              rgba(255, 255, 255, 0.12) 45%,
+              rgba(255, 255, 255, 0) 90%
+            );
+            animation: shimmer 1.25s ease-in-out infinite;
+          }
+          @keyframes shimmer {
+            0% {
+              transform: translateX(-60%);
+            }
+            100% {
+              transform: translateX(60%);
+            }
+          }
+
+          .seg {
+            display: inline-flex;
+            gap: 6px;
+            padding: 6px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(18px) saturate(140%);
+            -webkit-backdrop-filter: blur(18px) saturate(140%);
+          }
+          .seg button {
+            border-radius: 999px;
+            padding: 8px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: rgba(255, 255, 255, 0.06);
+            color: rgba(255, 255, 255, 0.9);
+            cursor: pointer;
+            font-weight: 650;
+          }
+          .seg button.active {
+            background: rgba(10, 132, 255, 0.28);
+            border-color: rgba(10, 132, 255, 0.35);
+          }
+
+          .tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 14px;
+          }
+          .tabsWrap {
+            display: inline-flex;
+            gap: 6px;
+            padding: 6px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(18px) saturate(140%);
+            -webkit-backdrop-filter: blur(18px) saturate(140%);
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.25);
+          }
+          .tabBtn {
+            border-radius: 999px;
+            padding: 10px 18px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: rgba(255, 255, 255, 0.04);
+            color: rgba(255, 255, 255, 0.82);
+            cursor: pointer;
+            font-weight: 750;
+            letter-spacing: 0.2px;
+            min-width: 120px;
+            transition: transform 0.15s ease, filter 0.15s ease, background 0.15s ease,
+              border-color 0.15s ease;
+          }
+          .tabBtn:hover {
+            filter: brightness(1.05);
+            transform: translateY(-1px);
+          }
+          .tabBtnActive {
+            background: rgba(10, 132, 255, 0.28);
+            border-color: rgba(10, 132, 255, 0.35);
+            color: rgba(255, 255, 255, 0.92);
+          }
+
+          .vRow {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-top: 12px;
+          }
+          .vPill {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(18px) saturate(140%);
+            -webkit-backdrop-filter: blur(18px) saturate(140%);
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 650;
+          }
+          .vSelect {
+            border-radius: 999px;
+            padding: 8px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: rgba(0, 0, 0, 0.22);
+            color: rgba(255, 255, 255, 0.9);
+            outline: none;
+          }
+
+          .uploadRow {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            margin-top: 10px;
+          }
+
+          .uploadTile {
+            width: 170px;
+            height: 170px;
+            border-radius: 26px;
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.035));
+            backdrop-filter: blur(18px) saturate(140%);
+            -webkit-backdrop-filter: blur(18px) saturate(140%);
+
+            box-shadow: 0 18px 46px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.09),
+              inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+
+            transition: transform 0.15s ease, border-color 0.15s ease, filter 0.15s ease;
+            user-select: none;
+          }
+
+          .uploadTile:hover {
+            transform: translateY(-1px);
+            border-color: rgba(255, 255, 255, 0.14);
+            filter: brightness(1.02);
+          }
+
+          .uploadTile img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+          }
+
+          .uploadPlus {
+            position: absolute;
+            top: 18px;
+            left: 18px;
+            font-size: 64px;
+            font-weight: 650;
+            line-height: 1;
+            color: rgba(255, 255, 255, 0.28);
+            user-select: none;
+            pointer-events: none;
+          }
+
+          .tile-label {
+            position: absolute;
+            left: 16px;
+            bottom: 14px;
+            font-size: 14px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.6);
+            text-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+            pointer-events: none;
+            transition: color 0.12s ease, opacity 0.12s ease;
             opacity: 0.95;
           }
-        }
-
-        .gen-pill {
-          display: inline-flex;
-          align-items: center;
-          gap: 10px;
-          padding: 10px 14px;
-          border-radius: 999px;
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          background: rgba(255, 255, 255, 0.08);
-          backdrop-filter: blur(18px) saturate(140%);
-          -webkit-backdrop-filter: blur(18px) saturate(140%);
-          box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
-          color: rgba(255, 255, 255, 0.9);
-          font-weight: 650;
-        }
-
-        .skeleton {
-          position: relative;
-          overflow: hidden;
-          border-radius: 22px;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          background: rgba(255, 255, 255, 0.06);
-          height: 260px;
-          max-width: 520px;
-        }
-        .skeleton::after {
-          content: "";
-          position: absolute;
-          inset: 0;
-          transform: translateX(-60%);
-          background: linear-gradient(
-            90deg,
-            rgba(255, 255, 255, 0) 0%,
-            rgba(255, 255, 255, 0.12) 45%,
-            rgba(255, 255, 255, 0) 90%
-          );
-          animation: shimmer 1.25s ease-in-out infinite;
-        }
-        @keyframes shimmer {
-          0% {
-            transform: translateX(-60%);
+          .uploadTile:hover .tile-label {
+            color: rgba(255, 255, 255, 0.96);
+            opacity: 1;
           }
-          100% {
-            transform: translateX(60%);
+          .tile-remove {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.45);
+            border: none;
+            color: #fff;
+            border-radius: 8px;
+            padding: 6px 8px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.12s ease, transform 0.12s ease;
           }
-        }
-
-        .seg {
-          display: inline-flex;
-          gap: 6px;
-          padding: 6px;
-          border-radius: 999px;
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          background: rgba(255, 255, 255, 0.06);
-          backdrop-filter: blur(18px) saturate(140%);
-          -webkit-backdrop-filter: blur(18px) saturate(140%);
-        }
-        .seg button {
-          border-radius: 999px;
-          padding: 8px 12px;
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          background: rgba(255, 255, 255, 0.06);
-          color: rgba(255, 255, 255, 0.9);
-          cursor: pointer;
-          font-weight: 650;
-        }
-        .seg button.active {
-          background: rgba(10, 132, 255, 0.28);
-          border-color: rgba(10, 132, 255, 0.35);
-        }
-
-        .tabs {
-          display: flex;
-          justify-content: center;
-          margin-bottom: 14px;
-        }
-        .tabsWrap {
-          display: inline-flex;
-          gap: 6px;
-          padding: 6px;
-          border-radius: 999px;
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          background: rgba(255, 255, 255, 0.06);
-          backdrop-filter: blur(18px) saturate(140%);
-          -webkit-backdrop-filter: blur(18px) saturate(140%);
-          box-shadow: 0 14px 40px rgba(0, 0, 0, 0.25);
-        }
-        .tabBtn {
-          border-radius: 999px;
-          padding: 10px 18px;
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          background: rgba(255, 255, 255, 0.04);
-          color: rgba(255, 255, 255, 0.82);
-          cursor: pointer;
-          font-weight: 750;
-          letter-spacing: 0.2px;
-          min-width: 120px;
-          transition: transform 0.15s ease, filter 0.15s ease, background 0.15s ease, border-color 0.15s ease;
-        }
-        .tabBtn:hover {
-          filter: brightness(1.05);
-          transform: translateY(-1px);
-        }
-        .tabBtnActive {
-          background: rgba(10, 132, 255, 0.28);
-          border-color: rgba(10, 132, 255, 0.35);
-          color: rgba(255, 255, 255, 0.92);
-        }
-
-        .vRow {
-          display: flex;
-          gap: 10px;
-          flex-wrap: wrap;
-          align-items: center;
-          margin-top: 12px;
-        }
-        .vPill {
-          display: inline-flex;
-          align-items: center;
-          gap: 10px;
-          padding: 10px 12px;
-          border-radius: 999px;
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          background: rgba(255, 255, 255, 0.06);
-          backdrop-filter: blur(18px) saturate(140%);
-          -webkit-backdrop-filter: blur(18px) saturate(140%);
-          color: rgba(255, 255, 255, 0.9);
-          font-weight: 650;
-        }
-        .vSelect {
-          border-radius: 999px;
-          padding: 8px 12px;
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          background: rgba(0, 0, 0, 0.22);
-          color: rgba(255, 255, 255, 0.9);
-          outline: none;
-        }
-
-        .uploadRow {
-          display: flex;
-          gap: 20px;
-          align-items: flex-start;
-          flex-wrap: wrap;
-          margin-top: 10px;
-        }
-
-        .uploadTile {
-          width: 170px;
-          height: 170px;
-          border-radius: 26px;
-          position: relative;
-          overflow: hidden;
-          cursor: pointer;
-
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          background: linear-gradient(180deg, rgba(255, 255, 255, 0.065), rgba(255, 255, 255, 0.035));
-          backdrop-filter: blur(18px) saturate(140%);
-          -webkit-backdrop-filter: blur(18px) saturate(140%);
-
-          box-shadow: 0 18px 46px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.09),
-            inset 0 0 0 1px rgba(255, 255, 255, 0.04);
-
-          transition: transform 0.15s ease, border-color 0.15s ease, filter 0.15s ease;
-          user-select: none;
-        }
-
-        .uploadTile:hover {
-          transform: translateY(-1px);
-          border-color: rgba(255, 255, 255, 0.14);
-          filter: brightness(1.02);
-        }
-
-        .uploadTile img {
-          position: absolute;
-          inset: 0;
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          display: block;
-        }
-
-        .uploadPlus {
-          position: absolute;
-          top: 18px;
-          left: 18px;
-          font-size: 64px;
-          font-weight: 650;
-          line-height: 1;
-          color: rgba(255, 255, 255, 0.28);
-          user-select: none;
-          pointer-events: none;
-        }
-
-        .tile-label {
-          position: absolute;
-          left: 16px;
-          bottom: 14px;
-          font-size: 14px;
-          font-weight: 700;
-          color: rgba(255, 255, 255, 0.6);
-          text-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
-          pointer-events: none;
-          transition: color 0.12s ease, opacity 0.12s ease;
-          opacity: 0.95;
-        }
-        .uploadTile:hover .tile-label {
-          color: rgba(255, 255, 255, 0.96);
-          opacity: 1;
-        }
-        .tile-remove {
-          position: absolute;
-          top: 10px;
-          right: 10px;
-          background: rgba(0, 0, 0, 0.45);
-          border: none;
-          color: #fff;
-          border-radius: 8px;
-          padding: 6px 8px;
-          cursor: pointer;
-          opacity: 0;
-          transition: opacity 0.12s ease, transform 0.12s ease;
-        }
-        .uploadTile:hover .tile-remove {
-          opacity: 1;
-          transform: translateY(0);
-        }
-
-        .grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-          gap: 12px;
-          margin-top: 14px;
-          max-width: 900px;
-        }
-        .thumb {
-          border-radius: 18px;
-          overflow: hidden;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(255, 255, 255, 0.06);
-          box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35);
-        }
-        .thumb img {
-          width: 100%;
-          height: auto;
-          display: block;
-        }
-
-        /* settings-pill removed; using inline select triggers */
-
-        /* anchor for dropdown */
-        .settingsWrap {
-          position: relative;
-          display: inline-flex;
-        }
-
-        /* dropdown panel */
-        .settingsDropdown {
-          position: absolute;
-          top: calc(100% + 8px);
-          left: 0;
-          z-index: 9999;
-
-          width: min(420px, calc(100vw - 32px));
-          background: rgba(6, 8, 12, 0.72);
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          border-radius: 14px;
-          padding: 12px;
-          box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
-          backdrop-filter: blur(12px) saturate(120%);
-          -webkit-backdrop-filter: blur(12px) saturate(120%);
-        }
-
-        .settingsGroup {
-          margin-bottom: 10px;
-        }
-        .groupTitle {
-          font-size: 12px;
-          color: rgba(255, 255, 255, 0.75);
-          margin-bottom: 6px;
-        }
-        .groupButtons button {
-          margin-right: 6px;
-          margin-bottom: 6px;
-          padding: 6px 10px;
-          border-radius: 8px;
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          background: rgba(255, 255, 255, 0.03);
-          color: #fff;
-          cursor: pointer;
-        }
-        .groupButtons button.active {
-          background: rgba(10, 132, 255, 0.18);
-          border-color: rgba(10, 132, 255, 0.28);
-          color: #fff;
-        }
-
-        /* --- NEW: separate grids --- */
-        .formatButtons {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 8px;
-        }
-
-        .qtyButtons {
-          display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 8px;
-        }
-
-        .formatButtons button,
-        .qtyButtons button {
-          margin: 0;
-          width: 100%;
-        }
-
-        .selectTrigger {
-          padding: 8px 12px;
-          border-radius: 12px;
-          background: rgba(255,255,255,0.03);
-          border: 1px solid rgba(255,255,255,0.06);
-          color: #fff;
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          cursor: pointer;
-        }
-
-        .smallDropdown {
-          position: absolute;
-          top: calc(100% + 8px);
-          left: 0;
-          z-index: 10000;
-          width: max-content;
-          background: rgba(6,8,12,0.82);
-          border: 1px solid rgba(255,255,255,0.12);
-          border-radius: 10px;
-          padding: 8px;
-          box-shadow: 0 12px 40px rgba(0,0,0,0.6);
-          backdrop-filter: blur(10px) saturate(120%);
-          -webkit-backdrop-filter: blur(10px) saturate(120%);
-        }
-
-        .smallDropdown button {
-          background: transparent;
-          border: none;
-          color: white;
-          padding: 8px 10px;
-          border-radius: 8px;
-          cursor: pointer;
-          text-align: left;
-          width: 100%;
-        }
-
-        .smallDropdown button:hover {
-          background: rgba(255,255,255,0.03);
-        }
-
-        .smallDropdown button.active {
-          background: rgba(10,132,255,0.18);
-          border-radius: 8px;
-        }
-
-        @media (max-width: 640px) {
-
-          /* Тригери Формат / Кількість */
-          .miniSelectTrigger {
-            padding: 10px 14px;
-            font-size: 15px;
-            min-height: 40px;
-            border-radius: 12px;
+          .uploadTile:hover .tile-remove {
+            opacity: 1;
+            transform: translateY(0);
           }
 
-          /* Кнопки всередині dropdown (1:1, 16:9, цифри) */
-          .formatOption,
-          .qtyOption {
-            padding: 12px 0;
-            font-size: 15px;
-            border-radius: 10px;
+          .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+            margin-top: 14px;
+            max-width: 900px;
           }
-
-          /* Контейнер гріда кількості */
-          .qtyGrid {
-            gap: 10px;
+          .thumb {
+            border-radius: 18px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.06);
+            box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35);
           }
-
-          /* Сам dropdown трохи більший */
-          .miniDropdown {
-            padding: 12px;
-            border-radius: 14px;
-          }
-        }
-
-        /* tabular numbers so they look одинаково (як 1:1) */
-        .numMono {
-          font-variant-numeric: tabular-nums;
-          font-feature-settings: "tnum";
-        }
-        .numMono.light {
-          opacity: 0.75;
-        }
-
-        .topbar {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-        }
-
-        .topbar-left {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          padding-left: 6px;
-        }
-
-        /* spacer placed before prompt textarea to unify spacing across tabs */
-        .promptSpacer { margin-top: 10px; }
-        @media (max-width: 640px) { .promptSpacer { margin-top: 12px; } }
-
-        /* previously hid the internal LegalMenu open button; removed so the embedded menu remains the sole menu button */
-
-        .uploadTileHome {
-          width: 170px;
-          height: 170px;
-          border-radius: 26px;
-        }
-
-        .templatesRow {
-          margin-top: 16px;
-          display: flex;
-          gap: 14px;
-          overflow-x: auto;
-          padding-bottom: 6px;
-        }
-
-        .templateCard {
-          border: 1px solid rgba(255,255,255,0.12);
-          background: rgba(255,255,255,0.04);
-          border-radius: 18px;
-          padding: 0;
-          height: 240px;
-          aspect-ratio: 9 / 16;
-          flex: 0 0 auto;
-          overflow: hidden;
-          cursor: pointer;
-          position: relative;
-          display: flex;
-          flex-direction: column;
-        }
-
-        .templatePreviewWrap {
-          width: 100%;
-          height: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: rgba(255,255,255,0.02);
-        }
-
-        .templatePreviewWrap img {
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-          object-position: center;
-        }
-
-        .templateCard .templateLabel {
-          position: absolute;
-          bottom: 12px;
-          left: 12px;
-          right: 12px;
-          font-size: 13px;
-          font-weight: 700;
-          color: rgba(255, 255, 255, 0.95);
-          text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
-          text-align: center;
-          pointer-events: none;
-        }
-
-        .templateCard.active {
-          border-color: rgba(10,132,255,0.55);
-          box-shadow: 0 0 0 2px rgba(10,132,255,0.25);
-        }
-
-        .uploadTileBig {
-          width: 360px;
-          height: 360px;
-          border-radius: 26px;
-        }
-
-        @media (max-width: 900px) {
-          .uploadTileBig {
+          .thumb img {
             width: 100%;
-            height: 320px;
+            height: auto;
+            display: block;
           }
-        }
 
-        .templatePreviewBig {
-          cursor: default;
-        }
+          .settingsWrap {
+            position: relative;
+            display: inline-flex;
+          }
 
-        .templatePreviewBig img {
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-        }
+          .settingsDropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            z-index: 9999;
 
-        .templatesSection {
-          max-width: 900px;
-          margin: 26px auto 0;
-          padding: 0 6px;
-        }
+            width: min(420px, calc(100vw - 32px));
+            background: rgba(6, 8, 12, 0.72);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 14px;
+            padding: 12px;
+            box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(12px) saturate(120%);
+            -webkit-backdrop-filter: blur(12px) saturate(120%);
+          }
 
-        .templatesTitle {
-          font-size: 28px;
-          font-weight: 800;
-          color: rgba(255, 255, 255, 0.92);
-          margin: 0 0 14px;
-        }
-      `}</style>
+          .settingsGroup {
+            margin-bottom: 10px;
+          }
+          .groupTitle {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.75);
+            margin-bottom: 6px;
+          }
+          .groupButtons button {
+            margin-right: 6px;
+            margin-bottom: 6px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: rgba(255, 255, 255, 0.03);
+            color: #fff;
+            cursor: pointer;
+          }
+          .groupButtons button.active {
+            background: rgba(10, 132, 255, 0.18);
+            border-color: rgba(10, 132, 255, 0.28);
+            color: #fff;
+          }
+
+          .formatButtons {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+          }
+
+          .qtyButtons {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+          }
+
+          .formatButtons button,
+          .qtyButtons button {
+            margin: 0;
+            width: 100%;
+          }
+
+          .selectTrigger {
+            padding: 8px 12px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+          }
+
+          .smallDropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            z-index: 10000;
+            width: max-content;
+            background: rgba(6, 8, 12, 0.82);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            padding: 8px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px) saturate(120%);
+            -webkit-backdrop-filter: blur(10px) saturate(120%);
+          }
+
+          .smallDropdown button {
+            background: transparent;
+            border: none;
+            color: white;
+            padding: 8px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            width: 100%;
+          }
+
+          .smallDropdown button:hover {
+            background: rgba(255, 255, 255, 0.03);
+          }
+
+          .smallDropdown button.active {
+            background: rgba(10, 132, 255, 0.18);
+            border-radius: 8px;
+          }
+
+          @media (max-width: 640px) {
+            .miniSelectTrigger {
+              padding: 10px 14px;
+              font-size: 15px;
+              min-height: 40px;
+              border-radius: 12px;
+            }
+
+            .formatOption,
+            .qtyOption {
+              padding: 12px 0;
+              font-size: 15px;
+              border-radius: 10px;
+            }
+
+            .qtyGrid {
+              gap: 10px;
+            }
+
+            .miniDropdown {
+              padding: 12px;
+              border-radius: 14px;
+            }
+          }
+
+          .numMono {
+            font-variant-numeric: tabular-nums;
+            font-feature-settings: "tnum";
+          }
+          .numMono.light {
+            opacity: 0.75;
+          }
+
+          .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+          }
+
+          .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-left: 6px;
+          }
+
+          .promptSpacer {
+            margin-top: 10px;
+          }
+          @media (max-width: 640px) {
+            .promptSpacer {
+              margin-top: 12px;
+            }
+          }
+
+          .uploadTileHome {
+            width: 170px;
+            height: 170px;
+            border-radius: 26px;
+          }
+
+          .templatesRow {
+            margin-top: 16px;
+            display: flex;
+            gap: 14px;
+            overflow-x: auto;
+            padding-bottom: 6px;
+          }
+
+          .templateCard {
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.04);
+            border-radius: 18px;
+            padding: 0;
+            height: 240px;
+            aspect-ratio: 9 / 16;
+            flex: 0 0 auto;
+            overflow: hidden;
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+          }
+
+          .templatePreviewWrap {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.02);
+          }
+
+          .templatePreviewWrap img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            object-position: center;
+          }
+
+          .templateCard .templateLabel {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            right: 12px;
+            font-size: 13px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.95);
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+            text-align: center;
+            pointer-events: none;
+          }
+
+          .templateCard.active {
+            border-color: rgba(10, 132, 255, 0.55);
+            box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.25);
+          }
+
+          .uploadTileBig {
+            width: 360px;
+            height: 360px;
+            border-radius: 26px;
+          }
+
+          @media (max-width: 900px) {
+            .uploadTileBig {
+              width: 100%;
+              height: 320px;
+            }
+          }
+
+          .templatePreviewBig {
+            cursor: default;
+          }
+
+          .templatePreviewBig img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+          }
+
+          .templatesSection {
+            max-width: 900px;
+            margin: 26px auto 0;
+            padding: 0 6px;
+          }
+
+          .templatesTitle {
+            font-size: 28px;
+            font-weight: 800;
+            color: rgba(255, 255, 255, 0.92);
+            margin: 0 0 14px;
+          }
+        `}</style>
 
         {/* Topbar */}
         <div className="topbar">
@@ -1333,7 +1488,7 @@ export default function Home() {
                       ← {lang === "uk" ? "Назад" : "Back"}
                     </button>
                     <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "rgba(255,255,255,0.92)" }}>
-                      {templates.find(t => t.id === selectedTemplateId)?.title}
+                      {templates.find((t) => t.id === selectedTemplateId)?.title}
                     </h2>
                   </div>
 
@@ -1410,9 +1565,9 @@ export default function Home() {
 
                     <div className="uploadTile uploadTileBig templatePreviewBig">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img 
-                        src={templates.find(t => t.id === selectedTemplateId)?.preview_url} 
-                        alt={templates.find(t => t.id === selectedTemplateId)?.title}
+                      <img
+                        src={templates.find((t) => t.id === selectedTemplateId)?.preview_url}
+                        alt={templates.find((t) => t.id === selectedTemplateId)?.title}
                       />
                       <span className="tile-label">{lang === "uk" ? "Шаблон" : "Template"}</span>
                     </div>
@@ -1469,10 +1624,9 @@ export default function Home() {
                     />
                   </div>
 
-                  {/* Inline Format + Quantity selectors */}
+                  {/* Inline Format selector */}
                   <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
                     <div ref={inlineSelectorsRef} style={{ display: "flex", gap: 24, alignItems: "center" }}>
-                      {/* Format trigger with label */}
                       <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
                         <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>
                           {lang === "uk" ? "Формат" : "Format"}
@@ -1493,7 +1647,12 @@ export default function Home() {
                           </button>
 
                           {formatOpen && (
-                            <div className="smallDropdown miniDropdown" role="menu" onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
+                            <div
+                              className="smallDropdown miniDropdown"
+                              role="menu"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onTouchStart={(e) => e.stopPropagation()}
+                            >
                               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                                 {(["1:1", "16:9", "9:16"] as const).map((r) => (
                                   <button
@@ -1528,7 +1687,9 @@ export default function Home() {
                     )}
                   </div>
 
-                  {(!session || (!!session && points <= 0) || (!!session && points > 0 && points < currentCost)) && (
+                  {(!session ||
+                    (!!session && points <= 0) ||
+                    (!!session && points > 0 && points < currentCost)) && (
                     <div style={{ marginTop: 10, opacity: 0.9 }}>
                       {!session && <div>{dict.authRequired}</div>}
                       {!!session && points <= 0 && (
@@ -1567,22 +1728,15 @@ export default function Home() {
                     )}
 
                     {error && (
-                      <div style={{ color: "rgba(255, 120, 120, 0.95)", maxWidth: 680, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                      <div
+                        style={{
+                          color: "rgba(255, 120, 120, 0.95)",
+                          maxWidth: 680,
+                          whiteSpace: "pre-wrap",
+                          wordBreak: "break-word",
+                        }}
+                      >
                         {error}
-                      </div>
-                    )}
-
-                    {queued && !loading && (
-                      <div style={{ marginTop: 14 }}>
-                        <div className="gen-pill">
-                          <span>
-                            {lang === "uk" ? "Генерація у процесі" : "Generation in progress"}
-                            <LoadingDots />
-                          </span>
-                        </div>
-                        <div style={{ marginTop: 6, opacity: 0.75, fontSize: 13 }}>
-                          {lang === "uk" ? "Результат з'явиться в Історії." : "Result will appear in History."}
-                        </div>
                       </div>
                     )}
                   </div>
@@ -1713,10 +1867,9 @@ export default function Home() {
                     />
                   </div>
 
-                  {/* Inline Format + Quantity selectors */}
+                  {/* Inline Format selector */}
                   <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
                     <div ref={inlineSelectorsRef} style={{ display: "flex", gap: 24, alignItems: "center" }}>
-                      {/* Format trigger with label */}
                       <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
                         <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>
                           {lang === "uk" ? "Формат" : "Format"}
@@ -1737,7 +1890,12 @@ export default function Home() {
                           </button>
 
                           {formatOpen && (
-                            <div className="smallDropdown miniDropdown" role="menu" onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
+                            <div
+                              className="smallDropdown miniDropdown"
+                              role="menu"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onTouchStart={(e) => e.stopPropagation()}
+                            >
                               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                                 {(["1:1", "16:9", "9:16"] as const).map((r) => (
                                   <button
@@ -1785,7 +1943,9 @@ export default function Home() {
                     </>
                   )}
 
-                  {(!session || (!!session && points <= 0) || (!!session && points > 0 && points < currentCost)) && (
+                  {(!session ||
+                    (!!session && points <= 0) ||
+                    (!!session && points > 0 && points < currentCost)) && (
                     <div style={{ marginTop: 10, opacity: 0.9 }}>
                       {!session && <div>{dict.authRequired}</div>}
                       {!!session && points <= 0 && (
@@ -1824,7 +1984,14 @@ export default function Home() {
                     )}
 
                     {error && (
-                      <div style={{ color: "rgba(255, 120, 120, 0.95)", maxWidth: 680, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                      <div
+                        style={{
+                          color: "rgba(255, 120, 120, 0.95)",
+                          maxWidth: 680,
+                          whiteSpace: "pre-wrap",
+                          wordBreak: "break-word",
+                        }}
+                      >
                         {error}
                       </div>
                     )}
@@ -2191,6 +2358,22 @@ export default function Home() {
             </>
           )}
         </div>
+
+        {/* ✅ NEW: блок анімації МІЖ кнопкою і шаблонами */}
+        {mediaTab === "photo" && (queued || loading) && (
+          <div style={{ maxWidth: 900, margin: "14px auto 0", padding: "0 6px" }}>
+            <div className="gen-pill" style={{ width: "fit-content" }}>
+              <span>
+                {photoProgressText || (lang === "uk" ? "Генерація у процесі" : "Generation in progress")}
+                <LoadingDots />
+              </span>
+            </div>
+
+            <div style={{ marginTop: 10 }}>
+              <div className="skeleton" style={{ height: 120, maxWidth: 520 }} />
+            </div>
+          </div>
+        )}
 
         {mediaTab === "photo" && (
           <div className="templatesSection">
