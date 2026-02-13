@@ -172,10 +172,10 @@ function pickOpenAISizeFromAspect(job) {
 
 function sanitizePromptForOpenAI(prompt) {
   let p = prompt || "";
-  
+
   // Remove image tokens
   p = p.replace(/<<<image_\d+>>>/gi, "");
-  
+
   // Replace NSFW words with neutral alternatives
   const replacements = {
     sensual: "elegant",
@@ -188,12 +188,12 @@ function sanitizePromptForOpenAI(prompt) {
     "low cut": "elegant cut",
     cleavage: "neckline",
   };
-  
+
   for (const [bad, good] of Object.entries(replacements)) {
     const re = new RegExp(bad, "gi");
     p = p.replace(re, good);
   }
-  
+
   return p.replace(/\s+/g, " ").trim();
 }
 
@@ -223,10 +223,10 @@ async function processPhotoWithOpenAI(job) {
     // Sanitize prompt
     prompt = sanitizePromptForOpenAI(prompt);
 
-    // Add identity preservation instruction when using reference
-    if (hasReference) {
-      prompt = `Keep the person's identity and facial features the same as in the reference image. Do not change face shape, eyes, nose, lips. ${prompt}`;
-    }
+    // // Add identity preservation instruction when using reference
+    // if (hasReference) {
+    //   prompt = `Keep the person's identity and facial features the same as in the reference image. Do not change face shape, eyes, nose, lips. ${prompt}`;
+    // }
 
     console.log("Processing PHOTO with OpenAI", job.id, "prompt:", prompt);
 
@@ -260,17 +260,11 @@ async function processPhotoWithOpenAI(job) {
         openaiData = await openaiRes.json();
 
         if (!openaiRes.ok) {
-          const errorMsg = JSON.stringify(openaiData).toLowerCase();
-          
-          // Check if it's a safety/moderation error
-          if (errorMsg.includes("safety") || errorMsg.includes("moderation") || errorMsg.includes("policy")) {
-            console.warn("OpenAI edits blocked by safety, falling back to generations without reference");
-            usedFallback = true;
-            // Continue to fallback below
-          } else {
-            throw new Error(`OpenAI error ${openaiRes.status}: ${JSON.stringify(openaiData).slice(0, 300)}`);
-          }
+          console.log("OPENAI EDITS STATUS:", openaiRes.status);
+          console.log("OPENAI EDITS RESPONSE:", JSON.stringify(openaiData));
+          throw new Error("OpenAI edits failed (see logs)");
         }
+
       } catch (e) {
         console.error("Failed to use edits endpoint:", e?.message);
         usedFallback = true;
