@@ -191,9 +191,6 @@ export default function Home() {
 
   const [refUploading, setRefUploading] = useState(false);
 
-  // ✅ resolution завжди 2k, без UI
-  const OMNI_RESOLUTION = "2k" as const;
-
   // ✅ кількість генерацій (Omni O1 зазвичай 1..5)
   const [omniN, setOmniN] = useState<number>(1);
 
@@ -523,7 +520,7 @@ export default function Home() {
     (async () => {
       try {
         setQueued(true);
-        setPhotoProgressText(lang === "uk" ? "Генерація у процесі..." : "Generation in progress...");
+        setPhotoProgressText(lang === "uk" ? "Генерація у процесі " : "Generation in progress ");
 
         const urls = await pollOmniImageTask(photoTaskId);
 
@@ -552,7 +549,7 @@ export default function Home() {
   // ✅ ЦІНИ
   const currentCost = useMemo(() => {
     if (mediaTab === "photo") {
-      return 2;
+      return 3;
     }
 
     if (videoMode === "i2v") {
@@ -772,7 +769,7 @@ export default function Home() {
         throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
 
       setPhotoTaskId(taskId);
-      setPhotoProgressText(lang === "uk" ? "Генерація у процесі..." : "Generation in progress...");
+      setPhotoProgressText(lang === "uk" ? "Генерація у процесі " : "Generation in progress ");
       return;
     } catch (e: any) {
       setQueued(false);

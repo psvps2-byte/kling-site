@@ -37,8 +37,8 @@ export async function POST(req: Request) {
   const image_1 = body?.image_1 ? asStr(body.image_1).trim() : null;
   const image_2 = body?.image_2 ? asStr(body.image_2).trim() : null;
 
-  // 5) COST (Фото: завжди 2 бали)
-  const costPoints = 2;
+  // 5) COST (Фото: завжди 3 бали)
+  const costPoints = 3;
 
   // 5) списати бали + створити запис генерації (атомарно)
   const { data: genId, error: genErr } = await supabaseAdmin.rpc(
