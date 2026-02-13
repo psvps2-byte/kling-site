@@ -136,6 +136,7 @@ export default function Home() {
 ];
 
   const [loading, setLoading] = useState(false);
+  const [queued, setQueued] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [lang, setLangState] = useState<Lang>("uk");
@@ -472,6 +473,7 @@ export default function Home() {
 
   async function generate() {
     setError(null);
+    setQueued(false);
 
     if (!session) {
       window.location.href = "/auth";
@@ -618,14 +620,9 @@ export default function Home() {
       const taskId = extractTaskId(data);
       if (!taskId) throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
 
-      // Enqueued successfully - worker will process it
-      setImageUrls([]);
-      setError(
-        lang === "uk"
-          ? `✅ Генерацію розпочато! ID: ${taskId}. Перевір історію через хвилину.`
-          : `✅ Generation started! ID: ${taskId}. Check history in a minute.`
-      );
+      setQueued(true);
     } catch (e: any) {
+      setQueued(false);
       setError(normalizeErr(e));
     } finally {
       setLoading(false);
@@ -1572,6 +1569,20 @@ export default function Home() {
                     {error && (
                       <div style={{ color: "rgba(255, 120, 120, 0.95)", maxWidth: 680, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                         {error}
+                      </div>
+                    )}
+
+                    {queued && !loading && (
+                      <div style={{ marginTop: 14 }}>
+                        <div className="gen-pill">
+                          <span>
+                            {lang === "uk" ? "Генерація у процесі" : "Generation in progress"}
+                            <LoadingDots />
+                          </span>
+                        </div>
+                        <div style={{ marginTop: 6, opacity: 0.75, fontSize: 13 }}>
+                          {lang === "uk" ? "Результат з'явиться в Історії." : "Result will appear in History."}
+                        </div>
                       </div>
                     )}
                   </div>
