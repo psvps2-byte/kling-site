@@ -28,46 +28,18 @@ export default function LangSwitch() {
 
   return (
     <div ref={ref} style={{ position: "relative", display: "inline-flex" }}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        style={{
-          padding: "8px 12px",
-          borderRadius: 10,
-          background: "rgba(0,0,0,0.5)",
-          color: "white",
-          border: "1px solid rgba(255,255,255,0.2)",
-          cursor: "pointer",
-          fontWeight: 700,
-        }}
-      >
+      <button className="ios-btn ios-btn--ghost" onClick={() => setOpen((v) => !v)}>
         {current} ▾
       </button>
 
       {open && (
-        <div
-          style={{
-            marginTop: 6,
-            borderRadius: 10,
-            background: "rgba(0,0,0,0.75)",
-            border: "1px solid rgba(255,255,255,0.2)",
-          }}
-        >
+        <div className="smallDropdown miniDropdown" style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, zIndex: 10000 }}>
           <button
             onClick={() => {
               setLang(other);
               setLangState(other);
               window.location.reload();
               setOpen(false);
-            }}
-            style={{
-              display: "block",
-              width: "100%",
-              padding: "8px 12px",
-              background: "transparent",
-              color: "white",
-              border: "none",
-              cursor: "pointer",
-              fontWeight: 700,
             }}
           >
             {otherLabel}
