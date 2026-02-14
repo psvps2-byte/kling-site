@@ -45,12 +45,13 @@ export default function LangSwitch() {
       {/* Кнопка біля "Історія" — стиль “як інші”, не яскраво-синя */}
       <button
         className="ios-btn ios-btn--ghost"
-        style={pillStyle}
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-haspopup="menu"
+        style={{
+          ...pillStyle,
+          fontSize: 14,
+          fontWeight: 500,
+        }}
       >
-        {currentLabel} ▾
+        {currentLabel}
       </button>
 
       {open && (
