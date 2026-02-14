@@ -12,15 +12,15 @@ export default function LangSwitch() {
     setLangState(getLang());
   }, []);
 
-  // Закриваємо список при кліку поза меню (click, не mousedown)
+  // Закриваємо список при кліку поза меню (в capture, щоб стабільно)
   useEffect(() => {
     function close(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
+      if (ref.current && e.target instanceof Node && !ref.current.contains(e.target)) {
         setOpen(false);
       }
     }
-    document.addEventListener("click", close);
-    return () => document.removeEventListener("click", close);
+    document.addEventListener("click", close, true);
+    return () => document.removeEventListener("click", close, true);
   }, []);
 
   const currentLabel = lang === "uk" ? "UA" : "EN";
@@ -36,7 +36,6 @@ export default function LangSwitch() {
     window.location.reload();
   };
 
-  // Стиль “пілл” як у кнопок зверху (Історія / лічильник)
   const pillStyle = {
     padding: "10px 18px",
     minHeight: 40,
@@ -47,13 +46,29 @@ export default function LangSwitch() {
   } as const;
 
   return (
-    <div ref={ref} style={{ position: "relative", display: "inline-flex" }}>
-      {/* Головна кнопка (без стрілочки) */}
+    <div
+      ref={ref}
+      style={{
+        position: "relative",
+        display: "inline-flex",
+        zIndex: 999999,        // ⭐ піднімаємо над усім
+        pointerEvents: "auto", // ⭐ щоб точно клікабельне
+      }}
+    >
       <button
         type="button"
         className="ios-btn ios-btn--ghost"
-        style={pillStyle}
-        onClick={() => setOpen((v) => !v)}
+        style={{ ...pillStyle, cursor: "pointer" }}
+        onPointerDown={(e) => {
+          // ⭐ на випадок якщо click не проходить — pointerdown спрацює раніше
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        onClick={(e) => {
+          // дубль для стабільності
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
         aria-haspopup="menu"
         aria-expanded={open}
       >
@@ -66,7 +81,7 @@ export default function LangSwitch() {
             position: "absolute",
             top: "calc(100% + 8px)",
             left: 0,
-            zIndex: 10000,
+            zIndex: 999999, // ⭐ теж високо
             display: "flex",
             flexDirection: "column",
             gap: 8,
@@ -78,10 +93,12 @@ export default function LangSwitch() {
             backdropFilter: "blur(10px) saturate(120%)",
             WebkitBackdropFilter: "blur(10px) saturate(120%)",
             minWidth: 84,
+            pointerEvents: "auto",
           }}
           role="menu"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         >
-          {/* UA */}
           <button
             type="button"
             className={`ios-btn ${lang === "uk" ? "ios-btn--primary" : "ios-btn--ghost"}`}
@@ -92,7 +109,6 @@ export default function LangSwitch() {
             UA
           </button>
 
-          {/* EN */}
           <button
             type="button"
             className={`ios-btn ${lang === "en" ? "ios-btn--primary" : "ios-btn--ghost"}`}
