@@ -2,7 +2,6 @@ import "./globals.css";
 import type { Metadata } from "next";
 import Providers from "./providers";
 import Script from "next/script";
-import LangSwitch from "./components/LangSwitch";
 
 export const metadata: Metadata = {
   title: "VILNA",
@@ -22,8 +21,10 @@ const FB_PIXEL_ID = process.env.NEXT_PUBLIC_FB_PIXEL_ID;
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="uk">
+      <head>
+        <meta name="google" content="notranslate" />
+      </head>
       <body>
-      <LangSwitch />
         <Providers>{children}</Providers>
 
         {GA_ID && (

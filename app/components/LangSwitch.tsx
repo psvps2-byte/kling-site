@@ -28,7 +28,7 @@ export default function LangSwitch() {
 
   return (
     <div ref={ref} style={{ position: "relative", display: "inline-flex" }}>
-      <button className="ios-btn ios-btn--ghost" onClick={() => setOpen((v) => !v)}>
+      <button className="ios-btn ios-btn--ghost" style={{ padding: "10px 18px" }} onClick={() => setOpen((v) => !v)}>
         {current} ▾
       </button>
 
