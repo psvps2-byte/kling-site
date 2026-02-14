@@ -28,13 +28,13 @@ export default function LangSwitch() {
 
   return (
     <div ref={ref} style={{ position: "relative", display: "inline-flex" }}>
-      <button className="ios-btn ios-btn--ghost" style={{ padding: "10px 18px" }} onClick={() => setOpen((v) => !v)}>
+      <button className="ios-btn ios-btn--ghost" style={{ padding: "10px 18px", minHeight: 40 }} onClick={() => setOpen((v) => !v)}>
         {current} ▾
       </button>
 
       {open && (
         <div className="smallDropdown miniDropdown" style={{ position: "absolute", top: "calc(100% + 8px)", left: 0, zIndex: 10000 }}>
-          <button
+          <button className="ios-btn ios-btn--primary"
             onClick={() => {
               setLang(other);
               setLangState(other);
