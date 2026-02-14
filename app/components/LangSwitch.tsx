@@ -27,7 +27,7 @@ export default function LangSwitch() {
   const otherLabel = other === "uk" ? "UA" : "EN";
 
   return (
-    <div ref={ref} style={{ position: "fixed", top: 12, right: 12, zIndex: 9999 }}>
+    <div ref={ref} style={{ position: "relative", display: "inline-flex" }}>
       <button
         onClick={() => setOpen((v) => !v)}
         style={{
@@ -56,6 +56,7 @@ export default function LangSwitch() {
             onClick={() => {
               setLang(other);
               setLangState(other);
+              window.location.reload();
               setOpen(false);
             }}
             style={{
