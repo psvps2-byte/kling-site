@@ -12,15 +12,16 @@ export default function LangSwitch() {
     setLangState(getLang());
   }, []);
 
-  // Закриваємо список при кліку поза меню (в capture, щоб стабільно)
+  // Закриття тільки якщо клікнули поза компонентом
   useEffect(() => {
-    function close(e: MouseEvent) {
-      if (ref.current && e.target instanceof Node && !ref.current.contains(e.target)) {
+    function onDocDown(e: MouseEvent) {
+      if (!ref.current) return;
+      if (e.target instanceof Node && !ref.current.contains(e.target)) {
         setOpen(false);
       }
     }
-    document.addEventListener("click", close, true);
-    return () => document.removeEventListener("click", close, true);
+    document.addEventListener("mousedown", onDocDown);
+    return () => document.removeEventListener("mousedown", onDocDown);
   }, []);
 
   const currentLabel = lang === "uk" ? "UA" : "EN";
@@ -51,24 +52,18 @@ export default function LangSwitch() {
       style={{
         position: "relative",
         display: "inline-flex",
-        zIndex: 999999,        // ⭐ піднімаємо над усім
-        pointerEvents: "auto", // ⭐ щоб точно клікабельне
+        zIndex: 999999,
       }}
     >
       <button
         type="button"
         className="ios-btn ios-btn--ghost"
         style={{ ...pillStyle, cursor: "pointer" }}
-        onPointerDown={(e) => {
-          // ⭐ на випадок якщо click не проходить — pointerdown спрацює раніше
+        onMouseDown={(e) => {
+          // щоб document mousedown не закрив одразу
           e.stopPropagation();
-          setOpen((v) => !v);
         }}
-        onClick={(e) => {
-          // дубль для стабільності
-          e.stopPropagation();
-          setOpen((v) => !v);
-        }}
+        onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
       >
@@ -77,11 +72,12 @@ export default function LangSwitch() {
 
       {open && (
         <div
+          role="menu"
           style={{
             position: "absolute",
             top: "calc(100% + 8px)",
             left: 0,
-            zIndex: 999999, // ⭐ теж високо
+            zIndex: 10000,
             display: "flex",
             flexDirection: "column",
             gap: 8,
@@ -93,11 +89,11 @@ export default function LangSwitch() {
             backdropFilter: "blur(10px) saturate(120%)",
             WebkitBackdropFilter: "blur(10px) saturate(120%)",
             minWidth: 84,
-            pointerEvents: "auto",
           }}
-          role="menu"
-          onPointerDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => {
+            // клік всередині меню не має закривати
+            e.stopPropagation();
+          }}
         >
           <button
             type="button"
