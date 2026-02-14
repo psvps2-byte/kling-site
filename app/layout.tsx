@@ -2,6 +2,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import Providers from "./providers";
 import Script from "next/script";
+import LangSwitch from "./components/LangSwitch";
 
 export const metadata: Metadata = {
   title: "VILNA",
@@ -22,6 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="uk">
       <body>
+      <LangSwitch />
         <Providers>{children}</Providers>
 
         {GA_ID && (
