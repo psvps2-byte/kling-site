@@ -6,6 +6,7 @@ import { getLang, setLang, t, type Lang } from "./i18n";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import LegalMenu from "./components/LegalMenu";
+import LangSwitch from "./components/LangSwitch";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -1387,24 +1388,7 @@ export default function Home() {
             </div>
           </div>
           <div className="topbar-right">
-            <button
-              className={`ios-btn ${lang === "uk" ? "ios-btn--primary" : "ios-btn--ghost"}`}
-              onClick={() => {
-                setLang("uk");
-                setLangState("uk");
-              }}
-            >
-              UA
-            </button>
-            <button
-              className={`ios-btn ${lang === "en" ? "ios-btn--primary" : "ios-btn--ghost"}`}
-              onClick={() => {
-                setLang("en");
-                setLangState("en");
-              }}
-            >
-              EN
-            </button>
+            <LangSwitch />
 
             {session ? (
               <>
