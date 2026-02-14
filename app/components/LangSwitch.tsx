@@ -12,12 +12,15 @@ export default function LangSwitch() {
     setLangState(getLang());
   }, []);
 
+  // Закриваємо список при кліку поза меню (click, не mousedown)
   useEffect(() => {
     function close(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
     }
-    document.addEventListener("mousedown", close);
-    return () => document.removeEventListener("mousedown", close);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
   }, []);
 
   const currentLabel = lang === "uk" ? "UA" : "EN";
@@ -33,23 +36,26 @@ export default function LangSwitch() {
     window.location.reload();
   };
 
+  // Стиль “пілл” як у кнопок зверху (Історія / лічильник)
   const pillStyle = {
     padding: "10px 18px",
     minHeight: 40,
     borderRadius: 999,
     lineHeight: 1,
+    fontSize: 14,
+    fontWeight: 500,
   } as const;
 
   return (
     <div ref={ref} style={{ position: "relative", display: "inline-flex" }}>
-      {/* Кнопка біля "Історія" — стиль “як інші”, не яскраво-синя */}
+      {/* Головна кнопка (без стрілочки) */}
       <button
+        type="button"
         className="ios-btn ios-btn--ghost"
-        style={{
-          ...pillStyle,
-          fontSize: 14,
-          fontWeight: 500,
-        }}
+        style={pillStyle}
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
       >
         {currentLabel}
       </button>
@@ -77,6 +83,7 @@ export default function LangSwitch() {
         >
           {/* UA */}
           <button
+            type="button"
             className={`ios-btn ${lang === "uk" ? "ios-btn--primary" : "ios-btn--ghost"}`}
             style={{ ...pillStyle, width: "100%" }}
             onClick={() => pick("uk")}
@@ -87,6 +94,7 @@ export default function LangSwitch() {
 
           {/* EN */}
           <button
+            type="button"
             className={`ios-btn ${lang === "en" ? "ios-btn--primary" : "ios-btn--ghost"}`}
             style={{ ...pillStyle, width: "100%" }}
             onClick={() => pick("en")}
