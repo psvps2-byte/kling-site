@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getLang, t, type Lang } from "../i18n";
 
 type Item = {
@@ -11,6 +11,11 @@ type Item = {
   prompt?: string;
 };
 
+function isVideoUrl(url: string) {
+  return !!url.match(/\.(mp4|webm|mov|mkv)(\?|#|$)/i);
+}
+
+// додає/замінює query параметр
 function withParam(url: string, key: string, value: string) {
   try {
     const u = new URL(url);
@@ -21,15 +26,26 @@ function withParam(url: string, key: string, value: string) {
   }
 }
 
-function videoPoster(url: string) {
+// прибирає параметри превʼю, щоб на onPick віддавати оригінал
+function stripPreviewParams(url: string) {
   try {
     const u = new URL(url);
-    u.searchParams.set("frame", "1");
-    u.searchParams.set("w", "600");
+    u.searchParams.delete("w");
+    u.searchParams.delete("frame");
+    u.searchParams.delete("thumb");
+    u.searchParams.delete("poster");
     return u.toString();
   } catch {
     return url;
   }
+}
+
+// так само як в історії: просимо маленьку версію через ?w=600
+// для video — додатково просимо кадр (якщо ваш бекенд/проксі це підтримує)
+function thumbUrl(url: string, isVideo: boolean) {
+  let out = withParam(url, "w", "600");
+  if (isVideo) out = withParam(out, "frame", "1"); // якщо не підтримується — не зашкодить
+  return out;
 }
 
 export default function LibraryPicker({
@@ -44,7 +60,7 @@ export default function LibraryPicker({
   onClose: () => void;
 }) {
   const [lang, setLangState] = useState<Lang>("uk");
-  const dict = t(lang);
+  const dict = useMemo(() => t(lang), [lang]);
 
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
@@ -63,18 +79,16 @@ export default function LibraryPicker({
       try {
         setLoading(true);
         setError(null);
+
         const res = await fetch(`/api/history?kind=${kind}`, {
           signal: controller.signal,
           cache: "no-store",
         });
+
         const data = await res.json().catch(() => null);
         if (!res.ok) throw new Error(data?.error || "Failed to load");
 
-        const arr = Array.isArray(data)
-          ? data
-          : Array.isArray(data?.items)
-          ? data.items
-          : [];
+        const arr = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
         setItems(Array.isArray(arr) ? arr : []);
       } catch (e: any) {
         if (controller.signal.aborted) return;
@@ -122,7 +136,7 @@ export default function LibraryPicker({
           flexDirection: "column",
         }}
       >
-        {/* Header with title + close */}
+        {/* Header: title + bigger close, WITHOUT language switch */}
         <div
           style={{
             display: "flex",
@@ -134,15 +148,12 @@ export default function LibraryPicker({
         >
           <div style={{ fontSize: 18, fontWeight: 700 }}>{dict.history}</div>
 
-          {/* ✅ прибрали LangSwitch, ✅ зробили кнопку більшою */}
           <button
             className="ios-btn ios-btn--ghost"
             style={{
-              padding: "10px 16px",
+              padding: "10px 16px", // ✅ bigger
               fontSize: 15,
-              fontWeight: 800,
-              borderRadius: 14,
-              minHeight: 40,
+              borderRadius: 12,
             }}
             onClick={onClose}
           >
@@ -151,16 +162,11 @@ export default function LibraryPicker({
         </div>
 
         {loading && <div style={{ opacity: 0.8 }}>{dict.processing}</div>}
-        {error && (
-          <div style={{ color: "rgba(255,120,120,0.95)", marginBottom: 8 }}>
-            {error}
-          </div>
-        )}
+        {error && <div style={{ color: "rgba(255,120,120,0.95)", marginBottom: 8 }}>{error}</div>}
 
-        {!loading && !error && items.length === 0 && (
-          <div style={{ opacity: 0.8 }}>{dict.libraryEmpty}</div>
-        )}
+        {!loading && !error && items.length === 0 && <div style={{ opacity: 0.8 }}>{dict.libraryEmpty}</div>}
 
+        {/* Grid: ONLY <img> previews, like History */}
         <div
           style={{
             display: "grid",
@@ -169,46 +175,81 @@ export default function LibraryPicker({
             marginTop: 8,
           }}
         >
-          {items.map((it) => (
-            <button
-              key={`${it.id}-${it.url}`}
-              type="button"
-              onClick={() => onPick(it.url)}
-              style={{
-                border: "1px solid rgba(255,255,255,0.12)",
-                background: "rgba(255,255,255,0.04)",
-                borderRadius: 14,
-                padding: 0,
-                overflow: "hidden",
-                cursor: "pointer",
-              }}
-              title={it.prompt || it.url}
-            >
-              <div
+          {items.map((it) => {
+            const vid = it.kind === "video" || (it.url ? isVideoUrl(it.url) : false);
+            const src = it.url ? thumbUrl(it.url, vid) : "";
+
+            return (
+              <button
+                key={`${it.id}-${it.url}`}
+                type="button"
+                onClick={() => onPick(stripPreviewParams(it.url))}
                 style={{
-                  width: "100%",
-                  height: 140,
                   position: "relative",
-                  background: "#000",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "rgba(255,255,255,0.04)",
+                  borderRadius: 14,
+                  padding: 0,
+                  overflow: "hidden",
+                  cursor: "pointer",
+                  height: 140,
                 }}
+                title={it.prompt || it.url}
               >
+                {/* blurred bg like history (optional, but looks good) */}
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    backgroundImage: src ? `url("${src}")` : undefined,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    filter: "blur(14px)",
+                    transform: "scale(1.08)",
+                    opacity: 0.45,
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background: "rgba(0,0,0,0.18)",
+                  }}
+                />
+
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={it.kind === "video" ? videoPoster(it.url) : withParam(it.url, "w", "600")}
+                  src={src}
                   alt="history"
                   loading="lazy"
                   style={{
+                    position: "absolute",
+                    inset: 0,
                     width: "100%",
                     height: "100%",
                     objectFit: "cover",
                     display: "block",
                   }}
                 />
-                {it.kind === "video" && (
+
+                {/* video badge + play overlay */}
+                {vid && (
                   <>
+                    <div
+                      style={{
+                        position: "absolute",
+                        left: 8,
+                        bottom: 8,
+                        padding: "3px 7px",
+                        borderRadius: 999,
+                        fontSize: 11,
+                        background: "rgba(0,0,0,0.55)",
+                        border: "1px solid rgba(255,255,255,0.18)",
+                      }}
+                    >
+                      Video
+                    </div>
+
                     <div
                       style={{
                         position: "absolute",
@@ -221,36 +262,34 @@ export default function LibraryPicker({
                     >
                       <div
                         style={{
-                          fontSize: 48,
-                          color: "rgba(255, 255, 255, 0.95)",
-                          lineHeight: 1,
-                          textShadow: "0 2px 12px rgba(0, 0, 0, 0.6)",
+                          width: 46,
+                          height: 46,
+                          borderRadius: 999,
+                          background: "rgba(0,0,0,0.45)",
+                          border: "1px solid rgba(255,255,255,0.2)",
+                          display: "grid",
+                          placeItems: "center",
+                          backdropFilter: "blur(6px)",
+                          WebkitBackdropFilter: "blur(6px)",
                         }}
                       >
-                        ▶
+                        <div
+                          style={{
+                            width: 0,
+                            height: 0,
+                            borderLeft: "14px solid rgba(255,255,255,0.9)",
+                            borderTop: "9px solid transparent",
+                            borderBottom: "9px solid transparent",
+                            marginLeft: 2,
+                          }}
+                        />
                       </div>
-                    </div>
-                    <div
-                      style={{
-                        position: "absolute",
-                        bottom: 8,
-                        left: 8,
-                        background: "rgba(0, 0, 0, 0.8)",
-                        color: "white",
-                        fontSize: 11,
-                        padding: "4px 8px",
-                        borderRadius: 6,
-                        fontWeight: 600,
-                        pointerEvents: "none",
-                      }}
-                    >
-                      Video
                     </div>
                   </>
                 )}
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
