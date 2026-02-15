@@ -42,67 +42,6 @@ function isVideoUrl(url: string) {
   return !!url.match(/\.(mp4|webm|mov|mkv)(\?|$)/i);
 }
 
-// ✅ Generate thumbnail from first frame of video
-async function getVideoThumb(url: string): Promise<string | null> {
-  return new Promise((resolve) => {
-    const video = document.createElement("video");
-    video.crossOrigin = "anonymous";
-    video.muted = true;
-    video.playsInline = true;
-    video.preload = "metadata";
-    video.src = url;
-
-    const timeout = setTimeout(() => {
-      cleanup();
-      resolve(null);
-    }, 8000);
-
-    function cleanup() {
-      clearTimeout(timeout);
-      video.removeEventListener("loadeddata", onLoaded);
-      video.removeEventListener("error", onError);
-      video.src = "";
-    }
-
-    function onLoaded() {
-      try {
-        video.currentTime = 0.1;
-        setTimeout(() => {
-          try {
-            const canvas = document.createElement("canvas");
-            canvas.width = video.videoWidth || 640;
-            canvas.height = video.videoHeight || 360;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) {
-              cleanup();
-              resolve(null);
-              return;
-            }
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
-            cleanup();
-            resolve(dataUrl);
-          } catch {
-            cleanup();
-            resolve(null);
-          }
-        }, 100);
-      } catch {
-        cleanup();
-        resolve(null);
-      }
-    }
-
-    function onError() {
-      cleanup();
-      resolve(null);
-    }
-
-    video.addEventListener("loadeddata", onLoaded);
-    video.addEventListener("error", onError);
-  });
-}
-
 // додає або замінює параметр у URL
 function withParam(url: string, key: string, value: string) {
   try {
@@ -126,6 +65,205 @@ function withoutW(url: string) {
   }
 }
 
+// ✅ VideoThumb component - generates thumbnail from first frame
+function VideoThumb({ url, prompt }: { url: string; prompt?: string }) {
+  const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    const video = document.createElement("video");
+    video.crossOrigin = "anonymous";
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "metadata";
+    video.src = url;
+
+    const timeout = setTimeout(() => {
+      cleanup();
+      if (mounted) setFailed(true);
+    }, 3000);
+
+    function cleanup() {
+      clearTimeout(timeout);
+      video.removeEventListener("loadeddata", onLoaded);
+      video.removeEventListener("error", onError);
+      video.src = "";
+    }
+
+    function onLoaded() {
+      try {
+        video.currentTime = 0.1;
+        setTimeout(() => {
+          if (!mounted) return;
+          try {
+            const canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 360;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+              cleanup();
+              setFailed(true);
+              return;
+            }
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const thumb = canvas.toDataURL("image/jpeg", 0.82);
+            cleanup();
+            setDataUrl(thumb);
+          } catch {
+            cleanup();
+            setFailed(true);
+          }
+        }, 150);
+      } catch {
+        cleanup();
+        if (mounted) setFailed(true);
+      }
+    }
+
+    function onError() {
+      cleanup();
+      if (mounted) setFailed(true);
+    }
+
+    video.addEventListener("loadeddata", onLoaded);
+    video.addEventListener("error", onError);
+
+    return () => {
+      mounted = false;
+      cleanup();
+    };
+  }, [url]);
+
+  if (failed || (!dataUrl && failed)) {
+    // Fallback: dark gradient
+    return (
+      <>
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "linear-gradient(135deg, rgba(30,30,40,0.95) 0%, rgba(50,50,70,0.95) 100%)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            style={{
+              fontSize: 64,
+              color: "rgba(255, 255, 255, 0.95)",
+              lineHeight: 1,
+              textShadow: "0 2px 12px rgba(0, 0, 0, 0.6)",
+            }}
+          >
+            ▶
+          </div>
+        </div>
+        <div
+          style={{
+            position: "absolute",
+            bottom: 12,
+            left: 12,
+            background: "rgba(0, 0, 0, 0.8)",
+            color: "white",
+            fontSize: 12,
+            padding: "6px 10px",
+            borderRadius: 8,
+            fontWeight: 600,
+            pointerEvents: "none",
+          }}
+        >
+          Video
+        </div>
+      </>
+    );
+  }
+
+  if (!dataUrl) {
+    // Loading state
+    return (
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "linear-gradient(135deg, rgba(30,30,40,0.95) 0%, rgba(50,50,70,0.95) 100%)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>Loading...</div>
+      </div>
+    );
+  }
+
+  // Success: show thumbnail
+  return (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        className="preview-img"
+        src={dataUrl}
+        alt={prompt || "Video"}
+        style={{
+          position: "absolute",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          objectPosition: "center",
+          background: "#000",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          pointerEvents: "none",
+        }}
+      >
+        <div
+          style={{
+            fontSize: 64,
+            color: "rgba(255, 255, 255, 0.95)",
+            lineHeight: 1,
+            textShadow: "0 2px 12px rgba(0, 0, 0, 0.6)",
+          }}
+        >
+          ▶
+        </div>
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          bottom: 12,
+          left: 12,
+          background: "rgba(0, 0, 0, 0.8)",
+          color: "white",
+          fontSize: 12,
+          padding: "6px 10px",
+          borderRadius: 8,
+          fontWeight: 600,
+          pointerEvents: "none",
+        }}
+      >
+        Video
+      </div>
+    </>
+  );
+}
+
 export default function HistoryPage() {
   const router = useRouter();
 
@@ -144,9 +282,7 @@ export default function HistoryPage() {
 
   // ✅ Показуємо по 20 (кнопка “Ще”)
   const [visibleCount, setVisibleCount] = useState(20);
-  // ✅ Cache for video thumbnails
-  const [videoThumbs, setVideoThumbs] = useState<Record<string, string>>({});
-  const thumbsGenerating = useRef<Set<string>>(new Set());
+
   const mountedRef = useRef(true);
 
   async function loadHistory() {
@@ -287,36 +423,6 @@ export default function HistoryPage() {
 
   const visibleItems = useMemo(() => filteredAll.slice(0, visibleCount), [filteredAll, visibleCount]);
   const hasMore = filteredAll.length > visibleItems.length;
-
-  // ✅ Generate thumbnails for visible video items
-  useEffect(() => {
-    const videoUrls = visibleItems
-      .filter((it) => it.url && isVideoUrl(it.url))
-      .map((it) => it.url)
-      .filter((url) => !videoThumbs[url] && !thumbsGenerating.current.has(url));
-
-    if (videoUrls.length === 0) return;
-
-    // Limit parallel generation to 3
-    const generate = async () => {
-      for (const url of videoUrls) {
-        if (thumbsGenerating.current.size >= 3) {
-          await new Promise((r) => setTimeout(r, 200));
-          continue;
-        }
-
-        thumbsGenerating.current.add(url);
-        getVideoThumb(url).then((thumb) => {
-          thumbsGenerating.current.delete(url);
-          if (thumb && mountedRef.current) {
-            setVideoThumbs((prev) => ({ ...prev, [url]: thumb }));
-          }
-        });
-      }
-    };
-
-    generate();
-  }, [visibleItems, videoThumbs]);
 
   function openModal(it: DisplayItem) {
     if (!it.url) return;
@@ -585,7 +691,7 @@ export default function HistoryPage() {
 
               // статус: якщо url пустий — “processing”
               const badge = url ? (dict.done ?? "Готово") : (dict.processing ?? "Генерується");
-              const videoThumb = isVid && url ? videoThumbs[url] : null;
+
               return (
                 <div
                   key={it.uid}
@@ -601,88 +707,8 @@ export default function HistoryPage() {
 
                   {url ? (
                     isVid ? (
-                      // Video preview with generated thumbnail
-                      <>
-                        {videoThumb ? (
-                          // Show thumbnail image
-                          <>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              className="preview-img"
-                              src={videoThumb}
-                              alt={it.prompt || "Video"}
-                              style={{
-                                position: "absolute",
-                                inset: 0,
-                                width: "100%",
-                                height: "100%",
-                                objectFit: "contain",
-                                objectPosition: "center",
-                                background: "#000",
-                              }}
-                            />
-                          </>
-                        ) : (
-                          // Placeholder while generating thumbnail
-                          <div
-                            style={{
-                              position: "absolute",
-                              inset: 0,
-                              background: "linear-gradient(135deg, rgba(30,30,40,0.95) 0%, rgba(50,50,70,0.95) 100%)",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
-                          >
-                            <div
-                              style={{
-                                fontSize: 13,
-                                color: "rgba(255,255,255,0.5)",
-                              }}
-                            >
-                              Loading...
-                            </div>
-                          </div>
-                        )}
-                        {/* Play icon overlay */}
-                        <div
-                          style={{
-                            position: "absolute",
-                            inset: 0,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            pointerEvents: "none",
-                          }}
-                        >
-                          <div
-                            style={{
-                              fontSize: 64,
-                              color: "rgba(255, 255, 255, 0.95)",
-                              lineHeight: 1,
-                              textShadow: "0 2px 12px rgba(0, 0, 0, 0.6)",
-                            }}
-                          >
-                            ▶
-                          </div>
-                        </div>
-                        <div
-                          style={{
-                            position: "absolute",
-                            bottom: 12,
-                            left: 12,
-                            background: "rgba(0, 0, 0, 0.8)",
-                            color: "white",
-                            fontSize: 12,
-                            padding: "6px 10px",
-                            borderRadius: 8,
-                            fontWeight: 600,
-                            pointerEvents: "none",
-                          }}
-                        >
-                          Video
-                        </div>
-                      </>
+                      // Video preview with VideoThumb component
+                      <VideoThumb url={url} prompt={it.prompt} />
                     ) : (
                       // Image with blur background
                       <>
