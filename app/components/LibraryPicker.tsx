@@ -42,11 +42,9 @@ function stripPreviewParams(url: string) {
 
 // так само як в історії: просимо маленьку версію через ?w=600
 // для video — додатково просимо кадр (якщо ваш бекенд/проксі це підтримує)
-function thumbUrl(url: string, isVideo: boolean) {
-  let out = withParam(url, "w", "600");
-  if (isVideo) out = withParam(out, "frame", "1"); // якщо не підтримується — не зашкодить
-  return out;
-}
+function thumbUrl(url: string) {
+    return withParam(url, "w", "600");
+  }  
 
 export default function LibraryPicker({
   open,
@@ -177,7 +175,7 @@ export default function LibraryPicker({
         >
           {items.map((it) => {
             const vid = it.kind === "video" || (it.url ? isVideoUrl(it.url) : false);
-            const src = it.url ? thumbUrl(it.url, vid) : "";
+            const src = it.url ? thumbUrl(it.url) : "";
 
             return (
               <button
