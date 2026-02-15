@@ -40,11 +40,99 @@ function stripPreviewParams(url: string) {
   }
 }
 
-// так само як в історії: просимо маленьку версію через ?w=600
-// для video — додатково просимо кадр (якщо ваш бекенд/проксі це підтримує)
+// як в історії: просимо маленьку версію через ?w=600
 function thumbUrl(url: string) {
-    return withParam(url, "w", "600");
-  }  
+  return withParam(url, "w", "600");
+}
+
+/**
+ * Спроба зробити статичний постер для відео (без програвання) через canvas.
+ * Якщо CORS не дозволяє — поверне null, тоді буде fallback на thumbUrl(url).
+ */
+async function capturePoster(url: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const v = document.createElement("video");
+    // важливо: якщо відео з іншого домену без CORS — canvas буде tainted
+    v.crossOrigin = "anonymous";
+    v.muted = true;
+    v.playsInline = true;
+    v.preload = "metadata";
+    v.src = url;
+
+    let done = false;
+
+    const cleanup = () => {
+      if (done) return;
+      done = true;
+      try {
+        v.pause();
+      } catch {}
+      try {
+        v.removeAttribute("src");
+        v.load();
+      } catch {}
+      // не додаємо в DOM, тому просто GC
+    };
+
+    const fail = () => {
+      cleanup();
+      resolve(null);
+    };
+
+    v.onerror = fail;
+
+    v.onloadedmetadata = () => {
+      // інколи 0 кадр чорний — пробуємо 0.1с
+      try {
+        const target = Math.min(0.1, Math.max(0, (v.duration || 1) - 0.01));
+        v.currentTime = target;
+      } catch {
+        // якщо seek не дозволений — спробуємо з onloadeddata
+      }
+    };
+
+    v.onloadeddata = () => {
+      // якщо metadata ок, але seek не спрацював — спробуємо з 0 кадром
+      if (v.readyState >= 2 && (v.currentTime === 0 || Number.isNaN(v.currentTime))) {
+        try {
+          v.currentTime = 0;
+        } catch {
+          // нічого
+        }
+      }
+    };
+
+    v.onseeked = () => {
+      try {
+        const w = v.videoWidth || 0;
+        const h = v.videoHeight || 0;
+        if (!w || !h) return fail();
+
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return fail();
+
+        ctx.drawImage(v, 0, 0, w, h);
+
+        // jpeg достатньо для прев’ю
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.86);
+        cleanup();
+        resolve(dataUrl);
+      } catch {
+        // найчастіше сюди потрапляємо при CORS (tainted canvas)
+        fail();
+      }
+    };
+
+    // страховка: якщо onseeked не настане
+    setTimeout(() => {
+      if (!done) fail();
+    }, 4000);
+  });
+}
 
 export default function LibraryPicker({
   open,
@@ -63,6 +151,9 @@ export default function LibraryPicker({
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // poster cache: key = video url, value = dataURL
+  const [posters, setPosters] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setLangState(getLang());
@@ -99,6 +190,42 @@ export default function LibraryPicker({
 
     return () => controller.abort();
   }, [open, kind]);
+
+  // генеруємо статичні постери для відео (щоб не програвалось)
+  useEffect(() => {
+    if (!open) return;
+
+    let alive = true;
+
+    (async () => {
+      const vids = items.filter((it) => {
+        const vid = it.kind === "video" || (it.url ? isVideoUrl(it.url) : false);
+        return vid && !!it.url;
+      });
+
+      // по черзі, щоб не навантажувати
+      for (const it of vids) {
+        if (!alive) return;
+        if (!it.url) continue;
+        if (posters[it.url]) continue;
+
+        const p = await capturePoster(it.url);
+        if (!alive) return;
+
+        if (p) {
+          setPosters((prev) => ({ ...prev, [it.url]: p }));
+        } else {
+          // якщо не вийшло (CORS) — не повторюємо нескінченно
+          setPosters((prev) => ({ ...prev, [it.url]: "" }));
+        }
+      }
+    })();
+
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, items]);
 
   if (!open) return null;
 
@@ -149,7 +276,7 @@ export default function LibraryPicker({
           <button
             className="ios-btn ios-btn--ghost"
             style={{
-              padding: "10px 16px", // ✅ bigger
+              padding: "10px 16px",
               fontSize: 15,
               borderRadius: 12,
             }}
@@ -164,7 +291,7 @@ export default function LibraryPicker({
 
         {!loading && !error && items.length === 0 && <div style={{ opacity: 0.8 }}>{dict.libraryEmpty}</div>}
 
-        {/* Grid: ONLY <img> previews, like History */}
+        {/* Grid: ONLY <img> previews (static posters for video) */}
         <div
           style={{
             display: "grid",
@@ -175,7 +302,12 @@ export default function LibraryPicker({
         >
           {items.map((it) => {
             const vid = it.kind === "video" || (it.url ? isVideoUrl(it.url) : false);
-            const src = it.url ? thumbUrl(it.url) : "";
+
+            // src:
+            // - для video: беремо dataURL постера (якщо є), інакше fallback на thumbUrl(url)
+            // - для image: thumbUrl(url)
+            const poster = it.url && vid ? posters[it.url] : undefined;
+            const src = it.url ? (vid ? poster || thumbUrl(it.url) : thumbUrl(it.url)) : "";
 
             return (
               <button
@@ -194,7 +326,7 @@ export default function LibraryPicker({
                 }}
                 title={it.prompt || it.url}
               >
-                {/* blurred bg like history (optional, but looks good) */}
+                {/* blurred bg */}
                 <div
                   style={{
                     position: "absolute",
@@ -215,20 +347,36 @@ export default function LibraryPicker({
                   }}
                 />
 
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={src}
-                  alt="history"
-                  loading="lazy"
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    width: "100%",
-                    height: "100%",
-                    objectFit: "cover",
-                    display: "block",
-                  }}
-                />
+                {src ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={src}
+                    alt="history"
+                    loading="lazy"
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                  />
+                ) : (
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "rgba(255,255,255,0.65)",
+                      fontSize: 12,
+                    }}
+                  >
+                    {dict.processing}
+                  </div>
+                )}
 
                 {/* video badge + play overlay */}
                 {vid && (
