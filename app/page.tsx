@@ -1620,7 +1620,7 @@ export default function Home() {
             </div>
           </div>
           <div className="topbar-right">
-            <LangSwitch />
+            {!libraryOpen && <LangSwitch />}
 
             {session ? (
               <>
@@ -2771,7 +2771,7 @@ export default function Home() {
                     vEnd: "vEnd",
                     vMotion: "motion",
                     vChar: "character",
-                  };                  
+                  };
                   const target = inputToTarget[sourceModalInputId || ""];
                   if (target) {
                     openLibrary(sourceModalKind, target);
