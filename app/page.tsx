@@ -106,21 +106,11 @@ export default function Home() {
     "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character"
   >("photo1");
 
-  // Context menu states for each upload tile
-  const [photo1MenuOpen, setPhoto1MenuOpen] = useState(false);
-  const [photo2MenuOpen, setPhoto2MenuOpen] = useState(false);
-  const [vStartMenuOpen, setVStartMenuOpen] = useState(false);
-  const [vEndMenuOpen, setVEndMenuOpen] = useState(false);
-  const [motionMenuOpen, setMotionMenuOpen] = useState(false);
-  const [charMenuOpen, setCharMenuOpen] = useState(false);
-
-  // Refs for click-outside detection
-  const photo1MenuRef = useRef<HTMLDivElement>(null);
-  const photo2MenuRef = useRef<HTMLDivElement>(null);
-  const vStartMenuRef = useRef<HTMLDivElement>(null);
-  const vEndMenuRef = useRef<HTMLDivElement>(null);
-  const motionMenuRef = useRef<HTMLDivElement>(null);
-  const charMenuRef = useRef<HTMLDivElement>(null);
+  // Modal for choosing upload source (from device or from history)
+  const [sourceModalOpen, setSourceModalOpen] = useState(false);
+  const [sourceModalTarget, setSourceModalTarget] = useState<
+    "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character" | null
+  >(null);
 
   // Load templates from Supabase
   useEffect(() => {
@@ -202,6 +192,11 @@ export default function Home() {
     setLibraryKind(kind);
     setLibraryTarget(target);
     setLibraryOpen(true);
+  }
+
+  function openSourceModal(target: "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character") {
+    setSourceModalTarget(target);
+    setSourceModalOpen(true);
   }
 
   function handleLibraryPick(url: string) {
@@ -437,44 +432,16 @@ export default function Home() {
     }
   }, [videoQuality, videoMode, vEndImg, vEndUrl]);
 
-  // Menu close handlers for all tiles
+  // Close source modal on Escape
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (photo1MenuRef.current && !photo1MenuRef.current.contains(e.target as Node)) {
-        setPhoto1MenuOpen(false);
-      }
-      if (photo2MenuRef.current && !photo2MenuRef.current.contains(e.target as Node)) {
-        setPhoto2MenuOpen(false);
-      }
-      if (vStartMenuRef.current && !vStartMenuRef.current.contains(e.target as Node)) {
-        setVStartMenuOpen(false);
-      }
-      if (vEndMenuRef.current && !vEndMenuRef.current.contains(e.target as Node)) {
-        setVEndMenuOpen(false);
-      }
-      if (motionMenuRef.current && !motionMenuRef.current.contains(e.target as Node)) {
-        setMotionMenuOpen(false);
-      }
-      if (charMenuRef.current && !charMenuRef.current.contains(e.target as Node)) {
-        setCharMenuOpen(false);
-      }
-    };
-
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        setPhoto1MenuOpen(false);
-        setPhoto2MenuOpen(false);
-        setVStartMenuOpen(false);
-        setVEndMenuOpen(false);
-        setMotionMenuOpen(false);
-        setCharMenuOpen(false);
+        setSourceModalOpen(false);
       }
     };
 
-    document.addEventListener("click", handleClickOutside);
     document.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.removeEventListener("click", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
@@ -1380,6 +1347,116 @@ export default function Home() {
             border-radius: 8px;
           }
 
+          /* Source selection modal */
+          .sourceModalBackdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+            z-index: 9999;
+            animation: fadeIn 0.2s ease-out;
+          }
+
+          @keyframes fadeIn {
+            from {
+              opacity: 0;
+            }
+            to {
+              opacity: 1;
+            }
+          }
+
+          .sourceModalContent {
+            position: fixed;
+            z-index: 10000;
+            background: rgba(6, 8, 12, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 20px;
+            padding: 24px;
+            backdrop-filter: blur(10px) saturate(120%);
+            -webkit-backdrop-filter: blur(10px) saturate(120%);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-width: 400px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+            animation: slideUp 0.3s ease-out;
+          }
+
+          @keyframes slideUp {
+            from {
+              transform: translateY(20px);
+              opacity: 0;
+            }
+            to {
+              transform: translateY(0);
+              opacity: 1;
+            }
+          }
+
+          .sourceModalTitle {
+            font-size: 18px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.95);
+            margin-bottom: 8px;
+          }
+
+          .sourceModalButton {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.9);
+            padding: 14px 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+          }
+
+          .sourceModalButton:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.15);
+            color: white;
+          }
+
+          .sourceModalButton:active {
+            transform: scale(0.98);
+          }
+
+          /* Mobile styles - bottom sheet */
+          @media (max-width: 640px) {
+            .sourceModalContent {
+              position: fixed;
+              bottom: 0;
+              left: 0;
+              right: 0;
+              max-width: 100%;
+              width: 100%;
+              border-radius: 20px 20px 0 0;
+              padding: 20px;
+              animation: slideUpMobile 0.3s ease-out;
+            }
+
+            @keyframes slideUpMobile {
+              from {
+                transform: translateY(100%);
+              }
+              to {
+                transform: translateY(0);
+              }
+            }
+          }
+
+          /* Desktop styles - centered modal */
+          @media (min-width: 641px) {
+            .sourceModalContent {
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+            }
+          }
+
           @media (max-width: 640px) {
             .miniSelectTrigger {
               padding: 10px 14px;
@@ -1629,14 +1706,14 @@ export default function Home() {
                   </div>
 
                   <div className="uploadRow">
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start", position: "relative" }} ref={photo1MenuRef}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
                       <div
                         className="uploadTile uploadTileBig"
                         role="button"
                         tabIndex={0}
                         aria-label={lang === "uk" ? "Завантажити фото" : "Upload image"}
-                        onClick={() => setPhoto1MenuOpen(!photo1MenuOpen)}
-                        onKeyDown={(e) => e.key === "Enter" && setPhoto1MenuOpen(!photo1MenuOpen)}
+                        onClick={() => openSourceModal("photo1")}
+                        onKeyDown={(e) => e.key === "Enter" && openSourceModal("photo1")}
                       >
                         {srcPreview ? (
                           <>
@@ -1664,39 +1741,17 @@ export default function Home() {
                           </>
                         )}
                       </div>
-                      {photo1MenuOpen && (
-                        <div className="smallDropdown">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              (document.getElementById("file1") as HTMLInputElement | null)?.click();
-                              setPhoto1MenuOpen(false);
-                            }}
-                          >
-                            {lang === "uk" ? "З пристрою" : "From device"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              openLibrary("image", "photo1");
-                              setPhoto1MenuOpen(false);
-                            }}
-                          >
-                            {dict.fromHistory}
-                          </button>
-                        </div>
-                      )}
                     </div>
 
                     {(srcFile || srcUrl) && (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start", position: "relative" }} ref={photo2MenuRef}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
                         <div
                           className="uploadTile uploadTileBig"
                           role="button"
                           tabIndex={0}
                           aria-label={lang === "uk" ? "Завантажити друге фото" : "Upload second image"}
-                          onClick={() => setPhoto2MenuOpen(!photo2MenuOpen)}
-                          onKeyDown={(e) => e.key === "Enter" && setPhoto2MenuOpen(!photo2MenuOpen)}
+                          onClick={() => openSourceModal("photo2")}
+                          onKeyDown={(e) => e.key === "Enter" && openSourceModal("photo2")}
                         >
                           {srcPreview2 ? (
                             <>
@@ -1722,28 +1777,6 @@ export default function Home() {
                             </>
                           )}
                         </div>
-                        {photo2MenuOpen && (
-                          <div className="smallDropdown">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                (document.getElementById("file2t") as HTMLInputElement | null)?.click();
-                                setPhoto2MenuOpen(false);
-                              }}
-                            >
-                              {lang === "uk" ? "З пристрою" : "From device"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                openLibrary("image", "photo2");
-                                setPhoto2MenuOpen(false);
-                              }}
-                            >
-                              {dict.fromHistory}
-                            </button>
-                          </div>
-                        )}
                       </div>
                     )}
 
@@ -2256,13 +2289,13 @@ export default function Home() {
               {videoMode === "i2v" ? (
                 <>
                   <div className="uploadRow">
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start", position: "relative" }} ref={vStartMenuRef}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
                       <div
                         className="uploadTile"
                         role="button"
                         tabIndex={0}
                         aria-label={lang === "uk" ? "Початкове фото" : "Start image"}
-                        onClick={() => setVStartMenuOpen(!vStartMenuOpen)}
+                        onClick={() => openSourceModal("vStart")}
                       >
                         {vStartPreview ? (
                           <>
@@ -2290,28 +2323,6 @@ export default function Home() {
                           </>
                         )}
                       </div>
-                      {vStartMenuOpen && (
-                        <div className="smallDropdown">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              (document.getElementById("vStart") as HTMLInputElement | null)?.click();
-                              setVStartMenuOpen(false);
-                            }}
-                          >
-                            {lang === "uk" ? "З пристрою" : "From device"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              openLibrary("image", "vStart");
-                              setVStartMenuOpen(false);
-                            }}
-                          >
-                            {dict.fromHistory}
-                          </button>
-                        </div>
-                      )}
                     </div>
 
                     <input
@@ -2327,13 +2338,13 @@ export default function Home() {
 
                     {(vStartImg || vStartUrl) && videoQuality === "pro" && (
                       <>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start", position: "relative" }} ref={vEndMenuRef}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
                           <div
                             className="uploadTile"
                             role="button"
                             tabIndex={0}
                             aria-label={lang === "uk" ? "Кінцеве фото (тільки PRO)" : "End image (PRO only)"}
-                            onClick={() => setVEndMenuOpen(!vEndMenuOpen)}
+                            onClick={() => openSourceModal("vEnd")}
                           >
                             {vEndPreview ? (
                               <>
@@ -2359,28 +2370,6 @@ export default function Home() {
                               </>
                             )}
                           </div>
-                          {vEndMenuOpen && (
-                            <div className="smallDropdown">
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  (document.getElementById("vEnd") as HTMLInputElement | null)?.click();
-                                  setVEndMenuOpen(false);
-                                }}
-                              >
-                                {lang === "uk" ? "З пристрою" : "From device"}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  openLibrary("image", "vEnd");
-                                  setVEndMenuOpen(false);
-                                }}
-                              >
-                                {dict.fromHistory}
-                              </button>
-                            </div>
-                          )}
                         </div>
 
                         <input
@@ -2400,13 +2389,13 @@ export default function Home() {
               ) : (
                 <>
                   <div className="uploadRow">
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start", position: "relative" }} ref={motionMenuRef}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
                       <div
                         className="uploadTile"
                         role="button"
                         tabIndex={0}
                         aria-label={lang === "uk" ? "Відео з рухами" : "Motion video"}
-                        onClick={() => setMotionMenuOpen(!motionMenuOpen)}
+                        onClick={() => openSourceModal("motion")}
                       >
                         {motionPreviewUrl ? (
                           <>
@@ -2441,28 +2430,6 @@ export default function Home() {
                           </>
                         )}
                       </div>
-                      {motionMenuOpen && (
-                        <div className="smallDropdown">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              (document.getElementById("vMotion") as HTMLInputElement | null)?.click();
-                              setMotionMenuOpen(false);
-                            }}
-                          >
-                            {lang === "uk" ? "З пристрою" : "From device"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              openLibrary("video", "motion");
-                              setMotionMenuOpen(false);
-                            }}
-                          >
-                            {dict.fromHistory}
-                          </button>
-                        </div>
-                      )}
                     </div>
 
                     <input
@@ -2501,13 +2468,13 @@ export default function Home() {
                       }}
                     />
 
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start", position: "relative" }} ref={charMenuRef}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
                       <div
                         className="uploadTile"
                         role="button"
                         tabIndex={0}
                         aria-label={lang === "uk" ? "Фото персонажа" : "Character image"}
-                        onClick={() => setCharMenuOpen(!charMenuOpen)}
+                        onClick={() => openSourceModal("character")}
                       >
                         {vCharPreview ? (
                           <>
@@ -2533,28 +2500,6 @@ export default function Home() {
                           </>
                         )}
                       </div>
-                      {charMenuOpen && (
-                        <div className="smallDropdown">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              (document.getElementById("vChar") as HTMLInputElement | null)?.click();
-                              setCharMenuOpen(false);
-                            }}
-                          >
-                            {lang === "uk" ? "З пристрою" : "From device"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              openLibrary("image", "character");
-                              setCharMenuOpen(false);
-                            }}
-                          >
-                            {dict.fromHistory}
-                          </button>
-                        </div>
-                      )}
                     </div>
 
                     <input
@@ -2801,6 +2746,65 @@ export default function Home() {
               </a>
             ))}
           </div>
+        )}
+
+        {/* Source Selection Modal */}
+        {sourceModalOpen && sourceModalTarget && (
+          <>
+            <div
+              className="sourceModalBackdrop"
+              onClick={() => setSourceModalOpen(false)}
+              role="button"
+              tabIndex={-1}
+            />
+            <div className="sourceModalContent">
+              <div className="sourceModalTitle">
+                {lang === "uk" ? "Вибери джерело" : "Choose source"}
+              </div>
+              <button
+                type="button"
+                className="sourceModalButton"
+                onClick={() => {
+                  setSourceModalOpen(false);
+                  setTimeout(() => {
+                    const inputId = {
+                      photo1: "file1",
+                      photo2: "file2t",
+                      vStart: "vStart",
+                      vEnd: "vEnd",
+                      motion: "vMotion",
+                      character: "vChar",
+                    }[sourceModalTarget];
+                    (document.getElementById(inputId) as HTMLInputElement | null)?.click();
+                  }, 50);
+                }}
+              >
+                {dict.fromDevice}
+              </button>
+              <button
+                type="button"
+                className="sourceModalButton"
+                onClick={() => {
+                  setSourceModalOpen(false);
+                  const targetInfo: Record<
+                    typeof sourceModalTarget,
+                    { kind: "image" | "video"; target: typeof sourceModalTarget }
+                  > = {
+                    photo1: { kind: "image", target: "photo1" },
+                    photo2: { kind: "image", target: "photo2" },
+                    vStart: { kind: "image", target: "vStart" },
+                    vEnd: { kind: "image", target: "vEnd" },
+                    motion: { kind: "video", target: "motion" },
+                    character: { kind: "image", target: "character" },
+                  };
+                  const info = targetInfo[sourceModalTarget];
+                  openLibrary(info.kind, info.target);
+                }}
+              >
+                {dict.fromHistory}
+              </button>
+            </div>
+          </>
         )}
 
         <LibraryPicker
