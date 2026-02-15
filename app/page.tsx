@@ -1707,6 +1707,14 @@ export default function Home() {
                       >
                         Увійти
                       </Link>
+                    ) : points <= 0 ? (
+                      <Link
+                        className="ios-btn ios-btn--primary"
+                        href="/account"
+                        style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                      >
+                        Купити бали
+                      </Link>
                     ) : (
                       <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
                         {generateBtnText}
@@ -1972,6 +1980,14 @@ export default function Home() {
                         style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                       >
                         Увійти
+                      </Link>
+                    ) : points <= 0 ? (
+                      <Link
+                        className="ios-btn ios-btn--primary"
+                        href="/account"
+                        style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                      >
+                        Купити бали
                       </Link>
                     ) : (
                       <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
@@ -2348,6 +2364,14 @@ export default function Home() {
                     style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                   >
                     Увійти
+                  </Link>
+                ) : points <= 0 ? (
+                  <Link
+                    className="ios-btn ios-btn--primary"
+                    href="/account"
+                    style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                  >
+                    Купити бали
                   </Link>
                 ) : (
                   <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
