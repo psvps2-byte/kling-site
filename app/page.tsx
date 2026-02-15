@@ -1700,7 +1700,11 @@ export default function Home() {
 
                   <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
                     {!session ? (
-                      <Link className="ios-btn ios-btn--primary" href="/auth">
+                      <Link
+                        className="ios-btn ios-btn--primary"
+                        href="/auth"
+                        style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                      >
                         Увійти
                       </Link>
                     ) : (
@@ -1962,7 +1966,11 @@ export default function Home() {
 
                   <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
                     {!session ? (
-                      <Link className="ios-btn ios-btn--primary" href="/auth">
+                      <Link
+                        className="ios-btn ios-btn--primary"
+                        href="/auth"
+                        style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                      >
                         Увійти
                       </Link>
                     ) : (
@@ -2334,7 +2342,11 @@ export default function Home() {
 
               <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
                 {!session ? (
-                  <Link className="ios-btn ios-btn--primary" href="/auth">
+                  <Link
+                    className="ios-btn ios-btn--primary"
+                    href="/auth"
+                    style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                  >
                     Увійти
                   </Link>
                 ) : (

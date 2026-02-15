@@ -49,6 +49,7 @@ export default function LangSwitch() {
   return (
     <div
       ref={ref}
+      className="lang-switch"
       style={{
         position: "relative",
         display: "inline-flex",
@@ -116,6 +117,14 @@ export default function LangSwitch() {
           </button>
         </div>
       )}
+
+      <style jsx>{`
+        @media (max-width: 768px) {
+          .lang-switch {
+            z-index: 1;
+          }
+        }
+      `}</style>
     </div>
   );
 }
