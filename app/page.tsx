@@ -244,7 +244,7 @@ export default function Home() {
       .then((j) => {
         if (j?.authenticated) setPoints(Number(j.user?.points ?? 0));
       })
-      .catch(() => {});
+      .catch(() => { });
   }, [session]);
 
   // COMMON PROMPT
@@ -745,8 +745,8 @@ export default function Home() {
           const imageB64 = vStartImg
             ? await fileToBase64NoPrefix(vStartImg)
             : vStartUrl
-            ? await urlToBase64(vStartUrl)
-            : null;
+              ? await urlToBase64(vStartUrl)
+              : null;
           if (!imageB64)
             throw new Error(
               lang === "uk" ? "Потрібне початкове фото" : "Start image is required"
@@ -755,8 +755,8 @@ export default function Home() {
           const imageTailB64 = vEndImg
             ? await fileToBase64NoPrefix(vEndImg)
             : vEndUrl
-            ? await urlToBase64(vEndUrl)
-            : null;
+              ? await urlToBase64(vEndUrl)
+              : null;
 
           const body: any = {
             model_name: "kling-v2-5-turbo",
@@ -916,8 +916,8 @@ export default function Home() {
         ? false
         : prompt.trim().length < 1
       : videoMode === "i2v"
-      ? !vStartImg && !vStartUrl
-      : (!vCharacterImg && !characterUrl) || (!vMotionVideo && !motionUrl));
+        ? !vStartImg && !vStartUrl
+        : (!vCharacterImg && !characterUrl) || (!vMotionVideo && !motionUrl));
 
   const generateBtnText = useMemo(() => {
     if (!session) return dict.signIn;
@@ -929,8 +929,8 @@ export default function Home() {
         ? "Генерація"
         : "Generating"
       : lang === "uk"
-      ? "Згенерувати"
-      : "Generate";
+        ? "Згенерувати"
+        : "Generate";
     return `${base} · ${currentCost}`;
   }, [session, points, currentCost, loading, lang]);
 
@@ -1907,28 +1907,28 @@ export default function Home() {
                   {(!session ||
                     (!!session && points <= 0) ||
                     (!!session && points > 0 && points < currentCost)) && (
-                    <div style={{ marginTop: 10, opacity: 0.9 }}>
-                      {!session && <div>{dict.authRequired}</div>}
-                      {!!session && points <= 0 && (
-                        <div>
-                          У тебе 0 балів —{" "}
-                          <Link href="/account" style={{ textDecoration: "underline" }}>
-                            обери пакет балів
-                          </Link>
-                          .
-                        </div>
-                      )}
-                      {!!session && points > 0 && points < currentCost && (
-                        <div>
-                          Недостатньо балів —{" "}
-                          <Link href="/account" style={{ textDecoration: "underline" }}>
-                            поповнити
-                          </Link>
-                          .
-                        </div>
-                      )}
-                    </div>
-                  )}
+                      <div style={{ marginTop: 10, opacity: 0.9 }}>
+                        {!session && <div>{dict.authRequired}</div>}
+                        {!!session && points <= 0 && (
+                          <div>
+                            У тебе 0 балів —{" "}
+                            <Link href="/account" style={{ textDecoration: "underline" }}>
+                              обери пакет балів
+                            </Link>
+                            .
+                          </div>
+                        )}
+                        {!!session && points > 0 && points < currentCost && (
+                          <div>
+                            Недостатньо балів —{" "}
+                            <Link href="/account" style={{ textDecoration: "underline" }}>
+                              поповнити
+                            </Link>
+                            .
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                   <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
                     {!session ? (
@@ -1986,8 +1986,8 @@ export default function Home() {
                         role="button"
                         tabIndex={0}
                         aria-label={lang === "uk" ? "Завантажити фото" : "Upload image"}
-                        onClick={() => (document.getElementById("file1") as HTMLInputElement | null)?.click()}
-                        onKeyDown={(e) => e.key === "Enter" && (document.getElementById("file1") as HTMLInputElement | null)?.click()}
+                        onClick={() => openSourceModal("image", "file1")}
+                        onKeyDown={(e) => e.key === "Enter" && openSourceModal("image", "file1")}
                       >
                         {srcPreview ? (
                           <>
@@ -2015,14 +2015,6 @@ export default function Home() {
                           </>
                         )}
                       </div>
-                      <button
-                        type="button"
-                        className="ios-btn ios-btn--ghost"
-                        style={{ padding: "6px 10px", fontSize: 12 }}
-                        onClick={() => openLibrary("image", "photo1")}
-                      >
-                        {dict.fromHistory}
-                      </button>
                     </div>
 
                     {(srcFile || srcUrl) && (
@@ -2032,8 +2024,8 @@ export default function Home() {
                           role="button"
                           tabIndex={0}
                           aria-label={lang === "uk" ? "Завантажити друге фото" : "Upload second image"}
-                          onClick={() => (document.getElementById("file2") as HTMLInputElement | null)?.click()}
-                          onKeyDown={(e) => e.key === "Enter" && (document.getElementById("file2") as HTMLInputElement | null)?.click()}
+                          onClick={() => openSourceModal("image", "file2")}
+                          onKeyDown={(e) => e.key === "Enter" && openSourceModal("image", "file2")}
                         >
                           {srcPreview2 ? (
                             <>
@@ -2059,14 +2051,6 @@ export default function Home() {
                             </>
                           )}
                         </div>
-                        <button
-                          type="button"
-                          className="ios-btn ios-btn--ghost"
-                          style={{ padding: "6px 10px", fontSize: 12 }}
-                          onClick={() => openLibrary("image", "photo2")}
-                        >
-                          {dict.fromHistory}
-                        </button>
                       </div>
                     )}
 
@@ -2201,28 +2185,28 @@ export default function Home() {
                   {(!session ||
                     (!!session && points <= 0) ||
                     (!!session && points > 0 && points < currentCost)) && (
-                    <div style={{ marginTop: 10, opacity: 0.9 }}>
-                      {!session && <div>{dict.authRequired}</div>}
-                      {!!session && points <= 0 && (
-                        <div>
-                          У тебе 0 балів —{" "}
-                          <Link href="/account" style={{ textDecoration: "underline" }}>
-                            обери пакет балів
-                          </Link>
-                          .
-                        </div>
-                      )}
-                      {!!session && points > 0 && points < currentCost && (
-                        <div>
-                          Недостатньо балів —{" "}
-                          <Link href="/account" style={{ textDecoration: "underline" }}>
-                            поповнити
-                          </Link>
-                          .
-                        </div>
-                      )}
-                    </div>
-                  )}
+                      <div style={{ marginTop: 10, opacity: 0.9 }}>
+                        {!session && <div>{dict.authRequired}</div>}
+                        {!!session && points <= 0 && (
+                          <div>
+                            У тебе 0 балів —{" "}
+                            <Link href="/account" style={{ textDecoration: "underline" }}>
+                              обери пакет балів
+                            </Link>
+                            .
+                          </div>
+                        )}
+                        {!!session && points > 0 && points < currentCost && (
+                          <div>
+                            Недостатньо балів —{" "}
+                            <Link href="/account" style={{ textDecoration: "underline" }}>
+                              поповнити
+                            </Link>
+                            .
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                   <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
                     {!session ? (
@@ -2781,12 +2765,13 @@ export default function Home() {
                   // Map input ID to appropriate target for library picker
                   const inputToTarget: Record<string, "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character"> = {
                     file1: "photo1",
+                    file2: "photo2",   // ✅ додали
                     file2t: "photo2",
                     vStart: "vStart",
                     vEnd: "vEnd",
                     vMotion: "motion",
                     vChar: "character",
-                  };
+                  };                  
                   const target = inputToTarget[sourceModalInputId || ""];
                   if (target) {
                     openLibrary(sourceModalKind, target);
