@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getLang, t, type Lang } from "../i18n";
+import LangSwitch from "./LangSwitch";
 
 type Item = {
   id: string;
@@ -90,13 +91,37 @@ export default function LibraryPicker({
           boxShadow: "0 18px 60px rgba(0,0,0,0.6)",
           backdropFilter: "blur(12px) saturate(120%)",
           WebkitBackdropFilter: "blur(12px) saturate(120%)",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>{dict.history}</div>
-          <button className="ios-btn ios-btn--ghost" style={{ padding: "6px 10px" }} onClick={onClose}>
-            {dict.close}
-          </button>
+        {/* Header with title, lang switch, and close button */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            marginBottom: 16,
+            flexWrap: "wrap",
+          }}
+        >
+          <div style={{ fontSize: 18, fontWeight: 700 }}>
+            {dict.history}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginLeft: "auto",
+            }}
+          >
+            <LangSwitch />
+            <button className="ios-btn ios-btn--ghost" style={{ padding: "6px 10px" }} onClick={onClose}>
+              {dict.close}
+            </button>
+          </div>
         </div>
 
         {loading && <div style={{ opacity: 0.8 }}>{dict.processing}</div>}
@@ -110,11 +135,13 @@ export default function LibraryPicker({
           <div style={{ opacity: 0.8 }}>{dict.libraryEmpty}</div>
         )}
 
+        {/* Content area with grid - ensure it doesn't overlap header */}
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
             gap: 10,
+            marginTop: 8,
           }}
         >
           {items.map((it) => (
