@@ -82,12 +82,16 @@ function fileSig(f: File) {
 }
 
 export default function Home() {
+  const SHOW_TEMPLATES = false;
+
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [templates, setTemplates] = useState<any[]>([]);
   const [templatePrompt, setTemplatePrompt] = useState<string | null>(null);
 
   // Load templates from Supabase
   useEffect(() => {
+    if (!SHOW_TEMPLATES) return;
+
     const loadTemplates = async () => {
       const { data } = await supabase
         .from("templates")
@@ -1695,9 +1699,15 @@ export default function Home() {
                   )}
 
                   <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
-                    <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
-                      {generateBtnText}
-                    </button>
+                    {!session ? (
+                      <Link className="ios-btn ios-btn--primary" href="/auth">
+                        Увійти
+                      </Link>
+                    ) : (
+                      <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
+                        {generateBtnText}
+                      </button>
+                    )}
 
                     {(loading || refUploading) && (
                       <div className="gen-pill">
@@ -1951,9 +1961,15 @@ export default function Home() {
                   )}
 
                   <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
-                    <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
-                      {generateBtnText}
-                    </button>
+                    {!session ? (
+                      <Link className="ios-btn ios-btn--primary" href="/auth">
+                        Увійти
+                      </Link>
+                    ) : (
+                      <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
+                        {generateBtnText}
+                      </button>
+                    )}
 
                     {(loading || refUploading) && (
                       <div className="gen-pill">
@@ -2317,9 +2333,15 @@ export default function Home() {
               )}
 
               <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
-                <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
-                  {generateBtnText}
-                </button>
+                {!session ? (
+                  <Link className="ios-btn ios-btn--primary" href="/auth">
+                    Увійти
+                  </Link>
+                ) : (
+                  <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
+                    {generateBtnText}
+                  </button>
+                )}
 
                 {(loading || refUploading) && (
                   <div className="gen-pill">
@@ -2356,7 +2378,7 @@ export default function Home() {
           </div>
         )}
 
-        {mediaTab === "photo" && (
+        {mediaTab === "photo" && SHOW_TEMPLATES && (
           <div className="templatesSection">
             <h2 className="templatesTitle">{lang === "uk" ? "Шаблони" : "Templates"}</h2>
             <div className="templatesRow">
