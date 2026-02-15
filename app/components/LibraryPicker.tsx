@@ -11,6 +11,18 @@ type Item = {
   prompt?: string;
 };
 
+// Helper function to get video poster/thumbnail
+function getVideoPoster(url: string): string {
+  // If URL already has a thumbnail parameter or is an image, return as-is
+  if (url.includes("thumb=") || url.match(/\.(jpg|jpeg|png|webp)(\?|$)/i)) {
+    return url;
+  }
+
+  // Add thumb=1 parameter to request thumbnail from backend
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}thumb=1`;
+}
+
 export default function LibraryPicker({
   open,
   kind,
@@ -164,37 +176,65 @@ export default function LibraryPicker({
               title={it.prompt || it.url}
             >
               {it.kind === "video" ? (
+                // Video preview: show static poster with play icon
                 <div
                   style={{
                     width: "100%",
                     height: 140,
-                    background: "rgba(0, 0, 0, 0.6)",
+                    position: "relative",
+                    background: "#000",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    position: "relative",
                   }}
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={getVideoPoster(it.url)}
+                    alt="video preview"
+                    loading="lazy"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                  />
+                  {/* Play icon overlay */}
                   <div
                     style={{
-                      fontSize: 48,
-                      color: "rgba(255, 255, 255, 0.85)",
-                      lineHeight: 1,
+                      position: "absolute",
+                      inset: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      pointerEvents: "none",
                     }}
                   >
-                    ▶
+                    <div
+                      style={{
+                        fontSize: 48,
+                        color: "rgba(255, 255, 255, 0.95)",
+                        lineHeight: 1,
+                        textShadow: "0 2px 12px rgba(0, 0, 0, 0.6)",
+                      }}
+                    >
+                      ▶
+                    </div>
                   </div>
+                  {/* Video badge */}
                   <div
                     style={{
                       position: "absolute",
                       bottom: 8,
                       left: 8,
-                      background: "rgba(0, 0, 0, 0.7)",
+                      background: "rgba(0, 0, 0, 0.8)",
                       color: "white",
                       fontSize: 11,
                       padding: "4px 8px",
                       borderRadius: 6,
                       fontWeight: 600,
+                      pointerEvents: "none",
                     }}
                   >
                     Video
