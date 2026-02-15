@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { getLang, t, type Lang } from "../i18n";
-import LangSwitch from "./LangSwitch";
 
 type Item = {
   id: string;
@@ -43,11 +42,18 @@ export default function LibraryPicker({
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch(`/api/history?kind=${kind}`, { signal: controller.signal, cache: "no-store" });
+        const res = await fetch(`/api/history?kind=${kind}`, {
+          signal: controller.signal,
+          cache: "no-store",
+        });
         const data = await res.json().catch(() => null);
         if (!res.ok) throw new Error(data?.error || "Failed to load");
 
-        const arr = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
+        const arr = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.items)
+          ? data.items
+          : [];
         setItems(Array.isArray(arr) ? arr : []);
       } catch (e: any) {
         if (controller.signal.aborted) return;
@@ -95,7 +101,7 @@ export default function LibraryPicker({
           flexDirection: "column",
         }}
       >
-        {/* Header with title, lang switch, and close button */}
+        {/* Header with title + close */}
         <div
           style={{
             display: "flex",
@@ -103,25 +109,24 @@ export default function LibraryPicker({
             justifyContent: "space-between",
             gap: 12,
             marginBottom: 16,
-            flexWrap: "wrap",
           }}
         >
-          <div style={{ fontSize: 18, fontWeight: 700 }}>
-            {dict.history}
-          </div>
-          <div
+          <div style={{ fontSize: 18, fontWeight: 700 }}>{dict.history}</div>
+
+          {/* ✅ прибрали LangSwitch, ✅ зробили кнопку більшою */}
+          <button
+            className="ios-btn ios-btn--ghost"
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              marginLeft: "auto",
+              padding: "10px 16px",
+              fontSize: 15,
+              fontWeight: 800,
+              borderRadius: 14,
+              minHeight: 40,
             }}
+            onClick={onClose}
           >
-            <LangSwitch />
-            <button className="ios-btn ios-btn--ghost" style={{ padding: "6px 10px" }} onClick={onClose}>
-              {dict.close}
-            </button>
-          </div>
+            {dict.close}
+          </button>
         </div>
 
         {loading && <div style={{ opacity: 0.8 }}>{dict.processing}</div>}
@@ -135,7 +140,6 @@ export default function LibraryPicker({
           <div style={{ opacity: 0.8 }}>{dict.libraryEmpty}</div>
         )}
 
-        {/* Content area with grid - ensure it doesn't overlap header */}
         <div
           style={{
             display: "grid",
@@ -165,11 +169,25 @@ export default function LibraryPicker({
                   muted
                   playsInline
                   preload="metadata"
-                  style={{ width: "100%", height: 140, objectFit: "cover", display: "block" }}
+                  style={{
+                    width: "100%",
+                    height: 140,
+                    objectFit: "cover",
+                    display: "block",
+                  }}
                 />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={it.url} alt="history" style={{ width: "100%", height: 140, objectFit: "cover", display: "block" }} />
+                <img
+                  src={it.url}
+                  alt="history"
+                  style={{
+                    width: "100%",
+                    height: 140,
+                    objectFit: "cover",
+                    display: "block",
+                  }}
+                />
               )}
             </button>
           ))}
