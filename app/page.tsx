@@ -106,11 +106,10 @@ export default function Home() {
     "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character"
   >("photo1");
 
-  // Modal for choosing upload source (from device or from history)
+  // Unified source selection modal
   const [sourceModalOpen, setSourceModalOpen] = useState(false);
-  const [sourceModalTarget, setSourceModalTarget] = useState<
-    "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character" | null
-  >(null);
+  const [sourceModalKind, setSourceModalKind] = useState<"image" | "video">("image");
+  const [sourceModalInputId, setSourceModalInputId] = useState<string | null>(null);
 
   // Load templates from Supabase
   useEffect(() => {
@@ -194,8 +193,9 @@ export default function Home() {
     setLibraryOpen(true);
   }
 
-  function openSourceModal(target: "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character") {
-    setSourceModalTarget(target);
+  function openSourceModal(kind: "image" | "video", inputId: string) {
+    setSourceModalKind(kind);
+    setSourceModalInputId(inputId);
     setSourceModalOpen(true);
   }
 
@@ -1712,8 +1712,8 @@ export default function Home() {
                         role="button"
                         tabIndex={0}
                         aria-label={lang === "uk" ? "Завантажити фото" : "Upload image"}
-                        onClick={() => openSourceModal("photo1")}
-                        onKeyDown={(e) => e.key === "Enter" && openSourceModal("photo1")}
+                        onClick={() => openSourceModal("image", "file1")}
+                        onKeyDown={(e) => e.key === "Enter" && openSourceModal("image", "file1")}
                       >
                         {srcPreview ? (
                           <>
@@ -1750,8 +1750,8 @@ export default function Home() {
                           role="button"
                           tabIndex={0}
                           aria-label={lang === "uk" ? "Завантажити друге фото" : "Upload second image"}
-                          onClick={() => openSourceModal("photo2")}
-                          onKeyDown={(e) => e.key === "Enter" && openSourceModal("photo2")}
+                          onClick={() => openSourceModal("image", "file2t")}
+                          onKeyDown={(e) => e.key === "Enter" && openSourceModal("image", "file2t")}
                         >
                           {srcPreview2 ? (
                             <>
@@ -2295,7 +2295,7 @@ export default function Home() {
                         role="button"
                         tabIndex={0}
                         aria-label={lang === "uk" ? "Початкове фото" : "Start image"}
-                        onClick={() => openSourceModal("vStart")}
+                        onClick={() => openSourceModal("image", "vStart")}
                       >
                         {vStartPreview ? (
                           <>
@@ -2344,7 +2344,7 @@ export default function Home() {
                             role="button"
                             tabIndex={0}
                             aria-label={lang === "uk" ? "Кінцеве фото (тільки PRO)" : "End image (PRO only)"}
-                            onClick={() => openSourceModal("vEnd")}
+                            onClick={() => openSourceModal("image", "vEnd")}
                           >
                             {vEndPreview ? (
                               <>
@@ -2395,7 +2395,7 @@ export default function Home() {
                         role="button"
                         tabIndex={0}
                         aria-label={lang === "uk" ? "Відео з рухами" : "Motion video"}
-                        onClick={() => openSourceModal("motion")}
+                        onClick={() => openSourceModal("video", "vMotion")}
                       >
                         {motionPreviewUrl ? (
                           <>
@@ -2474,7 +2474,7 @@ export default function Home() {
                         role="button"
                         tabIndex={0}
                         aria-label={lang === "uk" ? "Фото персонажа" : "Character image"}
-                        onClick={() => openSourceModal("character")}
+                        onClick={() => openSourceModal("image", "vChar")}
                       >
                         {vCharPreview ? (
                           <>
@@ -2749,7 +2749,7 @@ export default function Home() {
         )}
 
         {/* Source Selection Modal */}
-        {sourceModalOpen && sourceModalTarget && (
+        {sourceModalOpen && sourceModalInputId && (
           <>
             <div
               className="sourceModalBackdrop"
@@ -2759,7 +2759,7 @@ export default function Home() {
             />
             <div className="sourceModalContent">
               <div className="sourceModalTitle">
-                {lang === "uk" ? "Вибери джерело" : "Choose source"}
+                {dict.chooseSource}
               </div>
               <button
                 type="button"
@@ -2767,15 +2767,7 @@ export default function Home() {
                 onClick={() => {
                   setSourceModalOpen(false);
                   setTimeout(() => {
-                    const inputId = {
-                      photo1: "file1",
-                      photo2: "file2t",
-                      vStart: "vStart",
-                      vEnd: "vEnd",
-                      motion: "vMotion",
-                      character: "vChar",
-                    }[sourceModalTarget];
-                    (document.getElementById(inputId) as HTMLInputElement | null)?.click();
+                    (document.getElementById(sourceModalInputId) as HTMLInputElement | null)?.click();
                   }, 50);
                 }}
               >
@@ -2786,19 +2778,19 @@ export default function Home() {
                 className="sourceModalButton"
                 onClick={() => {
                   setSourceModalOpen(false);
-                  const targetInfo: Record<
-                    typeof sourceModalTarget,
-                    { kind: "image" | "video"; target: typeof sourceModalTarget }
-                  > = {
-                    photo1: { kind: "image", target: "photo1" },
-                    photo2: { kind: "image", target: "photo2" },
-                    vStart: { kind: "image", target: "vStart" },
-                    vEnd: { kind: "image", target: "vEnd" },
-                    motion: { kind: "video", target: "motion" },
-                    character: { kind: "image", target: "character" },
+                  // Map input ID to appropriate target for library picker
+                  const inputToTarget: Record<string, "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character"> = {
+                    file1: "photo1",
+                    file2t: "photo2",
+                    vStart: "vStart",
+                    vEnd: "vEnd",
+                    vMotion: "motion",
+                    vChar: "character",
                   };
-                  const info = targetInfo[sourceModalTarget];
-                  openLibrary(info.kind, info.target);
+                  const target = inputToTarget[sourceModalInputId || ""];
+                  if (target) {
+                    openLibrary(sourceModalKind, target);
+                  }
                 }}
               >
                 {dict.fromHistory}
