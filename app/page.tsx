@@ -802,8 +802,8 @@ export default function Home() {
       : !vCharacterImg || !vMotionVideo);
 
   const generateBtnText = useMemo(() => {
-    if (!session) return lang === "uk" ? "Увійти" : "Sign in";
-    if (points <= 0) return lang === "uk" ? "Купити бали" : "Buy points";
+    if (!session) return dict.signIn;
+    if (points <= 0) return dict.buyPoints;
     if (points < currentCost) return lang === "uk" ? "Мало балів" : "Not enough points";
 
     const base = loading
@@ -1705,7 +1705,7 @@ export default function Home() {
                         href="/auth"
                         style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                       >
-                        Увійти
+                        {dict.signIn}
                       </Link>
                     ) : points <= 0 ? (
                       <Link
@@ -1713,7 +1713,7 @@ export default function Home() {
                         href="/account"
                         style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                       >
-                        Купити бали
+                        {dict.buyPoints}
                       </Link>
                     ) : (
                       <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
@@ -1979,7 +1979,7 @@ export default function Home() {
                         href="/auth"
                         style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                       >
-                        Увійти
+                        {dict.signIn}
                       </Link>
                     ) : points <= 0 ? (
                       <Link
@@ -1987,7 +1987,7 @@ export default function Home() {
                         href="/account"
                         style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                       >
-                        Купити бали
+                        {dict.buyPoints}
                       </Link>
                     ) : (
                       <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
@@ -2363,7 +2363,7 @@ export default function Home() {
                     href="/auth"
                     style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                   >
-                    Увійти
+                    {dict.signIn}
                   </Link>
                 ) : points <= 0 ? (
                   <Link
@@ -2371,7 +2371,7 @@ export default function Home() {
                     href="/account"
                     style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
                   >
-                    Купити бали
+                    {dict.buyPoints}
                   </Link>
                 ) : (
                   <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
