@@ -93,6 +93,65 @@ function fileSig(f: File) {
   return `${f.name}|${f.size}|${f.lastModified}`;
 }
 
+// ✅ Helper to compute video duration from File or URL
+async function computeVideoDuration(input: File | string): Promise<number> {
+  try {
+    if (typeof input === "string") {
+      // URL: create video element and load metadata
+      const vid = document.createElement("video");
+      vid.preload = "metadata";
+      vid.muted = true;
+      vid.playsInline = true;
+      vid.crossOrigin = "anonymous";
+      vid.src = input;
+
+      return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          resolve(0);
+        }, 8000);
+
+        vid.onloadedmetadata = () => {
+          clearTimeout(timeout);
+          const duration = Math.round(vid.duration || 0);
+          resolve(duration);
+        };
+
+        vid.onerror = () => {
+          clearTimeout(timeout);
+          resolve(0);
+        };
+      });
+    } else {
+      // File: same as current logic
+      const url = URL.createObjectURL(input);
+      const vid = document.createElement("video");
+      vid.preload = "metadata";
+      vid.src = url;
+
+      return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          resolve(0);
+        }, 8000);
+
+        vid.onloadedmetadata = () => {
+          clearTimeout(timeout);
+          const duration = Math.round(vid.duration || 0);
+          URL.revokeObjectURL(url);
+          resolve(duration);
+        };
+
+        vid.onerror = () => {
+          clearTimeout(timeout);
+          URL.revokeObjectURL(url);
+          resolve(0);
+        };
+      });
+    }
+  } catch {
+    return 0;
+  }
+}
+
 export default function Home() {
   const SHOW_TEMPLATES = false;
 
@@ -220,7 +279,10 @@ export default function Home() {
       case "motion":
         setMotionUrl(url);
         setVMotionVideo(null);
-        setRefVideoSeconds(0);
+        // ✅ Compute duration for video from history
+        computeVideoDuration(url).then((duration) => {
+          setRefVideoSeconds(duration);
+        });
         break;
       case "character":
         setCharacterUrl(url);
@@ -2430,22 +2492,8 @@ export default function Home() {
                           return;
                         }
                         try {
-                          const url = URL.createObjectURL(f);
-                          const vid = document.createElement("video");
-                          vid.preload = "metadata";
-                          vid.src = url;
-                          await new Promise((resolve) => {
-                            vid.onloadedmetadata = () => {
-                              const secs = Math.round(vid.duration || 0);
-                              setRefVideoSeconds(secs);
-                              resolve(true);
-                            };
-                            vid.onerror = () => {
-                              setRefVideoSeconds(0);
-                              resolve(true);
-                            };
-                          });
-                          URL.revokeObjectURL(url);
+                          const duration = await computeVideoDuration(f);
+                          setRefVideoSeconds(duration);
                         } catch {
                           setRefVideoSeconds(0);
                         }
