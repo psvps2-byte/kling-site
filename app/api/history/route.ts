@@ -57,8 +57,16 @@ function asString(v: any) {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
 
-export async function GET() {
+function detectKindFromUrl(url: string): "image" | "video" {
+  const lower = url.toLowerCase();
+  if (/(\.mp4|\.webm|\.mov|\.m4v)(\?|#|$)/.test(lower)) return "video";
+  return "image";
+}
+
+export async function GET(req: NextRequest) {
   try {
+    const kindParam = (req.nextUrl.searchParams.get("kind") || "").toLowerCase();
+
     // 1) AUTH (NextAuth)
     const session = await getServerSession(authOptions);
     const email = asString(session?.user?.email).trim();
@@ -88,8 +96,9 @@ export async function GET() {
     //    не повертаємо записи без result_url, щоб не з’являлось "Немає превʼю".
     const items = (data ?? [])
       .filter((row: any) => {
-        const url = asString(row?.result_url).trim();
-        return url.length > 10; // простий фільтр: якщо URL нормальний — показуємо
+        const direct = asString(row?.result_url).trim();
+        const arr = Array.isArray(row.result_urls) ? row.result_urls : [];
+        return direct.length > 10 || arr.length > 0;
       })
       .map((row: any) => {
         const arr = Array.isArray(row.result_urls) ? row.result_urls : [];
@@ -108,8 +117,27 @@ export async function GET() {
           kind: row.kind,
           status: row.status,
           urls,
+          prompt: row.prompt,
         };
       });
+
+    if (kindParam === "image" || kindParam === "video") {
+      const flat = items.flatMap((row: any) =>
+        (row.urls || []).map((url: string) => {
+          const detected = detectKindFromUrl(url);
+          return {
+            id: row.id,
+            kind: detected,
+            url,
+            createdAt: row.createdAt,
+            prompt: row.prompt,
+          };
+        })
+      );
+
+      const filtered = flat.filter((it) => it.kind === kindParam);
+      return noStoreJson(filtered);
+    }
 
     return noStoreJson(items);
   } catch (e: any) {

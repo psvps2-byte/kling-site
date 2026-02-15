@@ -46,4 +46,7 @@
   "paymentCreateError": "Failed to create payment",
   "networkError": "Network error",
   "bestValue": "🔥 Best value"
+  ,"fromHistory": "From history"
+  ,"libraryEmpty": "No items yet"
+  ,"close": "Close"
 }

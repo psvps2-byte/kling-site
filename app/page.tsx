@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import Link from "next/link";
 import LegalMenu from "./components/LegalMenu";
 import LangSwitch from "./components/LangSwitch";
+import LibraryPicker from "./components/LibraryPicker";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
@@ -39,6 +40,17 @@ async function fileToBase64NoPrefix(file: File): Promise<string> {
     binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
   }
   return btoa(binary);
+}
+
+async function urlToBase64(url: string): Promise<string> {
+  const res = await fetch("/api/url-to-base64", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+  const data = await readJsonOrRaw(res);
+  if (!res.ok || !data?.base64) throw new Error(data?.error || "Failed to load image");
+  return String(data.base64);
 }
 
 function normalizeErr(e: any) {
@@ -87,6 +99,12 @@ export default function Home() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [templates, setTemplates] = useState<any[]>([]);
   const [templatePrompt, setTemplatePrompt] = useState<string | null>(null);
+
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [libraryKind, setLibraryKind] = useState<"image" | "video">("image");
+  const [libraryTarget, setLibraryTarget] = useState<
+    "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character"
+  >("photo1");
 
   // Load templates from Supabase
   useEffect(() => {
@@ -164,6 +182,43 @@ export default function Home() {
     setLangState(getLang());
   }, []);
 
+  function openLibrary(kind: "image" | "video", target: "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character") {
+    setLibraryKind(kind);
+    setLibraryTarget(target);
+    setLibraryOpen(true);
+  }
+
+  function handleLibraryPick(url: string) {
+    switch (libraryTarget) {
+      case "photo1":
+        setSrcUrl(url);
+        setSrcFile(null);
+        break;
+      case "photo2":
+        setSrcUrl2(url);
+        setSrcFile2(null);
+        break;
+      case "vStart":
+        setVStartUrl(url);
+        setVStartImg(null);
+        break;
+      case "vEnd":
+        setVEndUrl(url);
+        setVEndImg(null);
+        break;
+      case "motion":
+        setMotionUrl(url);
+        setVMotionVideo(null);
+        setRefVideoSeconds(0);
+        break;
+      case "character":
+        setCharacterUrl(url);
+        setVCharacterImg(null);
+        break;
+    }
+    setLibraryOpen(false);
+  }
+
   // ✅ Points
   const [points, setPoints] = useState<number>(0);
 
@@ -238,14 +293,16 @@ export default function Home() {
 
   const acceptImg =
     "image/jpeg,image/png,image/heic,image/heif,.heic,.heif,.jpg,.jpeg,.png";
-  const srcPreview = useMemo(
+  const srcFilePreview = useMemo(
     () => (srcFile ? URL.createObjectURL(srcFile) : ""),
     [srcFile]
   );
-  const srcPreview2 = useMemo(
+  const srcPreview = srcFilePreview || srcUrl;
+  const srcFile2Preview = useMemo(
     () => (srcFile2 ? URL.createObjectURL(srcFile2) : ""),
     [srcFile2]
   );
+  const srcPreview2 = srcFile2Preview || srcUrl2;
 
   // VIDEO
   const [videoMode, setVideoMode] = useState<VideoMode>("i2v");
@@ -259,28 +316,35 @@ export default function Home() {
 
   const [vStartImg, setVStartImg] = useState<File | null>(null);
   const [vEndImg, setVEndImg] = useState<File | null>(null);
+  const [vStartUrl, setVStartUrl] = useState<string>("");
+  const [vEndUrl, setVEndUrl] = useState<string>("");
 
   const [vMotionVideo, setVMotionVideo] = useState<File | null>(null);
   const [motionPreviewUrl, setMotionPreviewUrl] = useState<string>("");
+  const [motionUrl, setMotionUrl] = useState<string>("");
   const [vCharacterImg, setVCharacterImg] = useState<File | null>(null);
+  const [characterUrl, setCharacterUrl] = useState<string>("");
   const [characterOrientation, setCharacterOrientation] =
     useState<CharacterOrientation>("image");
   const [keepOriginalSound, setKeepOriginalSound] = useState(true);
   const [refVideoSeconds, setRefVideoSeconds] = useState<number>(0);
 
   const acceptVid = "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov";
-  const vStartPreview = useMemo(
+  const vStartFilePreview = useMemo(
     () => (vStartImg ? URL.createObjectURL(vStartImg) : ""),
     [vStartImg]
   );
-  const vEndPreview = useMemo(
+  const vStartPreview = vStartFilePreview || vStartUrl;
+  const vEndFilePreview = useMemo(
     () => (vEndImg ? URL.createObjectURL(vEndImg) : ""),
     [vEndImg]
   );
-  const vCharPreview = useMemo(
+  const vEndPreview = vEndFilePreview || vEndUrl;
+  const vCharFilePreview = useMemo(
     () => (vCharacterImg ? URL.createObjectURL(vCharacterImg) : ""),
     [vCharacterImg]
   );
+  const vCharPreview = vCharFilePreview || characterUrl;
 
   // ✅ anti-double-upload cache (fileSig -> url)
   const uploadCacheRef = useRef<Map<string, { key: string; url: string }>>(
@@ -289,25 +353,28 @@ export default function Home() {
 
   useEffect(() => {
     return () => {
-      if (srcPreview) URL.revokeObjectURL(srcPreview);
-      if (srcPreview2) URL.revokeObjectURL(srcPreview2);
-      if (vStartPreview) URL.revokeObjectURL(vStartPreview);
-      if (vEndPreview) URL.revokeObjectURL(vEndPreview);
-      if (vCharPreview) URL.revokeObjectURL(vCharPreview);
+      if (srcFilePreview) URL.revokeObjectURL(srcFilePreview);
+      if (srcFile2Preview) URL.revokeObjectURL(srcFile2Preview);
+      if (vStartFilePreview) URL.revokeObjectURL(vStartFilePreview);
+      if (vEndFilePreview) URL.revokeObjectURL(vEndFilePreview);
+      if (vCharFilePreview) URL.revokeObjectURL(vCharFilePreview);
     };
-  }, [srcPreview, srcPreview2, vStartPreview, vEndPreview, vCharPreview]);
+  }, [srcFilePreview, srcFile2Preview, vStartFilePreview, vEndFilePreview, vCharFilePreview]);
 
   useEffect(() => {
-    if (!vMotionVideo) {
-      setMotionPreviewUrl("");
-      return;
+    if (vMotionVideo) {
+      const url = URL.createObjectURL(vMotionVideo);
+      setMotionPreviewUrl(url);
+      return () => {
+        URL.revokeObjectURL(url);
+      };
     }
-    const url = URL.createObjectURL(vMotionVideo);
-    setMotionPreviewUrl(url);
-    return () => {
-      URL.revokeObjectURL(url);
-    };
-  }, [vMotionVideo]);
+    if (motionUrl) {
+      setMotionPreviewUrl(motionUrl);
+    } else {
+      setMotionPreviewUrl("");
+    }
+  }, [vMotionVideo, motionUrl]);
 
   // при зміні табу — скидаємо UI генерації
   useEffect(() => {
@@ -319,17 +386,24 @@ export default function Home() {
   }, [mediaTab]);
 
   useEffect(() => {
-    if (!vStartImg) setVEndImg(null);
-  }, [vStartImg]);
+    if (!vStartImg && !vStartUrl) {
+      setVEndImg(null);
+      setVEndUrl("");
+    }
+  }, [vStartImg, vStartUrl]);
 
   useEffect(() => {
     setError(null);
     if (videoMode === "i2v") {
       setVMotionVideo(null);
       setVCharacterImg(null);
+      setMotionUrl("");
+      setCharacterUrl("");
     } else {
       setVStartImg(null);
       setVEndImg(null);
+      setVStartUrl("");
+      setVEndUrl("");
     }
   }, [videoMode]);
 
@@ -341,10 +415,11 @@ export default function Home() {
 
   // ✅ Правило: start+end працює тільки PRO
   useEffect(() => {
-    if (videoMode === "i2v" && videoQuality === "standard" && vEndImg) {
+    if (videoMode === "i2v" && videoQuality === "standard" && (vEndImg || vEndUrl)) {
       setVEndImg(null);
+      setVEndUrl("");
     }
-  }, [videoQuality, videoMode, vEndImg]);
+  }, [videoQuality, videoMode, vEndImg, vEndUrl]);
 
   // ---- R2 upload (presign-put) ----
   async function uploadToR2AndGetPublicUrl(
@@ -636,13 +711,26 @@ export default function Home() {
     try {
       if (mediaTab === "video") {
         if (videoMode === "i2v") {
-          if (!vStartImg)
+          if (!vStartImg && !vStartUrl)
             throw new Error(
               lang === "uk" ? "Потрібне початкове фото" : "Start image is required"
             );
 
-          const imageB64 = await fileToBase64NoPrefix(vStartImg);
-          const imageTailB64 = vEndImg ? await fileToBase64NoPrefix(vEndImg) : null;
+          const imageB64 = vStartImg
+            ? await fileToBase64NoPrefix(vStartImg)
+            : vStartUrl
+            ? await urlToBase64(vStartUrl)
+            : null;
+          if (!imageB64)
+            throw new Error(
+              lang === "uk" ? "Потрібне початкове фото" : "Start image is required"
+            );
+
+          const imageTailB64 = vEndImg
+            ? await fileToBase64NoPrefix(vEndImg)
+            : vEndUrl
+            ? await urlToBase64(vEndUrl)
+            : null;
 
           const body: any = {
             model_name: "kling-v2-5-turbo",
@@ -679,24 +767,28 @@ export default function Home() {
           return;
         }
 
-        if (!vCharacterImg)
+        if (!vCharacterImg && !characterUrl)
           throw new Error(
             lang === "uk" ? "Потрібне фото персонажа" : "Character image is required"
           );
-        if (!vMotionVideo)
+        if (!vMotionVideo && !motionUrl)
           throw new Error(
             lang === "uk" ? "Потрібне відео з рухами" : "Motion video is required"
           );
 
-        const { url: motionUrl } = await uploadToR2AndGetPublicUrl(vMotionVideo);
-        const { url: characterUrl } = await uploadToR2AndGetPublicUrl(vCharacterImg);
+        const motionUrlFinal = vMotionVideo
+          ? (await uploadToR2AndGetPublicUrl(vMotionVideo)).url
+          : motionUrl;
+        const characterUrlFinal = vCharacterImg
+          ? (await uploadToR2AndGetPublicUrl(vCharacterImg)).url
+          : characterUrl;
 
         const body: any = {
           mode: videoQuality === "pro" ? "pro" : "std",
           character_orientation: characterOrientation,
           keep_original_sound: keepOriginalSound ? "yes" : "no",
-          image_url: characterUrl,
-          video_url: motionUrl,
+          image_url: characterUrlFinal,
+          video_url: motionUrlFinal,
         };
 
         if (prompt.trim()) body.prompt = prompt.trim();
@@ -798,8 +890,8 @@ export default function Home() {
         ? false
         : prompt.trim().length < 1
       : videoMode === "i2v"
-      ? !vStartImg
-      : !vCharacterImg || !vMotionVideo);
+      ? !vStartImg && !vStartUrl
+      : (!vCharacterImg && !characterUrl) || (!vMotionVideo && !motionUrl));
 
   const generateBtnText = useMemo(() => {
     if (!session) return dict.signIn;
@@ -1478,60 +1570,27 @@ export default function Home() {
                   </div>
 
                   <div className="uploadRow">
-                    <div
-                      className="uploadTile uploadTileBig"
-                      role="button"
-                      tabIndex={0}
-                      aria-label={lang === "uk" ? "Завантажити фото" : "Upload image"}
-                      onClick={() => (document.getElementById("file1") as HTMLInputElement | null)?.click()}
-                      onKeyDown={(e) => e.key === "Enter" && (document.getElementById("file1") as HTMLInputElement | null)?.click()}
-                    >
-                      {srcPreview ? (
-                        <>
-                          <img src={srcPreview} alt="reference1" />
-                          <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                          <button
-                            type="button"
-                            className="tile-remove"
-                            aria-label={lang === "uk" ? "Видалити референс" : "Remove reference"}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSrcFile(null);
-                              setSrcUrl("");
-                              setSrcFile2(null);
-                              setSrcUrl2("");
-                            }}
-                          >
-                            ✕
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <span className="uploadPlus">+</span>
-                          <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                        </>
-                      )}
-                    </div>
-
-                    {(srcFile || srcUrl) && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
                       <div
                         className="uploadTile uploadTileBig"
                         role="button"
                         tabIndex={0}
-                        aria-label={lang === "uk" ? "Завантажити друге фото" : "Upload second image"}
-                        onClick={() => (document.getElementById("file2t") as HTMLInputElement | null)?.click()}
-                        onKeyDown={(e) => e.key === "Enter" && (document.getElementById("file2t") as HTMLInputElement | null)?.click()}
+                        aria-label={lang === "uk" ? "Завантажити фото" : "Upload image"}
+                        onClick={() => (document.getElementById("file1") as HTMLInputElement | null)?.click()}
+                        onKeyDown={(e) => e.key === "Enter" && (document.getElementById("file1") as HTMLInputElement | null)?.click()}
                       >
-                        {srcPreview2 ? (
+                        {srcPreview ? (
                           <>
-                            <img src={srcPreview2} alt="reference2" />
-                            <span className="tile-label">{lang === "uk" ? "Фото 2" : "Photo 2"}</span>
+                            <img src={srcPreview} alt="reference1" />
+                            <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
                             <button
                               type="button"
                               className="tile-remove"
-                              aria-label={lang === "uk" ? "Видалити" : "Remove"}
+                              aria-label={lang === "uk" ? "Видалити референс" : "Remove reference"}
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setSrcFile(null);
+                                setSrcUrl("");
                                 setSrcFile2(null);
                                 setSrcUrl2("");
                               }}
@@ -1542,9 +1601,62 @@ export default function Home() {
                         ) : (
                           <>
                             <span className="uploadPlus">+</span>
-                            <span className="tile-label">{lang === "uk" ? "Фото 2" : "Photo 2"}</span>
+                            <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
                           </>
                         )}
+                      </div>
+                      <button
+                        type="button"
+                        className="ios-btn ios-btn--ghost"
+                        style={{ padding: "6px 10px", fontSize: 12 }}
+                        onClick={() => openLibrary("image", "photo1")}
+                      >
+                        {dict.fromHistory}
+                      </button>
+                    </div>
+
+                    {(srcFile || srcUrl) && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                        <div
+                          className="uploadTile uploadTileBig"
+                          role="button"
+                          tabIndex={0}
+                          aria-label={lang === "uk" ? "Завантажити друге фото" : "Upload second image"}
+                          onClick={() => (document.getElementById("file2t") as HTMLInputElement | null)?.click()}
+                          onKeyDown={(e) => e.key === "Enter" && (document.getElementById("file2t") as HTMLInputElement | null)?.click()}
+                        >
+                          {srcPreview2 ? (
+                            <>
+                              <img src={srcPreview2} alt="reference2" />
+                              <span className="tile-label">{lang === "uk" ? "Фото 2" : "Photo 2"}</span>
+                              <button
+                                type="button"
+                                className="tile-remove"
+                                aria-label={lang === "uk" ? "Видалити" : "Remove"}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSrcFile2(null);
+                                  setSrcUrl2("");
+                                }}
+                              >
+                                ✕
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <span className="uploadPlus">+</span>
+                              <span className="tile-label">{lang === "uk" ? "Фото 2" : "Photo 2"}</span>
+                            </>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          className="ios-btn ios-btn--ghost"
+                          style={{ padding: "6px 10px", fontSize: 12 }}
+                          onClick={() => openLibrary("image", "photo2")}
+                        >
+                          {dict.fromHistory}
+                        </button>
                       </div>
                     )}
 
@@ -1748,60 +1860,27 @@ export default function Home() {
                 <>
                   {/* ЗВИЧАЙНИЙ ВИГЛЯД */}
                   <div className="uploadRow">
-                    <div
-                      className="uploadTile uploadTileHome"
-                      role="button"
-                      tabIndex={0}
-                      aria-label={lang === "uk" ? "Завантажити фото" : "Upload image"}
-                      onClick={() => (document.getElementById("file1") as HTMLInputElement | null)?.click()}
-                      onKeyDown={(e) => e.key === "Enter" && (document.getElementById("file1") as HTMLInputElement | null)?.click()}
-                    >
-                      {srcPreview ? (
-                        <>
-                          <img src={srcPreview} alt="reference1" />
-                          <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                          <button
-                            type="button"
-                            className="tile-remove"
-                            aria-label={lang === "uk" ? "Видалити референс" : "Remove reference"}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSrcFile(null);
-                              setSrcUrl("");
-                              setSrcFile2(null);
-                              setSrcUrl2("");
-                            }}
-                          >
-                            ✕
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <span className="uploadPlus">+</span>
-                          <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                        </>
-                      )}
-                    </div>
-
-                    {(srcFile || srcUrl) && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
                       <div
                         className="uploadTile uploadTileHome"
                         role="button"
                         tabIndex={0}
-                        aria-label={lang === "uk" ? "Завантажити друге фото" : "Upload second image"}
-                        onClick={() => (document.getElementById("file2") as HTMLInputElement | null)?.click()}
-                        onKeyDown={(e) => e.key === "Enter" && (document.getElementById("file2") as HTMLInputElement | null)?.click()}
+                        aria-label={lang === "uk" ? "Завантажити фото" : "Upload image"}
+                        onClick={() => (document.getElementById("file1") as HTMLInputElement | null)?.click()}
+                        onKeyDown={(e) => e.key === "Enter" && (document.getElementById("file1") as HTMLInputElement | null)?.click()}
                       >
-                        {srcPreview2 ? (
+                        {srcPreview ? (
                           <>
-                            <img src={srcPreview2} alt="reference2" />
-                            <span className="tile-label">{lang === "uk" ? "Фото 2" : "Photo 2"}</span>
+                            <img src={srcPreview} alt="reference1" />
+                            <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
                             <button
                               type="button"
                               className="tile-remove"
-                              aria-label={lang === "uk" ? "Видалити" : "Remove"}
+                              aria-label={lang === "uk" ? "Видалити референс" : "Remove reference"}
                               onClick={(e) => {
                                 e.stopPropagation();
+                                setSrcFile(null);
+                                setSrcUrl("");
                                 setSrcFile2(null);
                                 setSrcUrl2("");
                               }}
@@ -1812,9 +1891,62 @@ export default function Home() {
                         ) : (
                           <>
                             <span className="uploadPlus">+</span>
-                            <span className="tile-label">{lang === "uk" ? "Фото 2" : "Photo 2"}</span>
+                            <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
                           </>
                         )}
+                      </div>
+                      <button
+                        type="button"
+                        className="ios-btn ios-btn--ghost"
+                        style={{ padding: "6px 10px", fontSize: 12 }}
+                        onClick={() => openLibrary("image", "photo1")}
+                      >
+                        {dict.fromHistory}
+                      </button>
+                    </div>
+
+                    {(srcFile || srcUrl) && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                        <div
+                          className="uploadTile uploadTileHome"
+                          role="button"
+                          tabIndex={0}
+                          aria-label={lang === "uk" ? "Завантажити друге фото" : "Upload second image"}
+                          onClick={() => (document.getElementById("file2") as HTMLInputElement | null)?.click()}
+                          onKeyDown={(e) => e.key === "Enter" && (document.getElementById("file2") as HTMLInputElement | null)?.click()}
+                        >
+                          {srcPreview2 ? (
+                            <>
+                              <img src={srcPreview2} alt="reference2" />
+                              <span className="tile-label">{lang === "uk" ? "Фото 2" : "Photo 2"}</span>
+                              <button
+                                type="button"
+                                className="tile-remove"
+                                aria-label={lang === "uk" ? "Видалити" : "Remove"}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSrcFile2(null);
+                                  setSrcUrl2("");
+                                }}
+                              >
+                                ✕
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <span className="uploadPlus">+</span>
+                              <span className="tile-label">{lang === "uk" ? "Фото 2" : "Photo 2"}</span>
+                            </>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          className="ios-btn ios-btn--ghost"
+                          style={{ padding: "6px 10px", fontSize: 12 }}
+                          onClick={() => openLibrary("image", "photo2")}
+                        >
+                          {dict.fromHistory}
+                        </button>
                       </div>
                     )}
 
@@ -2037,74 +2169,115 @@ export default function Home() {
               {videoMode === "i2v" ? (
                 <>
                   <div className="uploadRow">
-                    <div
-                      className="uploadTile"
-                      role="button"
-                      tabIndex={0}
-                      aria-label={lang === "uk" ? "Початкове фото" : "Start image"}
-                      onClick={() => (document.getElementById("vStart") as HTMLInputElement | null)?.click()}
-                    >
-                      {vStartPreview ? (
-                        <>
-                          <img src={vStartPreview} alt="video-start" />
-                          <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                          <button
-                            type="button"
-                            className="tile-remove"
-                            aria-label={lang === "uk" ? "Видалити" : "Remove"}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setVStartImg(null);
-                              setVEndImg(null);
-                            }}
-                          >
-                            ✕
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <span className="uploadPlus">+</span>
-                          <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                        </>
-                      )}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                      <div
+                        className="uploadTile"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={lang === "uk" ? "Початкове фото" : "Start image"}
+                        onClick={() => (document.getElementById("vStart") as HTMLInputElement | null)?.click()}
+                      >
+                        {vStartPreview ? (
+                          <>
+                            <img src={vStartPreview} alt="video-start" />
+                            <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
+                            <button
+                              type="button"
+                              className="tile-remove"
+                              aria-label={lang === "uk" ? "Видалити" : "Remove"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setVStartImg(null);
+                                setVEndImg(null);
+                                setVStartUrl("");
+                                setVEndUrl("");
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="uploadPlus">+</span>
+                            <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
+                          </>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="ios-btn ios-btn--ghost"
+                        style={{ padding: "6px 10px", fontSize: 12 }}
+                        onClick={() => openLibrary("image", "vStart")}
+                      >
+                        {dict.fromHistory}
+                      </button>
                     </div>
 
-                    <input id="vStart" type="file" accept={acceptImg} style={{ display: "none" }} onChange={(e) => setVStartImg(e.target.files?.[0] ?? null)} />
+                    <input
+                      id="vStart"
+                      type="file"
+                      accept={acceptImg}
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        setVStartUrl("");
+                        setVStartImg(e.target.files?.[0] ?? null);
+                      }}
+                    />
 
-                    {vStartImg && videoQuality === "pro" && (
+                    {(vStartImg || vStartUrl) && videoQuality === "pro" && (
                       <>
-                        <div
-                          className="uploadTile"
-                          role="button"
-                          tabIndex={0}
-                          aria-label={lang === "uk" ? "Кінцеве фото (тільки PRO)" : "End image (PRO only)"}
-                          onClick={() => (document.getElementById("vEnd") as HTMLInputElement | null)?.click()}
-                        >
-                          {vEndPreview ? (
-                            <>
-                              <img src={vEndPreview} alt="video-end" />
-                              <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                              <button
-                                type="button"
-                                className="tile-remove"
-                                aria-label={lang === "uk" ? "Видалити" : "Remove"}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setVEndImg(null);
-                                }}
-                              >
-                                ✕
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <span className="uploadPlus">+</span>
-                              <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                            </>
-                          )}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                          <div
+                            className="uploadTile"
+                            role="button"
+                            tabIndex={0}
+                            aria-label={lang === "uk" ? "Кінцеве фото (тільки PRO)" : "End image (PRO only)"}
+                            onClick={() => (document.getElementById("vEnd") as HTMLInputElement | null)?.click()}
+                          >
+                            {vEndPreview ? (
+                              <>
+                                <img src={vEndPreview} alt="video-end" />
+                                <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
+                                <button
+                                  type="button"
+                                  className="tile-remove"
+                                  aria-label={lang === "uk" ? "Видалити" : "Remove"}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setVEndImg(null);
+                                    setVEndUrl("");
+                                  }}
+                                >
+                                  ✕
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <span className="uploadPlus">+</span>
+                                <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
+                              </>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            className="ios-btn ios-btn--ghost"
+                            style={{ padding: "6px 10px", fontSize: 12 }}
+                            onClick={() => openLibrary("image", "vEnd")}
+                          >
+                            {dict.fromHistory}
+                          </button>
                         </div>
 
-                        <input id="vEnd" type="file" accept={acceptImg} style={{ display: "none" }} onChange={(e) => setVEndImg(e.target.files?.[0] ?? null)} />
+                        <input
+                          id="vEnd"
+                          type="file"
+                          accept={acceptImg}
+                          style={{ display: "none" }}
+                          onChange={(e) => {
+                            setVEndUrl("");
+                            setVEndImg(e.target.files?.[0] ?? null);
+                          }}
+                        />
                       </>
                     )}
                   </div>
@@ -2112,44 +2285,55 @@ export default function Home() {
               ) : (
                 <>
                   <div className="uploadRow">
-                    <div
-                      className="uploadTile"
-                      role="button"
-                      tabIndex={0}
-                      aria-label={lang === "uk" ? "Відео з рухами" : "Motion video"}
-                      onClick={() => (document.getElementById("vMotion") as HTMLInputElement | null)?.click()}
-                    >
-                      {motionPreviewUrl ? (
-                        <>
-                          <video
-                            src={motionPreviewUrl}
-                            muted
-                            playsInline
-                            controls
-                            preload="metadata"
-                            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-                          />
-                          <span className="tile-label">{lang === "uk" ? "Відео" : "Video"}</span>
-                          <button
-                            type="button"
-                            className="tile-remove"
-                            aria-label={lang === "uk" ? "Видалити" : "Remove"}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setVMotionVideo(null);
-                              setMotionPreviewUrl("");
-                              setRefVideoSeconds(0);
-                            }}
-                          >
-                            ✕
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <span className="uploadPlus">+</span>
-                          <span className="tile-label">{lang === "uk" ? "Відео" : "Video"}</span>
-                        </>
-                      )}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                      <div
+                        className="uploadTile"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={lang === "uk" ? "Відео з рухами" : "Motion video"}
+                        onClick={() => (document.getElementById("vMotion") as HTMLInputElement | null)?.click()}
+                      >
+                        {motionPreviewUrl ? (
+                          <>
+                            <video
+                              src={motionPreviewUrl}
+                              muted
+                              playsInline
+                              controls
+                              preload="metadata"
+                              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+                            />
+                            <span className="tile-label">{lang === "uk" ? "Відео" : "Video"}</span>
+                            <button
+                              type="button"
+                              className="tile-remove"
+                              aria-label={lang === "uk" ? "Видалити" : "Remove"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setVMotionVideo(null);
+                                setMotionPreviewUrl("");
+                                setRefVideoSeconds(0);
+                                setMotionUrl("");
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="uploadPlus">+</span>
+                            <span className="tile-label">{lang === "uk" ? "Відео" : "Video"}</span>
+                          </>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="ios-btn ios-btn--ghost"
+                        style={{ padding: "6px 10px", fontSize: 12 }}
+                        onClick={() => openLibrary("video", "motion")}
+                      >
+                        {dict.fromHistory}
+                      </button>
                     </div>
 
                     <input
@@ -2159,6 +2343,7 @@ export default function Home() {
                       style={{ display: "none" }}
                       onChange={async (e) => {
                         const f = e.target.files?.[0] ?? null;
+                        setMotionUrl("");
                         setVMotionVideo(f);
                         if (!f) {
                           setRefVideoSeconds(0);
@@ -2187,38 +2372,58 @@ export default function Home() {
                       }}
                     />
 
-                    <div
-                      className="uploadTile"
-                      role="button"
-                      tabIndex={0}
-                      aria-label={lang === "uk" ? "Фото персонажа" : "Character image"}
-                      onClick={() => (document.getElementById("vChar") as HTMLInputElement | null)?.click()}
-                    >
-                      {vCharPreview ? (
-                        <>
-                          <img src={vCharPreview} alt="character" />
-                          <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                          <button
-                            type="button"
-                            className="tile-remove"
-                            aria-label={lang === "uk" ? "Видалити" : "Remove"}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setVCharacterImg(null);
-                            }}
-                          >
-                            ✕
-                          </button>
-                        </>
-                      ) : (
-                        <>
-                          <span className="uploadPlus">+</span>
-                          <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                        </>
-                      )}
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                      <div
+                        className="uploadTile"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={lang === "uk" ? "Фото персонажа" : "Character image"}
+                        onClick={() => (document.getElementById("vChar") as HTMLInputElement | null)?.click()}
+                      >
+                        {vCharPreview ? (
+                          <>
+                            <img src={vCharPreview} alt="character" />
+                            <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
+                            <button
+                              type="button"
+                              className="tile-remove"
+                              aria-label={lang === "uk" ? "Видалити" : "Remove"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setVCharacterImg(null);
+                                setCharacterUrl("");
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="uploadPlus">+</span>
+                            <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
+                          </>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        className="ios-btn ios-btn--ghost"
+                        style={{ padding: "6px 10px", fontSize: 12 }}
+                        onClick={() => openLibrary("image", "character")}
+                      >
+                        {dict.fromHistory}
+                      </button>
                     </div>
 
-                    <input id="vChar" type="file" accept={acceptImg} style={{ display: "none" }} onChange={(e) => setVCharacterImg(e.target.files?.[0] ?? null)} />
+                    <input
+                      id="vChar"
+                      type="file"
+                      accept={acceptImg}
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        setCharacterUrl("");
+                        setVCharacterImg(e.target.files?.[0] ?? null);
+                      }}
+                    />
                   </div>
 
                   <div className="vRow">
@@ -2454,6 +2659,13 @@ export default function Home() {
             ))}
           </div>
         )}
+
+        <LibraryPicker
+          open={libraryOpen}
+          kind={libraryKind}
+          onPick={handleLibraryPick}
+          onClose={() => setLibraryOpen(false)}
+        />
       </div>
     </>
   );
