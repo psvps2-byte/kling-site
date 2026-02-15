@@ -508,25 +508,51 @@ export default function HistoryPage() {
 
                   {url ? (
                     isVid ? (
-                      // Video placeholder with play icon
-                      <div
-                        style={{
-                          position: "absolute",
-                          inset: 0,
-                          background: "rgba(0, 0, 0, 0.7)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
+                      // Video preview (first frame only, no playback)
+                      <>
+                        <div
+                          className="preview-bg"
+                          style={{
+                            backgroundImage: `url("${url}")`,
+                          }}
+                        />
+                        <div className="preview-glass" />
+                        <video
+                          src={url}
+                          preload="metadata"
+                          muted
+                          playsInline
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "contain",
+                            objectPosition: "center",
+                            pointerEvents: "none",
+                          }}
+                        />
+                        {/* Play icon overlay */}
                         <div
                           style={{
-                            fontSize: 64,
-                            color: "rgba(255, 255, 255, 0.9)",
-                            lineHeight: 1,
+                            position: "absolute",
+                            inset: 0,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            pointerEvents: "none",
                           }}
                         >
-                          ▶
+                          <div
+                            style={{
+                              fontSize: 64,
+                              color: "rgba(255, 255, 255, 0.95)",
+                              lineHeight: 1,
+                              textShadow: "0 2px 12px rgba(0, 0, 0, 0.6)",
+                            }}
+                          >
+                            ▶
+                          </div>
                         </div>
                         <div
                           style={{
@@ -539,11 +565,12 @@ export default function HistoryPage() {
                             padding: "6px 10px",
                             borderRadius: 8,
                             fontWeight: 600,
+                            pointerEvents: "none",
                           }}
                         >
                           Video
                         </div>
-                      </div>
+                      </>
                     ) : (
                       // Image with blur background
                       <>
