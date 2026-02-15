@@ -164,23 +164,48 @@ export default function LibraryPicker({
               title={it.prompt || it.url}
             >
               {it.kind === "video" ? (
-                <video
-                  src={it.url}
-                  muted
-                  playsInline
-                  preload="metadata"
+                <div
                   style={{
                     width: "100%",
                     height: 140,
-                    objectFit: "cover",
-                    display: "block",
+                    background: "rgba(0, 0, 0, 0.6)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    position: "relative",
                   }}
-                />
+                >
+                  <div
+                    style={{
+                      fontSize: 48,
+                      color: "rgba(255, 255, 255, 0.85)",
+                      lineHeight: 1,
+                    }}
+                  >
+                    ▶
+                  </div>
+                  <div
+                    style={{
+                      position: "absolute",
+                      bottom: 8,
+                      left: 8,
+                      background: "rgba(0, 0, 0, 0.7)",
+                      color: "white",
+                      fontSize: 11,
+                      padding: "4px 8px",
+                      borderRadius: 6,
+                      fontWeight: 600,
+                    }}
+                  >
+                    Video
+                  </div>
+                </div>
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={it.url}
                   alt="history"
+                  loading="lazy"
                   style={{
                     width: "100%",
                     height: 140,

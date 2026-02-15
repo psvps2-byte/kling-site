@@ -507,17 +507,62 @@ export default function HistoryPage() {
                 >
 
                   {url ? (
-                    <>
+                    isVid ? (
+                      // Video placeholder with play icon
                       <div
-                        className="preview-bg"
                         style={{
-                          backgroundImage: `url("${thumbUrl(url)}")`,
+                          position: "absolute",
+                          inset: 0,
+                          background: "rgba(0, 0, 0, 0.7)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
                         }}
-                      />
-                      <div className="preview-glass" />
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img className="preview-img" src={thumbUrl(url)} alt={it.prompt || dict.noPreview} />
-                    </>
+                      >
+                        <div
+                          style={{
+                            fontSize: 64,
+                            color: "rgba(255, 255, 255, 0.9)",
+                            lineHeight: 1,
+                          }}
+                        >
+                          ▶
+                        </div>
+                        <div
+                          style={{
+                            position: "absolute",
+                            bottom: 12,
+                            left: 12,
+                            background: "rgba(0, 0, 0, 0.8)",
+                            color: "white",
+                            fontSize: 12,
+                            padding: "6px 10px",
+                            borderRadius: 8,
+                            fontWeight: 600,
+                          }}
+                        >
+                          Video
+                        </div>
+                      </div>
+                    ) : (
+                      // Image with blur background
+                      <>
+                        <div
+                          className="preview-bg"
+                          style={{
+                            backgroundImage: `url("${thumbUrl(url)}")`,
+                          }}
+                        />
+                        <div className="preview-glass" />
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          className="preview-img"
+                          src={thumbUrl(url)}
+                          alt={it.prompt || dict.noPreview}
+                          loading="lazy"
+                        />
+                      </>
+                    )
                   ) : (
                     <div
                       style={{
