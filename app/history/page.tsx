@@ -65,9 +65,9 @@ function withoutW(url: string) {
   }
 }
 
-// ✅ VideoThumb component - generates thumbnail from first frame
-function VideoThumb({ url, prompt }: { url: string; prompt?: string }) {
-  const [dataUrl, setDataUrl] = useState<string | null>(null);
+// ✅ VideoPosterTile component - generates poster from first frame
+function VideoPosterTile({ url, prompt }: { url: string; prompt?: string }) {
+  const [posterDataUrl, setPosterDataUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -82,42 +82,61 @@ function VideoThumb({ url, prompt }: { url: string; prompt?: string }) {
     const timeout = setTimeout(() => {
       cleanup();
       if (mounted) setFailed(true);
-    }, 3000);
+    }, 5000);
 
     function cleanup() {
       clearTimeout(timeout);
-      video.removeEventListener("loadeddata", onLoaded);
+      video.removeEventListener("loadedmetadata", onLoadedMetadata);
+      video.removeEventListener("loadeddata", onLoadedData);
+      video.removeEventListener("seeked", onSeeked);
       video.removeEventListener("error", onError);
       video.src = "";
     }
 
-    function onLoaded() {
+    function onLoadedMetadata() {
       try {
-        video.currentTime = 0.1;
-        setTimeout(() => {
-          if (!mounted) return;
-          try {
-            const canvas = document.createElement("canvas");
-            canvas.width = video.videoWidth || 640;
-            canvas.height = video.videoHeight || 360;
-            const ctx = canvas.getContext("2d");
-            if (!ctx) {
-              cleanup();
-              setFailed(true);
-              return;
-            }
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const thumb = canvas.toDataURL("image/jpeg", 0.82);
-            cleanup();
-            setDataUrl(thumb);
-          } catch {
-            cleanup();
-            setFailed(true);
-          }
-        }, 150);
-      } catch {
+        video.currentTime = 0.05;
+      } catch (e) {
         cleanup();
         if (mounted) setFailed(true);
+      }
+    }
+
+    function onLoadedData() {
+      // Якщо metadata не спрацював, пробуємо тут
+      if (video.currentTime === 0) {
+        try {
+          video.currentTime = 0.05;
+        } catch (e) {
+          cleanup();
+          if (mounted) setFailed(true);
+        }
+      }
+    }
+
+    function onSeeked() {
+      if (!mounted) return;
+      try {
+        const canvas = document.createElement("canvas");
+        const vw = video.videoWidth || 640;
+        const vh = video.videoHeight || 360;
+        canvas.width = Math.min(vw, 600);
+        canvas.height = Math.min(vh, 600);
+        
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          cleanup();
+          setFailed(true);
+          return;
+        }
+        
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        cleanup();
+        setPosterDataUrl(dataUrl);
+      } catch (e) {
+        cleanup();
+        setFailed(true);
       }
     }
 
@@ -126,7 +145,9 @@ function VideoThumb({ url, prompt }: { url: string; prompt?: string }) {
       if (mounted) setFailed(true);
     }
 
-    video.addEventListener("loadeddata", onLoaded);
+    video.addEventListener("loadedmetadata", onLoadedMetadata);
+    video.addEventListener("loadeddata", onLoadedData);
+    video.addEventListener("seeked", onSeeked);
     video.addEventListener("error", onError);
 
     return () => {
@@ -135,15 +156,15 @@ function VideoThumb({ url, prompt }: { url: string; prompt?: string }) {
     };
   }, [url]);
 
-  if (failed || (!dataUrl && failed)) {
-    // Fallback: dark gradient
+  if (failed) {
+    // Fallback: neutral gradient with play icon
     return (
       <>
         <div
           style={{
             position: "absolute",
             inset: 0,
-            background: "linear-gradient(135deg, rgba(30,30,40,0.95) 0%, rgba(50,50,70,0.95) 100%)",
+            background: "linear-gradient(135deg, rgba(80,80,100,0.85) 0%, rgba(100,100,120,0.85) 100%)",
           }}
         />
         <div
@@ -187,31 +208,30 @@ function VideoThumb({ url, prompt }: { url: string; prompt?: string }) {
     );
   }
 
-  if (!dataUrl) {
+  if (!posterDataUrl) {
     // Loading state
     return (
       <div
         style={{
           position: "absolute",
           inset: 0,
-          background: "linear-gradient(135deg, rgba(30,30,40,0.95) 0%, rgba(50,50,70,0.95) 100%)",
+          background: "linear-gradient(135deg, rgba(80,80,100,0.85) 0%, rgba(100,100,120,0.85) 100%)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
       >
-        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>Loading...</div>
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>Loading...</div>
       </div>
     );
   }
 
-  // Success: show thumbnail
+  // Success: show poster image with play icon overlay
   return (
     <>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        className="preview-img"
-        src={dataUrl}
+        src={posterDataUrl}
         alt={prompt || "Video"}
         style={{
           position: "absolute",
@@ -707,8 +727,8 @@ export default function HistoryPage() {
 
                   {url ? (
                     isVid ? (
-                      // Video preview with VideoThumb component
-                      <VideoThumb url={url} prompt={it.prompt} />
+                      // Video preview with VideoPosterTile component (no blur background)
+                      <VideoPosterTile url={url} prompt={it.prompt} />
                     ) : (
                       // Image with blur background
                       <>
