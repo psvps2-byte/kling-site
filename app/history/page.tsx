@@ -508,20 +508,17 @@ export default function HistoryPage() {
 
                   {url ? (
                     isVid ? (
-                      // Video preview (first frame only, no playback)
+                      // Video preview (first frame only, playback FORBIDDEN)
                       <>
-                        <div
-                          className="preview-bg"
-                          style={{
-                            backgroundImage: `url("${url}")`,
-                          }}
-                        />
-                        <div className="preview-glass" />
                         <video
                           src={url}
                           preload="metadata"
                           muted
                           playsInline
+                          controls={false}
+                          autoPlay={false}
+                          loop={false}
+                          onPlay={(e) => e.currentTarget.pause()}
                           style={{
                             position: "absolute",
                             inset: 0,
@@ -530,6 +527,7 @@ export default function HistoryPage() {
                             objectFit: "contain",
                             objectPosition: "center",
                             pointerEvents: "none",
+                            background: "#000",
                           }}
                         />
                         {/* Play icon overlay */}
