@@ -106,6 +106,22 @@ export default function Home() {
     "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character"
   >("photo1");
 
+  // Context menu states for each upload tile
+  const [photo1MenuOpen, setPhoto1MenuOpen] = useState(false);
+  const [photo2MenuOpen, setPhoto2MenuOpen] = useState(false);
+  const [vStartMenuOpen, setVStartMenuOpen] = useState(false);
+  const [vEndMenuOpen, setVEndMenuOpen] = useState(false);
+  const [motionMenuOpen, setMotionMenuOpen] = useState(false);
+  const [charMenuOpen, setCharMenuOpen] = useState(false);
+
+  // Refs for click-outside detection
+  const photo1MenuRef = useRef<HTMLDivElement>(null);
+  const photo2MenuRef = useRef<HTMLDivElement>(null);
+  const vStartMenuRef = useRef<HTMLDivElement>(null);
+  const vEndMenuRef = useRef<HTMLDivElement>(null);
+  const motionMenuRef = useRef<HTMLDivElement>(null);
+  const charMenuRef = useRef<HTMLDivElement>(null);
+
   // Load templates from Supabase
   useEffect(() => {
     if (!SHOW_TEMPLATES) return;
@@ -420,6 +436,49 @@ export default function Home() {
       setVEndUrl("");
     }
   }, [videoQuality, videoMode, vEndImg, vEndUrl]);
+
+  // Menu close handlers for all tiles
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (photo1MenuRef.current && !photo1MenuRef.current.contains(e.target as Node)) {
+        setPhoto1MenuOpen(false);
+      }
+      if (photo2MenuRef.current && !photo2MenuRef.current.contains(e.target as Node)) {
+        setPhoto2MenuOpen(false);
+      }
+      if (vStartMenuRef.current && !vStartMenuRef.current.contains(e.target as Node)) {
+        setVStartMenuOpen(false);
+      }
+      if (vEndMenuRef.current && !vEndMenuRef.current.contains(e.target as Node)) {
+        setVEndMenuOpen(false);
+      }
+      if (motionMenuRef.current && !motionMenuRef.current.contains(e.target as Node)) {
+        setMotionMenuOpen(false);
+      }
+      if (charMenuRef.current && !charMenuRef.current.contains(e.target as Node)) {
+        setCharMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setPhoto1MenuOpen(false);
+        setPhoto2MenuOpen(false);
+        setVStartMenuOpen(false);
+        setVEndMenuOpen(false);
+        setMotionMenuOpen(false);
+        setCharMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("click", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
 
   // ---- R2 upload (presign-put) ----
   async function uploadToR2AndGetPublicUrl(
@@ -1570,14 +1629,14 @@ export default function Home() {
                   </div>
 
                   <div className="uploadRow">
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start", position: "relative" }} ref={photo1MenuRef}>
                       <div
                         className="uploadTile uploadTileBig"
                         role="button"
                         tabIndex={0}
                         aria-label={lang === "uk" ? "Завантажити фото" : "Upload image"}
-                        onClick={() => (document.getElementById("file1") as HTMLInputElement | null)?.click()}
-                        onKeyDown={(e) => e.key === "Enter" && (document.getElementById("file1") as HTMLInputElement | null)?.click()}
+                        onClick={() => setPhoto1MenuOpen(!photo1MenuOpen)}
+                        onKeyDown={(e) => e.key === "Enter" && setPhoto1MenuOpen(!photo1MenuOpen)}
                       >
                         {srcPreview ? (
                           <>
@@ -1605,25 +1664,39 @@ export default function Home() {
                           </>
                         )}
                       </div>
-                      <button
-                        type="button"
-                        className="ios-btn ios-btn--ghost"
-                        style={{ padding: "6px 10px", fontSize: 12 }}
-                        onClick={() => openLibrary("image", "photo1")}
-                      >
-                        {dict.fromHistory}
-                      </button>
+                      {photo1MenuOpen && (
+                        <div className="smallDropdown">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              (document.getElementById("file1") as HTMLInputElement | null)?.click();
+                              setPhoto1MenuOpen(false);
+                            }}
+                          >
+                            {lang === "uk" ? "З пристрою" : "From device"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              openLibrary("image", "photo1");
+                              setPhoto1MenuOpen(false);
+                            }}
+                          >
+                            {dict.fromHistory}
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {(srcFile || srcUrl) && (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start", position: "relative" }} ref={photo2MenuRef}>
                         <div
                           className="uploadTile uploadTileBig"
                           role="button"
                           tabIndex={0}
                           aria-label={lang === "uk" ? "Завантажити друге фото" : "Upload second image"}
-                          onClick={() => (document.getElementById("file2t") as HTMLInputElement | null)?.click()}
-                          onKeyDown={(e) => e.key === "Enter" && (document.getElementById("file2t") as HTMLInputElement | null)?.click()}
+                          onClick={() => setPhoto2MenuOpen(!photo2MenuOpen)}
+                          onKeyDown={(e) => e.key === "Enter" && setPhoto2MenuOpen(!photo2MenuOpen)}
                         >
                           {srcPreview2 ? (
                             <>
@@ -1649,14 +1722,28 @@ export default function Home() {
                             </>
                           )}
                         </div>
-                        <button
-                          type="button"
-                          className="ios-btn ios-btn--ghost"
-                          style={{ padding: "6px 10px", fontSize: 12 }}
-                          onClick={() => openLibrary("image", "photo2")}
-                        >
-                          {dict.fromHistory}
-                        </button>
+                        {photo2MenuOpen && (
+                          <div className="smallDropdown">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                (document.getElementById("file2t") as HTMLInputElement | null)?.click();
+                                setPhoto2MenuOpen(false);
+                              }}
+                            >
+                              {lang === "uk" ? "З пристрою" : "From device"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                openLibrary("image", "photo2");
+                                setPhoto2MenuOpen(false);
+                              }}
+                            >
+                              {dict.fromHistory}
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -2169,13 +2256,13 @@ export default function Home() {
               {videoMode === "i2v" ? (
                 <>
                   <div className="uploadRow">
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start", position: "relative" }} ref={vStartMenuRef}>
                       <div
                         className="uploadTile"
                         role="button"
                         tabIndex={0}
                         aria-label={lang === "uk" ? "Початкове фото" : "Start image"}
-                        onClick={() => (document.getElementById("vStart") as HTMLInputElement | null)?.click()}
+                        onClick={() => setVStartMenuOpen(!vStartMenuOpen)}
                       >
                         {vStartPreview ? (
                           <>
@@ -2203,14 +2290,28 @@ export default function Home() {
                           </>
                         )}
                       </div>
-                      <button
-                        type="button"
-                        className="ios-btn ios-btn--ghost"
-                        style={{ padding: "6px 10px", fontSize: 12 }}
-                        onClick={() => openLibrary("image", "vStart")}
-                      >
-                        {dict.fromHistory}
-                      </button>
+                      {vStartMenuOpen && (
+                        <div className="smallDropdown">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              (document.getElementById("vStart") as HTMLInputElement | null)?.click();
+                              setVStartMenuOpen(false);
+                            }}
+                          >
+                            {lang === "uk" ? "З пристрою" : "From device"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              openLibrary("image", "vStart");
+                              setVStartMenuOpen(false);
+                            }}
+                          >
+                            {dict.fromHistory}
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <input
@@ -2226,13 +2327,13 @@ export default function Home() {
 
                     {(vStartImg || vStartUrl) && videoQuality === "pro" && (
                       <>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start", position: "relative" }} ref={vEndMenuRef}>
                           <div
                             className="uploadTile"
                             role="button"
                             tabIndex={0}
                             aria-label={lang === "uk" ? "Кінцеве фото (тільки PRO)" : "End image (PRO only)"}
-                            onClick={() => (document.getElementById("vEnd") as HTMLInputElement | null)?.click()}
+                            onClick={() => setVEndMenuOpen(!vEndMenuOpen)}
                           >
                             {vEndPreview ? (
                               <>
@@ -2258,14 +2359,28 @@ export default function Home() {
                               </>
                             )}
                           </div>
-                          <button
-                            type="button"
-                            className="ios-btn ios-btn--ghost"
-                            style={{ padding: "6px 10px", fontSize: 12 }}
-                            onClick={() => openLibrary("image", "vEnd")}
-                          >
-                            {dict.fromHistory}
-                          </button>
+                          {vEndMenuOpen && (
+                            <div className="smallDropdown">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  (document.getElementById("vEnd") as HTMLInputElement | null)?.click();
+                                  setVEndMenuOpen(false);
+                                }}
+                              >
+                                {lang === "uk" ? "З пристрою" : "From device"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  openLibrary("image", "vEnd");
+                                  setVEndMenuOpen(false);
+                                }}
+                              >
+                                {dict.fromHistory}
+                              </button>
+                            </div>
+                          )}
                         </div>
 
                         <input
@@ -2285,13 +2400,13 @@ export default function Home() {
               ) : (
                 <>
                   <div className="uploadRow">
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start", position: "relative" }} ref={motionMenuRef}>
                       <div
                         className="uploadTile"
                         role="button"
                         tabIndex={0}
                         aria-label={lang === "uk" ? "Відео з рухами" : "Motion video"}
-                        onClick={() => (document.getElementById("vMotion") as HTMLInputElement | null)?.click()}
+                        onClick={() => setMotionMenuOpen(!motionMenuOpen)}
                       >
                         {motionPreviewUrl ? (
                           <>
@@ -2326,14 +2441,28 @@ export default function Home() {
                           </>
                         )}
                       </div>
-                      <button
-                        type="button"
-                        className="ios-btn ios-btn--ghost"
-                        style={{ padding: "6px 10px", fontSize: 12 }}
-                        onClick={() => openLibrary("video", "motion")}
-                      >
-                        {dict.fromHistory}
-                      </button>
+                      {motionMenuOpen && (
+                        <div className="smallDropdown">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              (document.getElementById("vMotion") as HTMLInputElement | null)?.click();
+                              setMotionMenuOpen(false);
+                            }}
+                          >
+                            {lang === "uk" ? "З пристрою" : "From device"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              openLibrary("video", "motion");
+                              setMotionMenuOpen(false);
+                            }}
+                          >
+                            {dict.fromHistory}
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <input
@@ -2372,13 +2501,13 @@ export default function Home() {
                       }}
                     />
 
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start", position: "relative" }} ref={charMenuRef}>
                       <div
                         className="uploadTile"
                         role="button"
                         tabIndex={0}
                         aria-label={lang === "uk" ? "Фото персонажа" : "Character image"}
-                        onClick={() => (document.getElementById("vChar") as HTMLInputElement | null)?.click()}
+                        onClick={() => setCharMenuOpen(!charMenuOpen)}
                       >
                         {vCharPreview ? (
                           <>
@@ -2404,14 +2533,28 @@ export default function Home() {
                           </>
                         )}
                       </div>
-                      <button
-                        type="button"
-                        className="ios-btn ios-btn--ghost"
-                        style={{ padding: "6px 10px", fontSize: 12 }}
-                        onClick={() => openLibrary("image", "character")}
-                      >
-                        {dict.fromHistory}
-                      </button>
+                      {charMenuOpen && (
+                        <div className="smallDropdown">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              (document.getElementById("vChar") as HTMLInputElement | null)?.click();
+                              setCharMenuOpen(false);
+                            }}
+                          >
+                            {lang === "uk" ? "З пристрою" : "From device"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              openLibrary("image", "character");
+                              setCharMenuOpen(false);
+                            }}
+                          >
+                            {dict.fromHistory}
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <input
