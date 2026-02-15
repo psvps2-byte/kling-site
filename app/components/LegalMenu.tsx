@@ -109,7 +109,7 @@ export default function LegalMenu({ email = "contact.vilna.pro@gmail.com" }: { e
             position: "fixed",
             inset: 0,
             background: "rgba(0,0,0,0.35)",
-            zIndex: 40,
+            zIndex: 2147483647,
           }}
         />
       )}
@@ -131,7 +131,7 @@ export default function LegalMenu({ email = "contact.vilna.pro@gmail.com" }: { e
           padding: 16,
           paddingBottom: "calc(16px + env(safe-area-inset-bottom))",
           color: "white",
-          zIndex: 45,
+          zIndex: 2147483647,
           transform: open ? "translateX(0)" : "translateX(-110%)",
           transition: "transform 180ms ease",
           display: "flex",
