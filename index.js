@@ -206,6 +206,37 @@ async function downloadToBuffer(url) {
   return Buffer.from(arrayBuffer);
 }
 
+async function uploadVideoToR2FromUrl(videoUrl, jobId) {
+  try {
+    console.log("Downloading video from Kling:", videoUrl);
+    
+    // Download video
+    const buffer = await downloadToBuffer(videoUrl);
+    
+    // Generate unique key
+    const randomId = crypto.randomBytes(8).toString("hex");
+    const key = `generations/${jobId}-${randomId}.mp4`;
+    
+    // Upload to R2
+    await r2Client.send(
+      new PutObjectCommand({
+        Bucket: R2_BUCKET,
+        Key: key,
+        Body: buffer,
+        ContentType: "video/mp4",
+      })
+    );
+    
+    const publicUrl = `${R2_PUBLIC_BASE}/${key}`;
+    console.log("Video uploaded to R2:", publicUrl);
+    
+    return publicUrl;
+  } catch (e) {
+    console.error("uploadVideoToR2FromUrl error:", e?.message || e);
+    throw e;
+  }
+}
+
 async function processPhotoWithOpenAI(job) {
   try {
     let prompt = String(job?.payload?.prompt || "").trim();
@@ -441,10 +472,27 @@ async function runOnce() {
       ? row.result_urls
       : [];
 
+    // Check if this is a video job (I2V or MOTION)
+    const kind = String(job?.kind || "").toUpperCase().trim();
+    const isVideoJob = ["I2V", "IMAGE2VIDEO", "IMAGE_2_VIDEO", "IMAGE-2-VIDEO", "MOTION", "MOTION-CONTROL", "MOTION_CONTROL"].includes(kind);
+
     // додаємо нові url, яких ще нема
     for (const url of resultUrls) {
       if (!existing.includes(url)) {
-        existing.push(url);
+        // For video jobs, upload to R2 first
+        if (isVideoJob) {
+          try {
+            const r2Url = await uploadVideoToR2FromUrl(url, job.id);
+            existing.push(r2Url);
+          } catch (e) {
+            console.error("Failed to upload video to R2:", e?.message || e);
+            // Fallback to original URL if R2 upload fails
+            existing.push(url);
+          }
+        } else {
+          // For non-video jobs (images), keep original URL
+          existing.push(url);
+        }
       }
     }
 
