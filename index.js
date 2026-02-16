@@ -21,6 +21,7 @@ const R2_ENDPOINT = process.env.R2_ENDPOINT;
 const R2_ACCESS_KEY_ID = process.env.R2_ACCESS_KEY_ID;
 const R2_SECRET_ACCESS_KEY = process.env.R2_SECRET_ACCESS_KEY;
 const R2_BUCKET = process.env.R2_BUCKET;
+const R2_PUBLIC_BASE = process.env.R2_PUBLIC_BASE;
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
   console.error("Missing env vars: SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY");
@@ -37,8 +38,8 @@ if (!OPENAI_API_KEY) {
   process.exit(1);
 }
 
-if (!R2_ENDPOINT || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET) {
-  console.error("Missing R2 env vars: R2_ENDPOINT / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_BUCKET");
+if (!R2_ENDPOINT || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET || !R2_PUBLIC_BASE) {
+  console.error("Missing R2 env vars: R2_ENDPOINT / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_BUCKET / R2_PUBLIC_BASE");
   process.exit(1);
 }
 
@@ -225,7 +226,7 @@ async function uploadToR2(buffer, type, jobId) {
       })
     );
     
-    const publicUrl = `https://cdn.vilna.pro/${key}`;
+    const publicUrl = `${R2_PUBLIC_BASE}/${key}`;
     console.log(`${type} uploaded to R2:`, publicUrl);
     
     return publicUrl;
