@@ -226,7 +226,11 @@ async function uploadToR2(buffer, type, jobId) {
       })
     );
     
-    const publicUrl = `${R2_PUBLIC_BASE}/${key}`;
+    // For videos, use hardcoded CDN domain; for images, use R2_PUBLIC_BASE
+    const publicUrl = type === 'video' 
+      ? `https://cdn.vilna.pro/${key}`
+      : `${R2_PUBLIC_BASE}/${key}`;
+    
     console.log(`${type} uploaded to R2:`, publicUrl);
     
     return publicUrl;
