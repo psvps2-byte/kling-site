@@ -478,10 +478,41 @@ export default function HistoryPage() {
     await copyLink(url);
   }
 
-  function downloadFile(url?: string) {
+  async function downloadFile(url?: string) {
     if (!url) return;
-    // найпростіше: відкриваємо у новій вкладці, далі "Save as…"
-    window.open(url, "_blank");
+
+    try {
+      const res = await fetch(url, { mode: "cors" });
+      if (!res.ok) throw new Error("Download failed");
+
+      const blob = await res.blob();
+      const isVid = /\.(mp4|webm|mov|mkv)(\?|$)/i.test(url);
+      const ext = isVid ? "mp4" : "png";
+      const name = `vilna-${Date.now()}.${ext}`;
+
+      const file = new File([blob], name, {
+        type: blob.type || (isVid ? "video/mp4" : "image/png"),
+      });
+
+      const navAny = navigator as any;
+      if (navAny?.canShare?.({ files: [file] }) && navAny?.share) {
+        await navAny.share({
+          files: [file],
+          title: "VILNA",
+        });
+        return;
+      }
+
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      window.open(url, "_blank");
+    }
   }
 
   // ✅ Видалити 1 конкретний файл (а не всю “пʼятірку”)
