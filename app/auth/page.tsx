@@ -9,12 +9,16 @@ export default function AuthPage() {
   const [showEmail, setShowEmail] = React.useState(false);
   const [email, setEmail] = React.useState("");
   const [status, setStatus] = React.useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [isDev, setIsDev] = React.useState(false);
 
-  const isDev =
-    typeof window !== "undefined" &&
-    (window.location.hostname === "localhost" ||
+  // Check if dev mode after mount to avoid hydration mismatch
+  React.useEffect(() => {
+    const isDevEnvironment =
+      window.location.hostname === "localhost" ||
       window.location.hostname === "127.0.0.1" ||
-      window.location.hostname.startsWith("dev."));
+      window.location.hostname.startsWith("dev.");
+    setIsDev(isDevEnvironment);
+  }, []);
 
   async function onEmailSignIn() {
     // 1) перший клік — просто показуємо поле
