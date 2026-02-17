@@ -14,7 +14,9 @@ function mustEnv(name: string): string {
   return v;
 }
 
-const isDev = process.env.NODE_ENV === "development";
+const isDev =
+  process.env.NODE_ENV === "development" ||
+  process.env.NEXT_PUBLIC_DEV_LOGIN === "true";
 
 export const authOptions: NextAuthOptions = {
   useSecureCookies: true,
@@ -30,7 +32,7 @@ export const authOptions: NextAuthOptions = {
       }),
 
   providers: [
-    // DEV ONLY: credentials provider
+    // DEV ONLY: credentials provider with admin role
     ...(isDev
       ? [
           CredentialsProvider({
@@ -39,9 +41,10 @@ export const authOptions: NextAuthOptions = {
             credentials: {},
             async authorize() {
               return {
-                id: "dev-user",
+                id: "dev-admin",
                 email: "dev@vilna.pro",
-                name: "Dev User",
+                name: "Dev Admin",
+                role: "admin",
               };
             },
           }),
@@ -97,18 +100,20 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async jwt({ token, user }) {
-      // Store user id in token when user logs in
+      // Store user id and role in token when user logs in
       if (user) {
         token.id = user.id;
+        token.role = user.role;
       }
       return token;
     },
     async session({ session, token, user }) {
-      // Add user id to session
+      // Add user id and role to session
       if (session.user) {
         // In database strategy, user object is available
         // In JWT strategy, we get it from token
         session.user.id = (user?.id || token?.id || token?.sub) as string;
+        session.user.role = (user?.role || token?.role) as string | undefined;
       }
       return session;
     },

@@ -10,7 +10,11 @@ export default function AuthPage() {
   const [email, setEmail] = React.useState("");
   const [status, setStatus] = React.useState<"idle" | "sending" | "sent" | "error">("idle");
 
-  const isDev = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+  const isDev =
+    typeof window !== "undefined" &&
+    (window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1" ||
+      window.location.hostname.startsWith("dev."));
 
   async function onEmailSignIn() {
     // 1) перший клік — просто показуємо поле
@@ -54,7 +58,7 @@ export default function AuthPage() {
             border: "1px solid rgba(255,200,0,0.4)",
           }}
         >
-          🔧 DEV LOGIN
+          🔧 DEV LOGIN (admin)
         </button>
       )}
 
