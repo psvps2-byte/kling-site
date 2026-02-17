@@ -17,7 +17,19 @@ function mustEnv(name: string): string {
 const isDev = process.env.NODE_ENV !== "production";
 
 export const authOptions: NextAuthOptions = {
-  useSecureCookies: true,
+  useSecureCookies: false,
+
+  cookies: {
+    sessionToken: {
+      name: "next-auth.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: false,
+      },
+    },
+  },
 
   // Adapter only in production (for database sessions)
   ...(isDev

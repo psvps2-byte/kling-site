@@ -20,6 +20,28 @@ export default function AuthPage() {
     setIsDev(isDevEnvironment);
   }, []);
 
+  async function onDevLogin() {
+    try {
+      const res = await signIn("credentials", {
+        callbackUrl: "/",
+        redirect: false,
+      });
+
+      console.log("DEV LOGIN res", res);
+
+      if (res?.error) {
+        console.error("DEV LOGIN error:", res.error);
+        alert(`DEV LOGIN failed: ${res.error}`);
+      } else {
+        // Success - redirect manually
+        window.location.href = "/";
+      }
+    } catch (e: any) {
+      console.error("DEV LOGIN exception:", e);
+      alert(`DEV LOGIN exception: ${e?.message || e}`);
+    }
+  }
+
   async function onEmailSignIn() {
     // 1) перший клік — просто показуємо поле
     if (!showEmail) {
@@ -55,7 +77,7 @@ export default function AuthPage() {
     <div style={wrap}>
       {isDev && (
         <button
-          onClick={() => signIn("credentials", { callbackUrl: "/" })}
+          onClick={onDevLogin}
           style={{
             ...btnPrimary,
             background: "rgba(255,200,0,0.2)",
