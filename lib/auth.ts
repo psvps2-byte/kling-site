@@ -96,27 +96,22 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
-    // In dev mode with JWT, we need to add user info to session
-    ...(isDev
-      ? {
-          async jwt({ token, user }) {
-            if (user) {
-              token.id = user.id;
-              token.email = user.email;
-              token.name = user.name;
-            }
-            return token;
-          },
-          async session({ session, token }) {
-            if (token && session.user) {
-              session.user.id = token.id as string;
-              session.user.email = token.email as string;
-              session.user.name = token.name as string;
-            }
-            return session;
-          },
-        }
-      : {}),
+    async jwt({ token, user }) {
+      // Store user id in token when user logs in
+      if (user) {
+        token.id = user.id;
+      }
+      return token;
+    },
+    async session({ session, token, user }) {
+      // Add user id to session
+      if (session.user) {
+        // In database strategy, user object is available
+        // In JWT strategy, we get it from token
+        session.user.id = (user?.id || token?.id || token?.sub) as string;
+      }
+      return session;
+    },
   },
 
   debug: isDev,
