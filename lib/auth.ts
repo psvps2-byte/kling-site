@@ -3,6 +3,7 @@
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import EmailProvider from "next-auth/providers/email";
+import CredentialsProvider from "next-auth/providers/credentials";
 
 import { SupabaseAdapter } from "@auth/supabase-adapter";
 import { Resend } from "resend";
@@ -13,15 +14,40 @@ function mustEnv(name: string): string {
   return v;
 }
 
+const isDev = process.env.NODE_ENV === "development";
+
 export const authOptions: NextAuthOptions = {
   useSecureCookies: true,
 
-  adapter: SupabaseAdapter({
-    url: mustEnv("NEXT_PUBLIC_SUPABASE_URL"),
-    secret: mustEnv("SUPABASE_SERVICE_ROLE_KEY"),
-  }),
+  // Adapter only in production (for database sessions)
+  ...(isDev
+    ? {}
+    : {
+        adapter: SupabaseAdapter({
+          url: mustEnv("NEXT_PUBLIC_SUPABASE_URL"),
+          secret: mustEnv("SUPABASE_SERVICE_ROLE_KEY"),
+        }),
+      }),
 
   providers: [
+    // DEV ONLY: credentials provider
+    ...(isDev
+      ? [
+          CredentialsProvider({
+            id: "credentials",
+            name: "Dev Login",
+            credentials: {},
+            async authorize() {
+              return {
+                id: "dev-user",
+                email: "dev@vilna.pro",
+                name: "Dev User",
+              };
+            },
+          }),
+        ]
+      : []),
+
     GoogleProvider({
       clientId: mustEnv("GOOGLE_CLIENT_ID"),
       clientSecret: mustEnv("GOOGLE_CLIENT_SECRET"),
@@ -64,7 +90,34 @@ export const authOptions: NextAuthOptions = {
   secret: mustEnv("NEXTAUTH_SECRET"),
   pages: { signIn: "/auth" },
 
-  session: { strategy: "database" },
+  // JWT in dev, database in production
+  session: {
+    strategy: isDev ? "jwt" : "database",
+  },
 
-  debug: process.env.NODE_ENV === "development",
+  callbacks: {
+    // In dev mode with JWT, we need to add user info to session
+    ...(isDev
+      ? {
+          async jwt({ token, user }) {
+            if (user) {
+              token.id = user.id;
+              token.email = user.email;
+              token.name = user.name;
+            }
+            return token;
+          },
+          async session({ session, token }) {
+            if (token && session.user) {
+              session.user.id = token.id as string;
+              session.user.email = token.email as string;
+              session.user.name = token.name as string;
+            }
+            return session;
+          },
+        }
+      : {}),
+  },
+
+  debug: isDev,
 };

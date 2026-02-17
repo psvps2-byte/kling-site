@@ -10,6 +10,8 @@ export default function AuthPage() {
   const [email, setEmail] = React.useState("");
   const [status, setStatus] = React.useState<"idle" | "sending" | "sent" | "error">("idle");
 
+  const isDev = typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+
   async function onEmailSignIn() {
     // 1) перший клік — просто показуємо поле
     if (!showEmail) {
@@ -43,6 +45,19 @@ export default function AuthPage() {
 
   return (
     <div style={wrap}>
+      {isDev && (
+        <button
+          onClick={() => signIn("credentials", { callbackUrl: "/" })}
+          style={{
+            ...btnPrimary,
+            background: "rgba(255,200,0,0.2)",
+            border: "1px solid rgba(255,200,0,0.4)",
+          }}
+        >
+          🔧 DEV LOGIN
+        </button>
+      )}
+
       <button
         onClick={() => signIn("google", { callbackUrl: "/" })}
         style={{
