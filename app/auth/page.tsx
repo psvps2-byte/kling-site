@@ -76,40 +76,44 @@ export default function AuthPage() {
         Увійти через Google
       </button>
 
-      {showEmail && (
-        <input
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Введи email"
-          inputMode="email"
-          autoComplete="email"
-          style={input}
-        />
-      )}
+      {!isDev && (
+        <>
+          {showEmail && (
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Введи email"
+              inputMode="email"
+              autoComplete="email"
+              style={input}
+            />
+          )}
 
-      <button
-        onClick={onEmailSignIn}
-        disabled={status === "sending"}
-        style={{
-          ...btnPrimary,
-          background: "rgba(255,255,255,0.08)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 10,
-          opacity: status === "sending" ? 0.7 : 1,
-        }}
-      >
-        <Mail size={18} />
-        {status === "sending" ? "Відправляю..." : "Увійти через пошту"}
-      </button>
+          <button
+            onClick={onEmailSignIn}
+            disabled={status === "sending"}
+            style={{
+              ...btnPrimary,
+              background: "rgba(255,255,255,0.08)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+              opacity: status === "sending" ? 0.7 : 1,
+            }}
+          >
+            <Mail size={18} />
+            {status === "sending" ? "Відправляю..." : "Увійти через пошту"}
+          </button>
 
-      {status === "sent" && (
-        <div style={msgOk}>✅ Відправили, перевір пошту</div>
-      )}
+          {status === "sent" && (
+            <div style={msgOk}>✅ Відправили, перевір пошту</div>
+          )}
 
-      {status === "error" && (
-        <div style={msgErr}>❌ Не вийшло. Спробуй ще раз</div>
+          {status === "error" && (
+            <div style={msgErr}>❌ Не вийшло. Спробуй ще раз</div>
+          )}
+        </>
       )}
     </div>
   );

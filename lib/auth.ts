@@ -14,9 +14,7 @@ function mustEnv(name: string): string {
   return v;
 }
 
-const isDev =
-  process.env.NODE_ENV === "development" ||
-  process.env.NEXT_PUBLIC_DEV_LOGIN === "true";
+const isDev = process.env.NODE_ENV !== "production";
 
 export const authOptions: NextAuthOptions = {
   useSecureCookies: true,
@@ -57,16 +55,20 @@ export const authOptions: NextAuthOptions = {
       authorization: { params: { prompt: "select_account" } },
     }),
 
-    EmailProvider({
-      from: "Vilna <login@vilna.pro>",
-      async sendVerificationRequest({ identifier, url }) {
-        const resend = new Resend(mustEnv("RESEND_API_KEY"));
+    // Email provider ONLY in production (requires adapter)
+    ...(isDev
+      ? []
+      : [
+          EmailProvider({
+            from: "Vilna <login@vilna.pro>",
+            async sendVerificationRequest({ identifier, url }) {
+              const resend = new Resend(mustEnv("RESEND_API_KEY"));
 
-        await resend.emails.send({
-          from: "Vilna <login@vilna.pro>",
-          to: identifier,
-          subject: "Login to Vilna",
-          html: `
+              await resend.emails.send({
+                from: "Vilna <login@vilna.pro>",
+                to: identifier,
+                subject: "Login to Vilna",
+                html: `
             <div style="font-family:Arial;padding:24px">
               <h2>Login to Vilna</h2>
               <p>Click the button below to sign in:</p>
@@ -85,9 +87,10 @@ export const authOptions: NextAuthOptions = {
               </a>
             </div>
           `,
-        });
-      },
-    }),
+              });
+            },
+          }),
+        ]),
   ],
 
   secret: mustEnv("NEXTAUTH_SECRET"),
