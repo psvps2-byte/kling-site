@@ -43,6 +43,8 @@ if (!R2_ENDPOINT || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET || 
   process.exit(1);
 }
 
+const WORKER_ID = process.env.WORKER_ID || `worker-${Math.random().toString(16).slice(2)}`;
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
@@ -353,6 +355,8 @@ async function processPhotoWithOpenAI(job) {
         result_urls: [publicUrl],
         result_url: publicUrl,
         finished_at: new Date().toISOString(),
+        locked_at: null,
+        locked_by: null,
       })
       .eq("id", job.id);
 
@@ -365,10 +369,10 @@ async function processPhotoWithOpenAI(job) {
       .update({
         status: "ERROR",
         finished_at: new Date().toISOString(),
+        locked_at: null,
+        locked_by: null,
       })
       .eq("id", job.id);
-
-    throw e;
   }
 }
 
@@ -390,22 +394,12 @@ async function fetchJson(url) {
 /* ============== JOB PICKING ============== */
 
 async function pickJob() {
-  const { data, error } = await supabase
-    .from("generations")
-    .select("*")
-    .in("status", ["QUEUED", "RUNNING"])
-    .order("created_at", { ascending: true })
-    .limit(20);
+  const { data, error } = await supabase.rpc("claim_generation", {
+    p_worker_id: WORKER_ID,
+  });
 
   if (error) throw error;
-
-  for (const job of data || []) {
-    const existing = Array.isArray(job.result_urls) ? job.result_urls : [];
-    const expected = expectedCount(job);
-    if (existing.length < expected) return job;
-  }
-
-  return null;
+  return data || null;
 }
 
 /* ============== MAIN ============== */
@@ -430,6 +424,8 @@ async function runOnce() {
         .update({
           status: "ERROR",
           finished_at: new Date().toISOString(),
+          locked_at: null,
+          locked_by: null,
         })
         .eq("id", job.id);
 
@@ -447,6 +443,8 @@ async function runOnce() {
         .update({
           status: "ERROR",
           finished_at: new Date().toISOString(),
+          locked_at: null,
+          locked_by: null,
         })
         .eq("id", job.id);
 
@@ -477,6 +475,8 @@ async function runOnce() {
       .update({
         status: "ERROR",
         finished_at: new Date().toISOString(),
+        locked_at: null,
+        locked_by: null,
       })
       .eq("id", job.id);
 
@@ -541,6 +541,8 @@ async function runOnce() {
         result_urls: existing,
         result_url: existing[0],
         finished_at: nextStatus === "DONE" ? new Date().toISOString() : null,
+        locked_at: nextStatus === "DONE" ? null : undefined,
+        locked_by: nextStatus === "DONE" ? null : undefined,
       })
       .eq("id", job.id);
 
