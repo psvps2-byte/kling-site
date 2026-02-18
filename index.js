@@ -410,12 +410,53 @@ async function pickJob() {
 
 /* ============== MAIN ============== */
 
+function minutesAgo(iso) {
+  if (!iso) return 0;
+  return (Date.now() - new Date(iso).getTime()) / 1000 / 60;
+}
+
 async function runOnce() {
   const job = await pickJob();
   if (!job) return;
 
+  const kind = String(job.kind || "").toUpperCase().trim();
+
+  // КРОК 1: auto-fail QUEUED без task_id (не PHOTO)
+  if (job.status === "QUEUED" && !job.task_id && kind !== "PHOTO") {
+    const ageMin = minutesAgo(job.created_at);
+    if (ageMin > 3) {
+      await supabase
+        .from("generations")
+        .update({
+          status: "ERROR",
+          finished_at: new Date().toISOString(),
+        })
+        .eq("id", job.id);
+
+      console.log("Auto-failed QUEUED without task_id:", job.id);
+    }
+    return;
+  }
+
+  // КРОК 2: auto-timeout RUNNING
+  if (job.status === "RUNNING") {
+    const ageMin = minutesAgo(job.created_at);
+    if (ageMin > 30) {
+      await supabase
+        .from("generations")
+        .update({
+          status: "ERROR",
+          finished_at: new Date().toISOString(),
+        })
+        .eq("id", job.id);
+
+      console.log("Auto-timeout RUNNING:", job.id);
+      return;
+    }
+  }
+
   // PHOTO without task_id -> process with OpenAI
-  if (!job.task_id && String(job.kind || "").toUpperCase().trim() === "PHOTO") {
+  if (!job.task_id && kind === "PHOTO") {
     await processPhotoWithOpenAI(job);
     return;
   }
