@@ -9,7 +9,6 @@ import LegalMenu from "./components/LegalMenu";
 import LangSwitch from "./components/LangSwitch";
 import LibraryPicker from "./components/LibraryPicker";
 import { createClient } from "@supabase/supabase-js";
-import heic2any from "heic2any";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL || "",
@@ -155,22 +154,29 @@ async function computeVideoDuration(input: File | string): Promise<number> {
 
 // ✅ Convert HEIC/HEIF images to JPEG
 async function convertHeicToJpegIfNeeded(file: File): Promise<File> {
-  const heicTypes = ["image/heic", "image/heif"];
-  if (!heicTypes.includes(file.type)) {
-    return file;
-  }
+  const isHeic =
+    file.type === "image/heic" ||
+    file.type === "image/heif" ||
+    /\.heic$/i.test(file.name) ||
+    /\.heif$/i.test(file.name);
+
+  if (!isHeic) return file;
 
   try {
+    const mod = await import("heic2any");
+    const heic2any = mod.default;
+
     const jpegBlob = (await heic2any({
       blob: file,
       toType: "image/jpeg",
-      quality: 0.9,
+      quality: 0.92,
     })) as Blob;
 
     const newFileName = file.name.replace(/\.(heic|heif)$/i, ".jpg");
     return new File([jpegBlob], newFileName, { type: "image/jpeg" });
-  } catch (e: any) {
-    console.error("HEIC conversion failed, using original:", e);
+  } catch (e) {
+    console.error("HEIC conversion failed:", e);
+    // Краще явно показати помилку користувачу, але мінімально повернемо оригінал
     return file;
   }
 }
@@ -1915,13 +1921,21 @@ export default function Home() {
                       accept={acceptImg}
                       style={{ display: "none" }}
                       onChange={async (e) => {
-                        const f = e.target.files?.[0] ?? null;
+                        let f = e.target.files?.[0] ?? null;
 
                         setError(null);
+
+                        if (!f) {
+                          setSrcFile(null);
+                          setSrcUrl("");
+                          return;
+                        }
+
+                        // Convert HEIC to JPEG if needed
+                        f = await convertHeicToJpegIfNeeded(f);
+
                         setSrcFile(f);
                         setSrcUrl("");
-
-                        if (!f) return;
 
                         try {
                           setRefUploading(true);
@@ -1940,13 +1954,21 @@ export default function Home() {
                       accept={acceptImg}
                       style={{ display: "none" }}
                       onChange={async (e) => {
-                        const f = e.target.files?.[0] ?? null;
+                        let f = e.target.files?.[0] ?? null;
 
                         setError(null);
+
+                        if (!f) {
+                          setSrcFile2(null);
+                          setSrcUrl2("");
+                          return;
+                        }
+
+                        // Convert HEIC to JPEG if needed
+                        f = await convertHeicToJpegIfNeeded(f);
+
                         setSrcFile2(f);
                         setSrcUrl2("");
-
-                        if (!f) return;
 
                         try {
                           setRefUploading(true);
