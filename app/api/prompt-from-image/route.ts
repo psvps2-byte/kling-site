@@ -83,10 +83,31 @@ async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
     }
 }
 
+// ✅ Helper: fetch with retry
+async function fetchWithRetry(url: string, attempts = 5): Promise<Response> {
+    let lastErr: any;
+    
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+        try {
+            const res = await fetch(url);
+            return res;
+        } catch (e: any) {
+            lastErr = e;
+            if (attempt < attempts) {
+                const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+                console.warn(`[prompt-from-image] Fetch retry ${attempt}/${attempts} after ${delay}ms:`, e?.message);
+                await sleep(delay);
+            }
+        }
+    }
+    
+    throw lastErr;
+}
+
 async function downloadImageAsDataUrl(url: string): Promise<string> {
     try {
         console.log(`[prompt-from-image] Downloading: ${url}`);
-        const res = await fetch(url);
+        const res = await fetchWithRetry(url);
 
         if (!res.ok) {
             throw new Error(`HTTP ${res.status}`);

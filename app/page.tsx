@@ -816,7 +816,7 @@ export default function Home() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          image_url: srcUrl
+          image_url: `${srcUrl}${srcUrl.includes("?") ? "&" : "?"}t=${Date.now()}`
         }),
       });
 
