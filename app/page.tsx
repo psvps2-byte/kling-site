@@ -311,6 +311,7 @@ export default function Home() {
 
   // COMMON PROMPT
   const [prompt, setPrompt] = useState("");
+  const [promptGenLoading, setPromptGenLoading] = useState(false);
 
   // PHOTO (Omni O1)
   const [aspect, setAspect] = useState<Aspect>("1:1");
@@ -729,6 +730,39 @@ export default function Home() {
     const secs = Math.min(30, Math.max(1, Math.ceil(refVideoSeconds || 0)));
     return perSec * secs;
   }, [mediaTab, omniN, videoMode, videoQuality, videoDuration, refVideoSeconds]);
+
+  async function generatePromptFromPhoto() {
+    if (!srcUrl) return;
+
+    try {
+      setPromptGenLoading(true);
+      setError(null);
+
+      const res = await fetch("/api/prompt-from-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl: srcUrl }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData?.error || `HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      const generatedPrompt = data?.prompt?.trim();
+
+      if (generatedPrompt) {
+        setPrompt(generatedPrompt);
+      } else {
+        setError(lang === "uk" ? "Не вдалось згенерувати промпт" : "Failed to generate prompt");
+      }
+    } catch (e: any) {
+      setError(normalizeErr(e));
+    } finally {
+      setPromptGenLoading(false);
+    }
+  }
 
   const needsAuth = !session;
   const needsBuy = !!session && points <= 0;
@@ -2241,6 +2275,22 @@ export default function Home() {
                         suppressHydrationWarning={true}
                         placeholder={lang === "uk" ? "Опиши що потрібно зробити..." : "Describe what you want..."}
                       />
+
+                      {srcUrl && !srcUrl2 && (
+                        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                          <button
+                            type="button"
+                            className="ios-btn ios-btn--ghost"
+                            onClick={generatePromptFromPhoto}
+                            disabled={refUploading || promptGenLoading}
+                          >
+                            {promptGenLoading
+                              ? (lang === "uk" ? "Генерую промт" : "Generating prompt")
+                              : (lang === "uk" ? "Згенерувати промт" : "Generate prompt")}
+                            {promptGenLoading && <LoadingDots />}
+                          </button>
+                        </div>
+                      )}
                     </>
                   )}
 
