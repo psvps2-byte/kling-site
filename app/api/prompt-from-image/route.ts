@@ -5,6 +5,84 @@ import heicConvert from "heic-convert";
 
 export const runtime = "nodejs";
 
+// ✅ Helper: sleep for ms
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// ✅ Helper: check if error is retryable
+function isRetryableError(err: any): boolean {
+    if (!err) return false;
+    
+    const message = String(err?.message || "").toLowerCase();
+    const status = err?.status || err?.response?.status;
+    
+    // Network errors
+    if (message.includes("econnrefused") || message.includes("enotfound") || message.includes("timeout")) {
+        return true;
+    }
+    
+    // Rate limit or server errors
+    if (status === 429 || (status >= 500 && status < 600)) {
+        return true;
+    }
+    
+    return false;
+}
+
+// ✅ Helper: retry with exponential backoff
+async function createWithRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
+    const delays = [500, 1000, 2000];
+    let lastErr: any;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            console.log(`[prompt-from-image] Attempt ${attempt}/${maxRetries}`);
+            return await fn();
+        } catch (e: any) {
+            lastErr = e;
+            if (attempt < maxRetries && isRetryableError(e)) {
+                const delay = delays[attempt - 1];
+                console.warn(`[prompt-from-image] Retrying in ${delay}ms:`, e?.message);
+                await sleep(delay);
+            } else {
+                throw e;
+            }
+        }
+    }
+    
+    throw lastErr;
+}
+
+// ✅ Helper: timeout wrapper using AbortController or Promise.race
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+    if (typeof AbortController !== "undefined") {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), ms);
+        
+        try {
+            return await Promise.race([
+                promise,
+                new Promise<T>((_, reject) => {
+                    controller.signal.addEventListener("abort", () => {
+                        reject(new Error(`Timeout after ${ms}ms`));
+                    });
+                }),
+            ]);
+        } finally {
+            clearTimeout(timeout);
+        }
+    } else {
+        // Fallback: Promise.race with timeout
+        return Promise.race([
+            promise,
+            new Promise<T>((_, reject) => 
+                setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms)
+            ),
+        ]);
+    }
+}
+
 async function downloadImageAsDataUrl(url: string): Promise<string> {
     try {
         console.log(`[prompt-from-image] Downloading: ${url}`);
@@ -120,41 +198,58 @@ export async function POST(req: Request) {
 
         const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-        console.log(`[prompt-from-image] Calling OpenAI vision API`);
+        console.log(`[prompt-from-image] Calling OpenAI vision API with retry`);
 
-        const r = await client.responses.create({
-            model: "gpt-4o",
-            input: [
-                {
-                    role: "user",
-                    content: [
+        // ✅ Wrap in createWithRetry + withTimeout
+        const r = await createWithRetry(async () => {
+            const response = await withTimeout(
+                client.responses.create({
+                    model: "gpt-4o",
+                    input: [
                         {
-                            type: "input_text",
-                            text:
-                                "Напиши ДУЖЕ детальний промт українською для генерації максимально схожого фото. " +
-                                "Опиши: об'єкти, стиль, фон, освітлення, ракурс, композицію, кольори, матеріали, якість. " +
-                                "Поверни тільки текст промта (без пояснень).",
-                        },
-                        {
-                            type: "input_image",
-                            image_url: dataUrl,
-                            detail: "auto",
+                            role: "user",
+                            content: [
+                                {
+                                    type: "input_text",
+                                    text:
+                                        "Напиши ДУЖЕ детальний промт українською для генерації максимально схожого фото. " +
+                                        "Опиши: об'єкти, стиль, фон, освітлення, ракурс, композицію, кольори, матеріали, якість. " +
+                                        "Поверни тільки текст промта (без пояснень).",
+                                },
+                                {
+                                    type: "input_image",
+                                    image_url: dataUrl,
+                                    detail: "auto",
+                                },
+                            ],
                         },
                     ],
-                },
-            ],
+                }),
+                25000 // 25 second timeout
+            );
+
+            // Treat empty response as retryable
+            const text = response.output_text?.trim() || "";
+            if (!text) {
+                throw new Error("Empty response from OpenAI");
+            }
+
+            return response;
         });
 
         const text = r.output_text?.trim() || "";
-        if (!text) {
-            console.error(`[prompt-from-image] Empty response from OpenAI`);
-            return NextResponse.json({ error: "No prompt generated" }, { status: 500 });
-        }
-
         console.log(`[prompt-from-image] Success, prompt length: ${text.length}`);
         return NextResponse.json({ prompt: text });
     } catch (e: any) {
         console.error(`[prompt-from-image] Error:`, e?.message || e);
-        return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
+        
+        // Return 502 for retryable errors, 500 for others
+        const isRetryable = isRetryableError(e) || String(e?.message || "").includes("Empty response") || String(e?.message || "").includes("Timeout");
+        const status = isRetryable ? 502 : 500;
+        
+        return NextResponse.json(
+            { error: status === 502 ? "Temporary OpenAI error. Please try again." : e?.message || "Server error" },
+            { status }
+        );
     }
 }
