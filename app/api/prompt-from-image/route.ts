@@ -3,26 +3,26 @@ import OpenAI from "openai";
 
 export const runtime = "nodejs";
 
-async function urlToBase64(url: string): Promise<string> {
+async function downloadImageAsDataUrl(url: string): Promise<string> {
     try {
-        const res = await fetch("/api/url-to-base64", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ url }),
-        });
+        const res = await fetch(url);
 
         if (!res.ok) {
             throw new Error(`HTTP ${res.status}`);
         }
 
-        const data = await res.json();
-        if (!data?.base64) {
-            throw new Error("No base64 in response");
+        const contentType = res.headers.get("content-type") || "";
+        if (!contentType.startsWith("image/")) {
+            throw new Error("Invalid image type");
         }
 
-        return String(data.base64);
+        const arrayBuffer = await res.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const base64 = buffer.toString("base64");
+
+        return `data:${contentType};base64,${base64}`;
     } catch (e: any) {
-        throw new Error(`Failed to convert URL to base64: ${e?.message || e}`);
+        throw new Error(`Failed to download image: ${e?.message || e}`);
     }
 }
 
@@ -34,9 +34,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Missing image_url" }, { status: 400 });
         }
 
-        // Convert image URL to base64
-        const base64 = await urlToBase64(image_url);
-        const dataUrl = `data:image/jpeg;base64,${base64}`;
+        // Download image from URL and convert to data URL
+        const dataUrl = await downloadImageAsDataUrl(image_url);
 
         const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
