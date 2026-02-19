@@ -152,33 +152,28 @@ async function computeVideoDuration(input: File | string): Promise<number> {
   }
 }
 
-// ✅ Convert HEIC/HEIF images to JPEG
-async function convertHeicToJpegIfNeeded(file: File): Promise<File> {
-  const isHeic =
-    file.type === "image/heic" ||
-    file.type === "image/heif" ||
-    /\.heic$/i.test(file.name) ||
-    /\.heif$/i.test(file.name);
+// ✅ Normalize any image format to JPEG/PNG via server-side conversion
+async function normalizeImageFile(file: File): Promise<File> {
+  const okTypes = ["image/jpeg", "image/png", "image/webp"];
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  const looksOkByExt = ["jpg", "jpeg", "png", "webp"].includes(ext);
+  if (okTypes.includes(file.type) || looksOkByExt) return file;
 
-  if (!isHeic) return file;
+  const fd = new FormData();
+  fd.append("file", file, file.name);
 
-  try {
-    const mod = await import("heic2any");
-    const heic2any = mod.default;
-
-    const jpegBlob = (await heic2any({
-      blob: file,
-      toType: "image/jpeg",
-      quality: 0.92,
-    })) as Blob;
-
-    const newFileName = file.name.replace(/\.(heic|heif)$/i, ".jpg");
-    return new File([jpegBlob], newFileName, { type: "image/jpeg" });
-  } catch (e) {
-    console.error("HEIC conversion failed:", e);
-    // Краще явно показати помилку користувачу, але мінімально повернемо оригінал
-    return file;
+  const res = await fetch("/api/convert-image", { method: "POST", body: fd });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Convert failed (${res.status}): ${txt || "unknown"}`);
   }
+
+  const blob = await res.blob();
+  const mime = blob.type || "image/jpeg";
+  const outExt = mime === "image/png" ? "png" : "jpg";
+  const baseName = file.name.replace(/\.[^.]+$/, "");
+  const outName = `${baseName}.${outExt}`;
+  return new File([blob], outName, { type: mime });
 }
 
 export default function Home() {
@@ -1932,7 +1927,7 @@ export default function Home() {
                         }
 
                         // Convert HEIC to JPEG if needed
-                        f = await convertHeicToJpegIfNeeded(f);
+                        f = await normalizeImageFile(f);
 
                         setSrcFile(f);
                         setSrcUrl("");
@@ -1965,7 +1960,7 @@ export default function Home() {
                         }
 
                         // Convert HEIC to JPEG if needed
-                        f = await convertHeicToJpegIfNeeded(f);
+                        f = await normalizeImageFile(f);
 
                         setSrcFile2(f);
                         setSrcUrl2("");
@@ -2213,7 +2208,7 @@ export default function Home() {
                         }
 
                         // Convert HEIC to JPEG if needed
-                        f = await convertHeicToJpegIfNeeded(f);
+                        f = await normalizeImageFile(f);
 
                         setSrcFile(f);
                         setSrcUrl("");
@@ -2246,7 +2241,7 @@ export default function Home() {
                         }
 
                         // Convert HEIC to JPEG if needed
-                        f = await convertHeicToJpegIfNeeded(f);
+                        f = await normalizeImageFile(f);
 
                         setSrcFile2(f);
                         setSrcUrl2("");
@@ -2490,7 +2485,7 @@ export default function Home() {
                       style={{ display: "none" }}
                       onChange={async (e) => {
                         let f = e.target.files?.[0] ?? null;
-                        if (f) f = await convertHeicToJpegIfNeeded(f);
+                        if (f) f = await normalizeImageFile(f);
                         setVStartUrl("");
                         setVStartImg(f ?? null);
                       }}
@@ -2539,7 +2534,7 @@ export default function Home() {
                           style={{ display: "none" }}
                           onChange={async (e) => {
                             let f = e.target.files?.[0] ?? null;
-                            if (f) f = await convertHeicToJpegIfNeeded(f);
+                            if (f) f = await normalizeImageFile(f);
                             setVEndUrl("");
                             setVEndImg(f ?? null);
                           }}
@@ -2657,7 +2652,7 @@ export default function Home() {
                       style={{ display: "none" }}
                       onChange={async (e) => {
                         let f = e.target.files?.[0] ?? null;
-                        if (f) f = await convertHeicToJpegIfNeeded(f);
+                        if (f) f = await normalizeImageFile(f);
                         setCharacterUrl("");
                         setVCharacterImg(f ?? null);
                       }}
