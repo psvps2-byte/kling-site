@@ -732,32 +732,33 @@ export default function Home() {
   }, [mediaTab, omniN, videoMode, videoQuality, videoDuration, refVideoSeconds]);
 
   async function generatePromptFromPhoto() {
-    if (!srcUrl) return;
+    setError(null);
+
+    // якщо URL фото ще немає — не робимо запит
+    if (!srcUrl) {
+      setError(lang === "uk" ? "Фото ще не завантажене" : "Image not uploaded yet");
+      return;
+    }
 
     try {
       setPromptGenLoading(true);
-      setError(null);
 
       const res = await fetch("/api/prompt-from-image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageUrl: srcUrl }),
+        body: JSON.stringify({
+          image_url: srcUrl
+        }),
       });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData?.error || `HTTP ${res.status}`);
-      }
+      const data = await readJsonOrRaw(res);
+      if (!res.ok) throw new Error(data?.error || "Failed to generate prompt");
 
-      const data = await res.json();
-      const generatedPrompt = data?.prompt?.trim();
+      const p = String(data?.prompt || "").trim();
+      if (!p) throw new Error("Empty prompt");
 
-      if (generatedPrompt) {
-        setPrompt(generatedPrompt);
-      } else {
-        setError(lang === "uk" ? "Не вдалось згенерувати промпт" : "Failed to generate prompt");
-      }
-    } catch (e: any) {
+      setPrompt(p);
+    } catch (e) {
       setError(normalizeErr(e));
     } finally {
       setPromptGenLoading(false);
