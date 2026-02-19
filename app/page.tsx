@@ -152,29 +152,74 @@ async function computeVideoDuration(input: File | string): Promise<number> {
   }
 }
 
-// ✅ Normalize any image format to JPEG/PNG via server-side conversion
-async function normalizeImageFile(file: File): Promise<File> {
-  const okTypes = ["image/jpeg", "image/png", "image/webp"];
-  const ext = (file.name.split(".").pop() || "").toLowerCase();
-  const looksOkByExt = ["jpg", "jpeg", "png", "webp"].includes(ext);
-  if (okTypes.includes(file.type) || looksOkByExt) return file;
-
+// ✅ Server-side conversion to JPEG using /api/convert-image
+async function serverConvertToJpeg(file: File): Promise<File> {
+  console.log(`[serverConvertToJpeg] Converting via server: ${file.name}`);
   const fd = new FormData();
   fd.append("file", file, file.name);
 
   const res = await fetch("/api/convert-image", { method: "POST", body: fd });
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
-    throw new Error(`Convert failed (${res.status}): ${txt || "unknown"}`);
+    throw new Error(`Server conversion failed (${res.status}): ${txt || "unknown"}`);
   }
 
   const blob = await res.blob();
   const mime = blob.type || "image/jpeg";
-  const outExt = mime === "image/png" ? "png" : "jpg";
   const baseName = file.name.replace(/\.[^.]+$/, "");
-  const outName = `${baseName}.${outExt}`;
+  const outName = `${baseName}.jpg`;
+  console.log(`[serverConvertToJpeg] ✅ Converted to ${mime}: ${outName}`);
   return new File([blob], outName, { type: mime });
 }
+
+// ✅ Normalize HEIC/HEIF to JPEG using heic2any (client) or server fallback
+async function normalizeImageFile(file: File): Promise<File> {
+  const okTypes = ["image/jpeg", "image/png", "image/webp"];
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  const looksOkByExt = ["jpg", "jpeg", "png", "webp"].includes(ext);
+  
+  // Keep standard formats as-is
+  if (okTypes.includes(file.type) || looksOkByExt) return file;
+
+  // Convert HEIC/HEIF to JPEG
+  const isHeic = ext === "heic" || ext === "heif" || file.type === "image/heic" || file.type === "image/heif";
+  if (isHeic) {
+    try {
+      console.log(`[normalizeImageFile] Converting HEIC/HEIF to JPEG (client): ${file.name}`);
+      const heic2any = (await import("heic2any")).default;
+      const converted = await heic2any({
+        blob: file,
+        toType: "image/jpeg",
+        quality: 0.9,
+      });
+      const blob = Array.isArray(converted) ? converted[0] : converted;
+      
+      // Check if result is actually JPEG
+      if (blob.type !== "image/jpeg") {
+        console.warn(`[normalizeImageFile] Client conversion returned ${blob.type}, trying server`);
+        return await serverConvertToJpeg(file);
+      }
+      
+      const baseName = file.name.replace(/\.[^.]+$/, "");
+      const outName = `${baseName}.jpg`;
+      console.log(`[normalizeImageFile] ✅ Converted HEIC to JPEG (client): ${outName}`);
+      return new File([blob], outName, { type: "image/jpeg" });
+    } catch (e: any) {
+      console.warn(`[normalizeImageFile] Client HEIC conversion failed, trying server:`, e?.message);
+      try {
+        return await serverConvertToJpeg(file);
+      } catch (serverErr: any) {
+        console.error(`[normalizeImageFile] Server conversion also failed:`, serverErr?.message);
+        throw new Error("Не вдалося конвертувати HEIC → JPEG. Спробуй інше фото або експортуй як JPEG.");
+      }
+    }
+  }
+
+  // For other formats, keep as-is (or reject if needed)
+  console.warn(`[normalizeImageFile] Unsupported format: ${file.type || ext}, keeping original`);
+  return file;
+}
+
 
 export default function Home() {
   const SHOW_TEMPLATES = false;
@@ -390,7 +435,7 @@ export default function Home() {
   }, []);
 
   const acceptImg =
-    "image/jpeg,image/png,image/heic,image/heif,.heic,.heif,.jpg,.jpeg,.png";
+    "image/*,.heic,.heif,.jpg,.jpeg,.png,.webp,.avif,.tif,.tiff,.bmp";
   const srcFilePreview = useMemo(
     () => (srcFile ? URL.createObjectURL(srcFile) : ""),
     [srcFile]
@@ -1927,7 +1972,14 @@ export default function Home() {
                         }
 
                         // Convert HEIC to JPEG if needed
-                        f = await normalizeImageFile(f);
+                        try {
+                          f = await normalizeImageFile(f);
+                        } catch (err: any) {
+                          setError(normalizeErr(err));
+                          setSrcFile(null);
+                          setSrcUrl("");
+                          return;
+                        }
 
                         setSrcFile(f);
                         setSrcUrl("");
@@ -1960,7 +2012,14 @@ export default function Home() {
                         }
 
                         // Convert HEIC to JPEG if needed
-                        f = await normalizeImageFile(f);
+                        try {
+                          f = await normalizeImageFile(f);
+                        } catch (err: any) {
+                          setError(normalizeErr(err));
+                          setSrcFile2(null);
+                          setSrcUrl2("");
+                          return;
+                        }
 
                         setSrcFile2(f);
                         setSrcUrl2("");
@@ -2208,7 +2267,14 @@ export default function Home() {
                         }
 
                         // Convert HEIC to JPEG if needed
-                        f = await normalizeImageFile(f);
+                        try {
+                          f = await normalizeImageFile(f);
+                        } catch (err: any) {
+                          setError(normalizeErr(err));
+                          setSrcFile(null);
+                          setSrcUrl("");
+                          return;
+                        }
 
                         setSrcFile(f);
                         setSrcUrl("");
@@ -2241,7 +2307,14 @@ export default function Home() {
                         }
 
                         // Convert HEIC to JPEG if needed
-                        f = await normalizeImageFile(f);
+                        try {
+                          f = await normalizeImageFile(f);
+                        } catch (err: any) {
+                          setError(normalizeErr(err));
+                          setSrcFile2(null);
+                          setSrcUrl2("");
+                          return;
+                        }
 
                         setSrcFile2(f);
                         setSrcUrl2("");
@@ -2332,22 +2405,6 @@ export default function Home() {
                         suppressHydrationWarning={true}
                         placeholder={lang === "uk" ? "Опиши що потрібно зробити..." : "Describe what you want..."}
                       />
-
-                      {srcUrl && !srcUrl2 && (
-                        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
-                          <button
-                            type="button"
-                            className="ios-btn ios-btn--ghost"
-                            onClick={generatePromptFromPhoto}
-                            disabled={refUploading || promptGenLoading}
-                          >
-                            {promptGenLoading
-                              ? (lang === "uk" ? "Генерую промт" : "Generating prompt")
-                              : (lang === "uk" ? "Згенерувати промт" : "Generate prompt")}
-                            {promptGenLoading && <LoadingDots />}
-                          </button>
-                        </div>
-                      )}
                     </>
                   )}
 
@@ -2377,49 +2434,65 @@ export default function Home() {
                       </div>
                     )}
 
-                  <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
-                    {!session ? (
-                      <Link
-                        className="ios-btn ios-btn--primary"
-                        href="/auth"
-                        style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 16, gap: 10, flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                      {!session ? (
+                        <Link
+                          className="ios-btn ios-btn--primary"
+                          href="/auth"
+                          style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                        >
+                          {dict.signIn}
+                        </Link>
+                      ) : points <= 0 ? (
+                        <Link
+                          className="ios-btn ios-btn--primary"
+                          href="/account"
+                          style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                        >
+                          {dict.buyPoints}
+                        </Link>
+                      ) : (
+                        <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
+                          {generateBtnText}
+                        </button>
+                      )}
+
+                      {(loading || refUploading) && (
+                        <div className="gen-pill">
+                          <span>
+                            {loading ? dict.generating : lang === "uk" ? "Завантаження фото" : "Uploading image"}
+                            <LoadingDots />
+                          </span>
+                        </div>
+                      )}
+
+                      {error && (
+                        <div
+                          style={{
+                            color: "rgba(255, 120, 120, 0.95)",
+                            maxWidth: 680,
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {error}
+                        </div>
+                      )}
+                    </div>
+
+                    {!selectedTemplateId && srcUrl && !srcUrl2 && (
+                      <button
+                        type="button"
+                        className="ios-btn ios-btn--ghost"
+                        onClick={generatePromptFromPhoto}
+                        disabled={refUploading || promptGenLoading}
                       >
-                        {dict.signIn}
-                      </Link>
-                    ) : points <= 0 ? (
-                      <Link
-                        className="ios-btn ios-btn--primary"
-                        href="/account"
-                        style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-                      >
-                        {dict.buyPoints}
-                      </Link>
-                    ) : (
-                      <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
-                        {generateBtnText}
+                        {promptGenLoading
+                          ? (lang === "uk" ? "Генерую промт" : "Generating prompt")
+                          : (lang === "uk" ? "Згенерувати промт" : "Generate prompt")}
+                        {promptGenLoading && <LoadingDots />}
                       </button>
-                    )}
-
-                    {(loading || refUploading) && (
-                      <div className="gen-pill">
-                        <span>
-                          {loading ? dict.generating : lang === "uk" ? "Завантаження фото" : "Uploading image"}
-                          <LoadingDots />
-                        </span>
-                      </div>
-                    )}
-
-                    {error && (
-                      <div
-                        style={{
-                          color: "rgba(255, 120, 120, 0.95)",
-                          maxWidth: 680,
-                          whiteSpace: "pre-wrap",
-                          wordBreak: "break-word",
-                        }}
-                      >
-                        {error}
-                      </div>
                     )}
                   </div>
                 </>
