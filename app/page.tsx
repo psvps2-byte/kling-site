@@ -381,6 +381,19 @@ export default function Home() {
   // COMMON PROMPT
   const [prompt, setPrompt] = useState("");
   const [promptGenLoading, setPromptGenLoading] = useState(false);
+  const promptRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // ✅ Auto-size prompt textarea (max 2x base height = 220px)
+  const autosizePrompt = () => {
+    const el = promptRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 220) + "px";
+  };
+
+  useEffect(() => {
+    requestAnimationFrame(autosizePrompt);
+  }, [prompt]);
 
   // PHOTO (Omni O1)
   const [aspect, setAspect] = useState<Aspect>("1:1");
@@ -1672,10 +1685,82 @@ export default function Home() {
           .promptSpacer {
             margin-top: 10px;
           }
+
+          .promptContainer {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 10px;
+          }
+
+          .ios-textarea {
+            resize: none;
+            overflow-y: auto;
+            max-height: 40vh;
+          }
+          .ios-textarea::-webkit-scrollbar {
+            width: 6px;
+          }
+          .ios-textarea::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+          }
+          .ios-textarea::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
+          }
+          .ios-textarea::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
+          }
+
           @media (max-width: 640px) {
             .promptSpacer {
               margin-top: 12px;
             }
+            .promptContainer {
+              margin-top: 12px;
+            }
+            .ios-textarea {
+              max-height: 35vh;
+            }
+          }
+
+          .settingsWrap {
+            position: relative;
+            display: inline-flex;
+          }
+
+          .settingsDropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            z-index: 9999;
+
+            width: min(420px, calc(100vw - 32px));
+            max-height: min(50vh, 420px);
+            overflow-y: auto;
+            background: rgba(6, 8, 12, 0.72);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 14px;
+            padding: 12px;
+            box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(12px) saturate(120%);
+            -webkit-backdrop-filter: blur(12px) saturate(120%);
+          }
+          .settingsDropdown::-webkit-scrollbar {
+            width: 6px;
+          }
+          .settingsDropdown::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+          }
+          .settingsDropdown::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
+          }
+          .settingsDropdown::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
           }
 
           .uploadTileHome {
@@ -2396,16 +2481,22 @@ export default function Home() {
                   </div>
 
                   {!selectedTemplateId && (
-                    <>
-                      <div className="promptSpacer" />
+                    <div className="promptContainer">
                       <textarea
+                        ref={promptRef}
                         className="ios-textarea"
                         value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
+                        onChange={(e) => {
+                          setPrompt(e.target.value);
+                          // Auto-grow textarea
+                          const target = e.target as HTMLTextAreaElement;
+                          target.style.height = 'auto';
+                          target.style.height = Math.min(target.scrollHeight, parseInt(getComputedStyle(target).maxHeight)) + 'px';
+                        }}
                         suppressHydrationWarning={true}
                         placeholder={lang === "uk" ? "Опиши що потрібно зробити..." : "Describe what you want..."}
                       />
-                    </>
+                    </div>
                   )}
 
                   {(!session ||
