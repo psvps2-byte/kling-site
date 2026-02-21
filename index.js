@@ -242,6 +242,8 @@ async function uploadToR2(buffer, type, jobId) {
   }
 }
 
+/* ============== PHOTO GENERATION ============== */
+
 async function processPhotoWithOpenAI(job) {
   try {
     let prompt = String(job?.payload?.prompt || "").trim();
@@ -259,6 +261,8 @@ async function processPhotoWithOpenAI(job) {
     // Sanitize prompt
     prompt = sanitizePromptForOpenAI(prompt);
 
+    console.log("Processing PHOTO with OpenAI", job.id, "prompt:", prompt);
+
     // // Add identity preservation instruction when using reference
     // if (hasReference) {
     //   prompt = `Keep the person's identity and facial features the same as in the reference image. Do not change face shape, eyes, nose, lips. ${prompt}`;
@@ -267,52 +271,76 @@ async function processPhotoWithOpenAI(job) {
     console.log("Processing PHOTO with OpenAI", job.id, "prompt:", prompt);
 
     let openaiData;
-    let usedFallback = false;
 
     if (hasReference) {
-      // Try /v1/images/edits with reference image
-      try {
-        console.log("Using /v1/images/edits with reference image");
+      // Use ChatGPT-style Responses API for multi-image input
+      console.log("Using /v1/responses with reference image(s)");
 
-        const refUrl = image1 || image2;
-        const refBuffer = await downloadToBuffer(refUrl);
+      // Build content array: prompt text, then image_1, then image_2
+      const content = [
+        { type: "input_text", text: prompt }
+      ];
 
-        const formData = new FormData();
-        formData.append("model", OPENAI_IMAGE_MODEL);
-        formData.append("prompt", prompt);
-        formData.append("n", "1");
-        formData.append("size", size);
-        formData.append("quality", OPENAI_IMAGE_QUALITY);
-        formData.append("image", new Blob([refBuffer], { type: "image/png" }), "ref.png");
+      if (image1) {
+        content.push({ type: "input_image", image_url: image1 });
+      }
+      if (image2) {
+        content.push({ type: "input_image", image_url: image2 });
+      }
 
-        const openaiRes = await fetch("https://api.openai.com/v1/images/edits", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${OPENAI_API_KEY}`,
-          },
-          body: formData,
-        });
+      const openaiRes = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: OPENAI_IMAGE_MODEL,
+          input: [{
+            role: "user",
+            content: content
+          }]
+        }),
+      });
 
-        openaiData = await openaiRes.json();
+      openaiData = await openaiRes.json();
 
-        if (!openaiRes.ok) {
-          console.log("OPENAI EDITS STATUS:", openaiRes.status);
-          console.log("OPENAI EDITS RESPONSE:", JSON.stringify(openaiData));
-          throw new Error("OpenAI edits failed (see logs)");
+      if (!openaiRes.ok) {
+        console.log("OPENAI RESPONSES STATUS:", openaiRes.status);
+        console.log("OPENAI RESPONSES RESPONSE:", JSON.stringify(openaiData));
+        throw new Error("OpenAI responses failed (see logs)");
+      }
+
+      // Parse output_image robustly by iterating through all output blocks
+      const output = openaiData?.data?.[0]?.output || [];
+      let b64 = null;
+
+      // Iterate through each output block
+      for (const block of output) {
+        const blockContent = block?.content || [];
+        // Iterate through each content item in the block
+        for (const item of blockContent) {
+          if (item?.type === "output_image") {
+            // Found output_image, extract base64
+            b64 = item.image_base64 || item.b64_json;
+            if (b64) {
+              break; // Found, exit inner loop
+            }
+          }
         }
-
-      } catch (e) {
-        console.error("Failed to use edits endpoint:", e?.message);
-        usedFallback = true;
-        // Continue to fallback below
+        if (b64) {
+          break; // Found, exit outer loop
+        }
       }
-    }
 
-    // Use generations if no reference or if edits failed
-    if (!hasReference || usedFallback) {
-      if (usedFallback) {
-        console.log("Using fallback: /v1/images/generations without reference");
+      if (!b64) {
+        throw new Error("No output_image in OpenAI responses");
       }
+
+      openaiData = { data: [{ b64_json: b64 }] };
+    } else {
+      // Use /v1/images/generations fallback for text-only prompts
+      console.log("Using /v1/images/generations without reference");
 
       const openaiRes = await fetch("https://api.openai.com/v1/images/generations", {
         method: "POST",
