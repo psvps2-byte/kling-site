@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid pack" }, { status: 400 });
     }
 
-    if (promoUpper && promoUpper !== "TEST10") {
+    if (promoUpper && promoUpper !== "TEST5") {
       return NextResponse.json({ error: "Invalid promo code" }, { status: 400 });
     }
 
@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
 
     // 5) amounts
     const amountUAH = round2(packData.priceUsd * USD_TO_UAH_RATE);
-    const discount = promoUpper === "TEST10" ? 0.1 : 0;
+    const discount = promoUpper === "TEST5" ? 0.1 : 0;
     const amountFinalUAH = round2(amountUAH * (1 - discount));
     const currency = "UAH";
 
