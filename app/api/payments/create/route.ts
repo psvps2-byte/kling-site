@@ -49,8 +49,16 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const pack = String(body?.pack || "").trim();
     const promo = String(body?.promo || "").trim();
+    const promoUpper = promo.toUpperCase();
     const packData = PACKS_USD[pack];
-    if (!packData) return NextResponse.json({ error: "Invalid pack" }, { status: 400 });
+
+    if (!packData) {
+      return NextResponse.json({ error: "Invalid pack" }, { status: 400 });
+    }
+
+    if (promoUpper && promoUpper !== "TEST10") {
+      return NextResponse.json({ error: "Invalid promo code" }, { status: 400 });
+    }
 
     // 3) supabase
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
