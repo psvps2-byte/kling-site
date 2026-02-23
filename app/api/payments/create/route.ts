@@ -80,6 +80,8 @@ export async function POST(req: NextRequest) {
 
     // 5) amounts
     const amountUAH = round2(packData.priceUsd * USD_TO_UAH_RATE);
+    const discount = promoUpper === "TEST10" ? 0.1 : 0;
+    const amountFinalUAH = round2(amountUAH * (1 - discount));
     const currency = "UAH";
 
     // 6) create payment row (PENDING)
@@ -95,6 +97,7 @@ export async function POST(req: NextRequest) {
         order_id: orderReference,
         package_name: pack,
         amount_usd: amountUAH, // фактично UAH
+        amount_final: amountFinalUAH,
         points: packData.points,
         status: "PENDING",
         promo_code: promo || null,
@@ -109,14 +112,14 @@ export async function POST(req: NextRequest) {
     // 7) WayForPay fields
     const productName = [`Vilna ${packData.title} pack`];
     const productCount = ["1"];
-    const productPrice = [amountUAH.toFixed(2)];
+    const productPrice = [amountFinalUAH.toFixed(2)];
 
     const merchantSignature = buildSignature([
       MERCHANT_ACCOUNT,
       MERCHANT_DOMAIN,
       orderReference,
       orderDate,
-      amountUAH.toFixed(2),
+      amountFinalUAH.toFixed(2),
       currency,
       productName[0],
       productCount[0],
@@ -128,7 +131,7 @@ export async function POST(req: NextRequest) {
       merchantDomainName: MERCHANT_DOMAIN,
       orderReference,
       orderDate,
-      amount: amountUAH.toFixed(2),
+      amount: amountFinalUAH.toFixed(2),
       currency,
       productName,
       productCount,
