@@ -56,14 +56,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid pack" }, { status: 400 });
     }
 
-    if (promoUpper && promoUpper !== "TEST5") {
-      return NextResponse.json({ error: "Invalid promo code" }, { status: 400 });
-    }
-
     // 3) supabase
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false },
     });
+
+    // Query promo code
+    const { data: promoRow } = await supabase
+      .from("promo_codes")
+      .select("discount, active")
+      .eq("code", promoUpper)
+      .maybeSingle();
+
+    if (promoUpper && (!promoRow || promoRow.active !== true)) {
+      return NextResponse.json({ error: "Invalid promo code" }, { status: 400 });
+    }
 
     // 4) get user_id
     const { data: userRow, error: userErr } = await supabase
@@ -80,7 +87,7 @@ export async function POST(req: NextRequest) {
 
     // 5) amounts
     const amountUAH = round2(packData.priceUsd * USD_TO_UAH_RATE);
-    const discount = promoUpper === "TEST5" ? 0.1 : 0;
+    const discount = promoRow?.discount ? Number(promoRow.discount) : 0;
     const amountFinalUAH = round2(amountUAH * (1 - discount));
     const currency = "UAH";
 
