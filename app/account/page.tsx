@@ -44,6 +44,7 @@ export default function AccountPage() {
   const [selectedPack, setSelectedPack] = useState<PackId | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [paying, setPaying] = useState(false);
+  const [promo, setPromo] = useState("");
 
   useEffect(() => {
     setLangState(getLang());
@@ -92,7 +93,7 @@ export default function AccountPage() {
       const res = await fetch("/api/payments/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pack: packId }),
+        body: JSON.stringify({ pack: packId, promo }),
       });
 
       const payload = await res.json();
@@ -329,6 +330,24 @@ export default function AccountPage() {
                 <div className="acc-sheetPts">
                   {selectedPackData.points} {dict.pointsWord}
                 </div>
+              </div>
+
+              <div style={{ marginTop: 12 }}>
+                <input
+                  value={promo}
+                  onChange={(e) => setPromo(e.target.value)}
+                  placeholder="Промокод (необов'язково)"
+                  style={{
+                    width: "100%",
+                    padding: "12px 14px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(255,255,255,0.18)",
+                    background: "rgba(0,0,0,0.22)",
+                    color: "white",
+                    outline: "none",
+                    fontSize: 15,
+                  }}
+                />
               </div>
 
               <div className="acc-actions">

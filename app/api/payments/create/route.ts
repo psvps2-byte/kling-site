@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
     // 2) body
     const body = await req.json().catch(() => ({}));
     const pack = String(body?.pack || "").trim();
+    const promo = String(body?.promo || "").trim();
     const packData = PACKS_USD[pack];
     if (!packData) return NextResponse.json({ error: "Invalid pack" }, { status: 400 });
 
@@ -88,6 +89,7 @@ export async function POST(req: NextRequest) {
         amount_usd: amountUAH, // фактично UAH
         points: packData.points,
         status: "PENDING",
+        promo_code: promo || null,
       })
       .select("id")
       .single();
