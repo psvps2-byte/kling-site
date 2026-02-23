@@ -141,16 +141,7 @@ export default function TermsPage() {
               повідомлення. Актуальна версія діє з моменту публікації на сайті.
             </p>
 
-            <h3>11. Контакти та реквізити</h3>
-            <p>
-              <b>Власник сервісу:</b> ФОП Глущенко Павло Сергійович
-            </p>
-            <p>
-              <b>ЄДРПОУ:</b> 3210721811
-            </p>
-            <p>
-              <b>Юридична адреса:</b> м. Київ, проспект Володимира Івасюка 8, корпус 3
-            </p>
+            <h3>11. Контакти </h3>
             <p>
               <b>Email:</b> contact.vilna.pro@gmail.com
             </p>
@@ -287,10 +278,7 @@ export default function TermsPage() {
               effective upon publication on the website.
             </p>
 
-            <h3>11. Contacts & Legal Details</h3>
-            <p><b>Service owner:</b> Individual Entrepreneur (FOP) Pavlo Hlushchenko</p>
-            <p><b>Registration number:</b> 3210721811</p>
-            <p><b>Legal address:</b> 8 Volodymyra Ivasiuka Ave., Building 3, Kyiv, Ukraine</p>
+            <h3>11. Contacts </h3>
             <p><b>Email:</b> contact.vilna.pro@gmail.com</p>
           </>
         ),

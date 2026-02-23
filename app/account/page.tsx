@@ -328,7 +328,7 @@ export default function AccountPage() {
               <div className="acc-row" style={{ marginTop: 10 }}>
                 <div className="acc-sheetPrice">
                   ${selectedPackData.priceUsd}
-                  {promo.trim().toUpperCase() === "TEST10" && (
+                  {promo.trim().toUpperCase() === "TEST5" && (
                     <span style={{ marginLeft: 10, fontSize: 18, opacity: 0.8 }}>
                       → ${(selectedPackData.priceUsd * 0.9).toFixed(2)}
                     </span>
@@ -339,7 +339,7 @@ export default function AccountPage() {
                 </div>
               </div>
 
-              {promo.trim().toUpperCase() === "TEST10" && (
+              {promo.trim().toUpperCase() === "TEST5" && (
                 <div style={{ marginTop: 4, fontSize: 13, color: "#9fd3ff" }}>
                   −10% за промокодом
                 </div>
