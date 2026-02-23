@@ -730,23 +730,40 @@ export default function AccountPage() {
         }
 
         .acc-sheet {
-          position: absolute;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          transform: translateY(105%);
-          transition: transform 240ms cubic-bezier(0.2, 0.85, 0.2, 1);
-          padding: 10px 14px 16px;
-          border-top-left-radius: 24px;
-          border-top-right-radius: 24px;
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          background: rgba(8, 10, 14, 0.82);
+          position: fixed;
+          left: 50%;
+          top: 50%;
+          transform: translate(-50%, -50%) scale(0.98);
+          width: 100%;
+          max-width: 420px;
+          border-radius: 22px;
+          padding: 16px;
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          background: rgba(8, 10, 14, 0.9);
           backdrop-filter: blur(18px) saturate(140%);
           -webkit-backdrop-filter: blur(18px) saturate(140%);
-          box-shadow: 0 -22px 80px rgba(0, 0, 0, 0.65);
+          box-shadow: 0 30px 120px rgba(0, 0, 0, 0.7);
+          z-index: 1001;
+          transition: transform 240ms cubic-bezier(0.2, 0.85, 0.2, 1);
         }
         .acc-sheet.open {
-          transform: translateY(0);
+          transform: translate(-50%, -50%) scale(1);
+        }
+
+        @media (max-width: 640px) {
+          .acc-sheet {
+            left: 0;
+            right: 0;
+            bottom: 0;
+            top: auto;
+            transform: translateY(105%);
+            max-width: none;
+            border-radius: 24px 24px 0 0;
+          }
+
+          .acc-sheet.open {
+            transform: translateY(0);
+          }
         }
 
         .acc-handle {
