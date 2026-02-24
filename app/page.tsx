@@ -1129,9 +1129,68 @@ export default function Home() {
     generate();
   }
 
+  // Telegram CTA Bubble
+  const [tgCtaVisible, setTgCtaVisible] = useState(false);
+
+  useEffect(() => {
+    const storageKey = "tg_cta_shown_count_v1";
+    const count = parseInt(localStorage.getItem(storageKey) || "0", 10);
+    
+    // Show only on first 2 visits (count = 0 or 1)
+    if (count < 2) {
+      setTgCtaVisible(true);
+    }
+  }, []);
+
+  function handleTgCtaClick() {
+    const storageKey = "tg_cta_shown_count_v1";
+    // Mark as clicked, set to 2 to ensure it never shows again
+    localStorage.setItem(storageKey, "2");
+    setTgCtaVisible(false);
+  }
+
+  function handleTgCtaClose() {
+    const storageKey = "tg_cta_shown_count_v1";
+    // Mark as seen, set to 2 to ensure it never shows again
+    localStorage.setItem(storageKey, "2");
+    setTgCtaVisible(false);
+  }
+
   return (
     <>
       <div className="page-wrap">
+        {tgCtaVisible && (
+          <a
+            href="https://t.me/vilnapro"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="tgCta"
+            onClick={handleTgCtaClick}
+            role="button"
+            tabIndex={0}
+          >
+            <video
+              className="tgCtaVideo"
+              src="/cta/vilna.webm"
+              autoPlay
+              loop
+              playsInline
+              muted
+            />
+            <button
+              type="button"
+              className="tgCtaClose"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleTgCtaClose();
+              }}
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </a>
+        )}
         <style jsx global>{`
           @media (prefers-reduced-motion: reduce) {
             .ldots span,
@@ -1860,6 +1919,101 @@ export default function Home() {
             font-weight: 800;
             color: rgba(255, 255, 255, 0.92);
             margin: 0 0 14px;
+          }
+
+          /* Telegram CTA Bubble */
+          .tgCta {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 999;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: none !important;
+            outline: none !important;
+            background: transparent !important;
+            backdrop-filter: none;
+            -webkit-backdrop-filter: none;
+            padding: 0;
+            cursor: pointer;
+            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45) !important;
+            transition: transform 0.2s ease, filter 0.2s ease;
+            animation: floatBubble 3s ease-in-out infinite;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            color: inherit;
+          }
+
+          .tgCta::before,
+          .tgCta::after {
+            content: none !important;
+          }
+
+          .tgCta:hover {
+            transform: scale(1.08);
+            filter: brightness(1.1);
+          }
+
+          .tgCta:active {
+            transform: scale(0.95);
+          }
+
+          @keyframes floatBubble {
+            0%, 100% {
+              transform: translateY(0px);
+            }
+            50% {
+              transform: translateY(-8px);
+            }
+          }
+
+          .tgCtaVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+          }
+
+          .tgCtaClose {
+            position: absolute;
+            top: 4px;
+            right: 4px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.5);
+            border: none;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            transition: background 0.2s ease;
+            z-index: 10;
+          }
+
+          .tgCtaClose:hover {
+            background: rgba(0, 0, 0, 0.7);
+          }
+
+          @media (max-width: 640px) {
+            .tgCta {
+              bottom: 80px;
+              right: 16px;
+              width: 80px;
+              height: 80px;
+            }
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .tgCta {
+              animation: none;
+            }
           }
         `}</style>
 
