@@ -154,6 +154,7 @@ export default function LibraryPicker({
   const [error, setError] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
+  const [videoAspect, setVideoAspect] = useState<Record<string, number>>({});
 
   // poster cache: key = video url, value = dataURL
   const [posters, setPosters] = useState<Record<string, string>>({});
@@ -334,6 +335,9 @@ export default function LibraryPicker({
         >
           {items.map((it) => {
             const vid = it.kind === "video" || (it.url ? isVideoUrl(it.url) : false);
+            const ratio = it.url && vid ? videoAspect[it.url] : undefined;
+            const cardAspect = vid ? (ratio && ratio > 0 ? ratio : 9 / 16) : 1;
+            const mediaUrl = stripPreviewParams(it.url);
 
             // src:
             // - для video: беремо dataURL постера (якщо є), інакше fallback на thumbUrl(url)
@@ -354,7 +358,8 @@ export default function LibraryPicker({
                   padding: 0,
                   overflow: "hidden",
                   cursor: "pointer",
-                  height: 140,
+                  height: vid ? "auto" : 140,
+                  aspectRatio: String(cardAspect),
                 }}
                 title={it.prompt || it.url}
               >
@@ -363,7 +368,7 @@ export default function LibraryPicker({
                   style={{
                     position: "absolute",
                     inset: 0,
-                    backgroundImage: src ? `url("${src}")` : undefined,
+                    backgroundImage: !vid && src ? `url("${src}")` : undefined,
                     backgroundSize: "cover",
                     backgroundPosition: "center",
                     filter: "blur(14px)",
@@ -379,7 +384,35 @@ export default function LibraryPicker({
                   }}
                 />
 
-                {src ? (
+                {vid && it.url ? (
+                  <video
+                    src={mediaUrl}
+                    muted
+                    playsInline
+                    preload="metadata"
+                    onLoadedMetadata={(e) => {
+                      const v = e.currentTarget;
+                      const w = v.videoWidth || 0;
+                      const h = v.videoHeight || 0;
+                      if (!it.url || !w || !h) return;
+                      const next = w / h;
+                      if (!Number.isFinite(next) || next <= 0) return;
+                      setVideoAspect((prev) => {
+                        if (prev[it.url] === next) return prev;
+                        return { ...prev, [it.url]: next };
+                      });
+                    }}
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
+                      display: "block",
+                      background: "rgba(0,0,0,0.35)",
+                    }}
+                  />
+                ) : src ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={src}
@@ -390,7 +423,7 @@ export default function LibraryPicker({
                       inset: 0,
                       width: "100%",
                       height: "100%",
-                      objectFit: vid ? "contain" : "cover",
+                      objectFit: "cover",
                       display: "block",
                     }}
                   />
