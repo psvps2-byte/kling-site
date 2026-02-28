@@ -273,71 +273,54 @@ async function processPhotoWithOpenAI(job) {
     let openaiData;
 
     if (hasReference) {
-      // Use ChatGPT-style Responses API for multi-image input
-      console.log("Using /v1/responses with reference image(s)");
+      // Use /v1/images/edits with multipart/form-data for multi-image input
+      console.log("Using /v1/images/edits with reference image(s)");
 
-      // Build content array: prompt text, then image_1, then image_2
-      const content = [
-        { type: "input_text", text: prompt }
-      ];
+      const formData = new FormData();
+      formData.append("model", OPENAI_IMAGE_MODEL);
+      formData.append("prompt", prompt);
+      formData.append("size", size);
+      formData.append("quality", OPENAI_IMAGE_QUALITY);
+      formData.append("n", "1");
 
+      // Download and append each reference image as image[]
       if (image1) {
-        content.push({ type: "input_image", image_url: image1 });
-      }
-      if (image2) {
-        content.push({ type: "input_image", image_url: image2 });
+        try {
+          const img1Buffer = await downloadToBuffer(image1);
+          const img1Blob = new Blob([img1Buffer], { type: "image/png" });
+          formData.append("image", img1Blob, "ref1.png");
+        } catch (e) {
+          console.error("Failed to download image_1:", e?.message || e);
+          throw new Error("Failed to download reference image 1");
+        }
       }
 
-      const openaiRes = await fetch("https://api.openai.com/v1/responses", {
+      if (image2) {
+        try {
+          const img2Buffer = await downloadToBuffer(image2);
+          const img2Blob = new Blob([img2Buffer], { type: "image/png" });
+          formData.append("image", img2Blob, "ref2.png");
+        } catch (e) {
+          console.error("Failed to download image_2:", e?.message || e);
+          throw new Error("Failed to download reference image 2");
+        }
+      }
+
+      const openaiRes = await fetch("https://api.openai.com/v1/images/edits", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${OPENAI_API_KEY}`,
         },
-        body: JSON.stringify({
-          model: OPENAI_IMAGE_MODEL,
-          input: [{
-            role: "user",
-            content: content
-          }]
-        }),
+        body: formData,
       });
 
       openaiData = await openaiRes.json();
 
       if (!openaiRes.ok) {
-        console.log("OPENAI RESPONSES STATUS:", openaiRes.status);
-        console.log("OPENAI RESPONSES RESPONSE:", JSON.stringify(openaiData));
-        throw new Error("OpenAI responses failed (see logs)");
+        console.log("OPENAI EDITS STATUS:", openaiRes.status);
+        console.log("OPENAI EDITS RESPONSE:", JSON.stringify(openaiData));
+        throw new Error("OpenAI edits failed (see logs)");
       }
-
-      // Parse output_image robustly by iterating through all output blocks
-      const output = openaiData?.data?.[0]?.output || [];
-      let b64 = null;
-
-      // Iterate through each output block
-      for (const block of output) {
-        const blockContent = block?.content || [];
-        // Iterate through each content item in the block
-        for (const item of blockContent) {
-          if (item?.type === "output_image") {
-            // Found output_image, extract base64
-            b64 = item.image_base64 || item.b64_json;
-            if (b64) {
-              break; // Found, exit inner loop
-            }
-          }
-        }
-        if (b64) {
-          break; // Found, exit outer loop
-        }
-      }
-
-      if (!b64) {
-        throw new Error("No output_image in OpenAI responses");
-      }
-
-      openaiData = { data: [{ b64_json: b64 }] };
     } else {
       // Use /v1/images/generations fallback for text-only prompts
       console.log("Using /v1/images/generations without reference");
