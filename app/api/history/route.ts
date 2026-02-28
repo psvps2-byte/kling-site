@@ -63,9 +63,19 @@ function detectKindFromUrl(url: string): "image" | "video" {
   return "image";
 }
 
+function asInt(v: any, fallback: number) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.trunc(n);
+}
+
 export async function GET(req: NextRequest) {
   try {
     const kindParam = (req.nextUrl.searchParams.get("kind") || "").toLowerCase();
+    const hasPagination =
+      req.nextUrl.searchParams.has("limit") || req.nextUrl.searchParams.has("offset");
+    const limit = Math.max(1, Math.min(50, asInt(req.nextUrl.searchParams.get("limit"), 10)));
+    const offset = Math.max(0, asInt(req.nextUrl.searchParams.get("offset"), 0));
 
     // 1) AUTH (NextAuth)
     const session = await getServerSession(authOptions);
@@ -136,10 +146,32 @@ export async function GET(req: NextRequest) {
       );
 
       const filtered = flat.filter((it) => it.kind === kindParam);
-      return noStoreJson(filtered);
+      if (!hasPagination) return noStoreJson(filtered);
+
+      const paged = filtered.slice(offset, offset + limit);
+      return noStoreJson({
+        items: paged,
+        pagination: {
+          limit,
+          offset,
+          hasMore: offset + limit < filtered.length,
+          total: filtered.length,
+        },
+      });
     }
 
-    return noStoreJson(items);
+    if (!hasPagination) return noStoreJson(items);
+
+    const paged = items.slice(offset, offset + limit);
+    return noStoreJson({
+      items: paged,
+      pagination: {
+        limit,
+        offset,
+        hasMore: offset + limit < items.length,
+        total: items.length,
+      },
+    });
   } catch (e: any) {
     return noStoreJson(
       { error: "Server error", details: String(e?.message ?? e) },

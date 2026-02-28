@@ -150,7 +150,10 @@ export default function LibraryPicker({
 
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
 
   // poster cache: key = video url, value = dataURL
   const [posters, setPosters] = useState<Record<string, string>>({});
@@ -168,8 +171,11 @@ export default function LibraryPicker({
       try {
         setLoading(true);
         setError(null);
+        setOffset(0);
+        setHasMore(false);
+        setItems([]);
 
-        const res = await fetch(`/api/history?kind=${kind}`, {
+        const res = await fetch(`/api/history?kind=${kind}&limit=10&offset=0`, {
           signal: controller.signal,
           cache: "no-store",
         });
@@ -179,6 +185,8 @@ export default function LibraryPicker({
 
         const arr = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
         setItems(Array.isArray(arr) ? arr : []);
+        setOffset(Array.isArray(arr) ? arr.length : 0);
+        setHasMore(Boolean(data?.pagination?.hasMore));
       } catch (e: any) {
         if (controller.signal.aborted) return;
         setError(String(e?.message || e));
@@ -190,6 +198,30 @@ export default function LibraryPicker({
 
     return () => controller.abort();
   }, [open, kind]);
+
+  async function loadMore() {
+    try {
+      setLoadingMore(true);
+      setError(null);
+
+      const res = await fetch(`/api/history?kind=${kind}&limit=10&offset=${offset}`, {
+        cache: "no-store",
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || "Failed to load more");
+
+      const arr = Array.isArray(data) ? data : Array.isArray(data?.items) ? data.items : [];
+      if (Array.isArray(arr) && arr.length > 0) {
+        setItems((prev) => [...prev, ...arr]);
+        setOffset((prev) => prev + arr.length);
+      }
+      setHasMore(Boolean(data?.pagination?.hasMore));
+    } catch (e: any) {
+      setError(String(e?.message || e));
+    } finally {
+      setLoadingMore(false);
+    }
+  }
 
   // генеруємо статичні постери для відео (щоб не програвалось)
   useEffect(() => {
@@ -437,6 +469,26 @@ export default function LibraryPicker({
             );
           })}
         </div>
+
+        {!loading && !error && hasMore && (
+          <div style={{ display: "flex", justifyContent: "center", marginTop: 14 }}>
+            <button
+              type="button"
+              className="ios-btn ios-btn--ghost"
+              onClick={loadMore}
+              disabled={loadingMore}
+              style={{ minWidth: 170 }}
+            >
+              {loadingMore
+                ? lang === "uk"
+                  ? "Завантаження..."
+                  : "Loading..."
+                : lang === "uk"
+                  ? "Завантажити ще"
+                  : "Load more"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
