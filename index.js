@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import http from "http";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import crypto from "crypto";
+import FormData from "form-data";
 
 /* ================= ENV ================= */
 
@@ -287,8 +288,10 @@ async function processPhotoWithOpenAI(job) {
       if (image1) {
         try {
           const img1Buffer = await downloadToBuffer(image1);
-          const img1Blob = new Blob([img1Buffer], { type: "image/png" });
-          formData.append("image", img1Blob, "ref1.png");
+          formData.append("image[]", img1Buffer, {
+            filename: "ref1.png",
+            contentType: "image/png",
+          });
         } catch (e) {
           console.error("Failed to download image_1:", e?.message || e);
           throw new Error("Failed to download reference image 1");
@@ -298,8 +301,10 @@ async function processPhotoWithOpenAI(job) {
       if (image2) {
         try {
           const img2Buffer = await downloadToBuffer(image2);
-          const img2Blob = new Blob([img2Buffer], { type: "image/png" });
-          formData.append("image", img2Blob, "ref2.png");
+          formData.append("image[]", img2Buffer, {
+            filename: "ref2.png",
+            contentType: "image/png",
+          });
         } catch (e) {
           console.error("Failed to download image_2:", e?.message || e);
           throw new Error("Failed to download reference image 2");
@@ -310,6 +315,7 @@ async function processPhotoWithOpenAI(job) {
         method: "POST",
         headers: {
           Authorization: `Bearer ${OPENAI_API_KEY}`,
+          ...formData.getHeaders(),
         },
         body: formData,
       });

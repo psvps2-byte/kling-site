@@ -15,6 +15,7 @@
     "@aws-sdk/s3-request-presigner": "^3.971.0",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.90.1",
+    "form-data": "^4.0.5",
     "heic-convert": "^2.1.0",
     "heic2any": "^0.0.4",
     "jose": "^6.1.3",
