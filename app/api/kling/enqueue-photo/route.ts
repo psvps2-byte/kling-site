@@ -14,6 +14,14 @@ function asNum(v: any, fallback: number) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+type PhotoModelChoice = "chatgpt" | "nano-banana";
+
+function parsePhotoModelChoice(v: any): PhotoModelChoice {
+  const s = asStr(v).trim().toLowerCase();
+  if (s === "nano-banana") return "nano-banana";
+  return "chatgpt";
+}
+
 export async function POST(req: NextRequest) {
   // 0) AUTH
   const session = await getServerSession(authOptions);
@@ -48,6 +56,7 @@ export async function POST(req: NextRequest) {
   const aspect_ratio = asStr(body?.aspect_ratio || body?.ratio).trim() || "1:1";
   const output = asNum(body?.output ?? body?.n ?? 1, 1);
   const cost_points = Math.max(1, Math.floor(output));
+  const model_choice = parsePhotoModelChoice(body?.model_choice);
 
   const image_1 = body?.image_1 ? asStr(body.image_1).trim() : null;
   const image_2 = body?.image_2 ? asStr(body.image_2).trim() : null;
@@ -57,6 +66,7 @@ export async function POST(req: NextRequest) {
     prompt,          // БЕЗ <<<image_1>>>
     aspect_ratio,
     n: output,
+    model_choice,
     image_1,
     image_2,
   };

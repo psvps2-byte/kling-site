@@ -9,6 +9,14 @@ function asStr(v: any) {
   return typeof v === "string" ? v : v == null ? "" : String(v);
 }
 
+type PhotoModelChoice = "chatgpt" | "nano-banana";
+
+function parsePhotoModelChoice(v: any): PhotoModelChoice {
+  const s = asStr(v).trim().toLowerCase();
+  if (s === "nano-banana") return "nano-banana";
+  return "chatgpt";
+}
+
 export async function POST(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
 
@@ -26,6 +34,7 @@ export async function POST(req: Request) {
   // 2) Basic fields
   const aspect_ratio = asStr(body?.aspect_ratio) || "auto";
   const n = 1;
+  const model_choice = parsePhotoModelChoice(body?.model_choice);
 
   // 3) Prompt
   const prompt = asStr(body?.prompt ?? "").trim();
@@ -71,7 +80,7 @@ export async function POST(req: Request) {
   // 6) Prepare payload and set status to QUEUED
   const payload: any = {
     provider: "openai",
-    model: "gpt-image-1.5",
+    model_choice,
     quality: "medium",
     prompt,
     n,

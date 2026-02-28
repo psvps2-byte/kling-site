@@ -17,6 +17,13 @@ const KLING_API_BASE = (process.env.KLING_API_BASE || "https://api-singapore.kli
 
 const OPENAI_API_KEY = (process.env.OPENAI_API_KEY || "").trim();
 const OPENAI_IMAGE_MODEL = (process.env.OPENAI_IMAGE_MODEL || "gpt-image-1.5").trim();
+const OPENAI_IMAGE_MODEL_CHATGPT = (process.env.OPENAI_IMAGE_MODEL_CHATGPT || OPENAI_IMAGE_MODEL).trim();
+const GEMINI_API_KEY = (process.env.GEMINI_API_KEY || "").trim();
+const GEMINI_IMAGE_MODEL_NANO_BANANA = (
+  process.env.GEMINI_IMAGE_MODEL_NANO_BANANA ||
+  process.env.OPENAI_IMAGE_MODEL_NANO_BANANA ||
+  "gemini-2.5-flash-image"
+).trim();
 const OPENAI_IMAGE_QUALITY = (process.env.OPENAI_IMAGE_QUALITY || "medium").trim();
 
 const R2_ENDPOINT = process.env.R2_ENDPOINT;
@@ -173,6 +180,29 @@ function pickOpenAISizeFromAspect(job) {
   }
 }
 
+function pickOpenAIModelForPhoto(job) {
+  const choice = String(job?.payload?.model_choice || "").trim().toLowerCase();
+  if (choice === "chatgpt") {
+    return OPENAI_IMAGE_MODEL_CHATGPT || OPENAI_IMAGE_MODEL;
+  }
+
+  const raw = String(job?.payload?.model || "").trim();
+  if (raw && !raw.toLowerCase().startsWith("gemini-")) return raw;
+
+  return OPENAI_IMAGE_MODEL_CHATGPT || OPENAI_IMAGE_MODEL;
+}
+
+function isNanoBananaChoice(job) {
+  const choice = String(job?.payload?.model_choice || "").trim().toLowerCase();
+  return choice === "nano-banana";
+}
+
+function pickNanoBananaModel(job) {
+  const raw = String(job?.payload?.model || "").trim();
+  if (raw.toLowerCase().startsWith("gemini-")) return raw;
+  return GEMINI_IMAGE_MODEL_NANO_BANANA || "gemini-2.5-flash-image";
+}
+
 /* ============== OPENAI + R2 ============== */
 
 function sanitizePromptForOpenAI(prompt) {
@@ -243,6 +273,92 @@ async function downloadImageForOpenAI(url, fallbackBaseName) {
   return { buffer, contentType, filename };
 }
 
+function withAspectInPrompt(prompt, aspect) {
+  const a = String(aspect || "").trim();
+  if (!a || a === "1:1") return prompt;
+  return `${prompt}\n\nAspect ratio: ${a}.`;
+}
+
+function pickGeminiImageB64(json) {
+  const candidates = Array.isArray(json?.candidates) ? json.candidates : [];
+  for (const c of candidates) {
+    const parts = Array.isArray(c?.content?.parts) ? c.content.parts : [];
+    for (const p of parts) {
+      const d1 = p?.inlineData?.data;
+      if (typeof d1 === "string" && d1) return d1;
+      const d2 = p?.inline_data?.data;
+      if (typeof d2 === "string" && d2) return d2;
+    }
+  }
+  return null;
+}
+
+async function generatePhotoWithGemini(job, prompt, aspect, image1, image2) {
+  if (!GEMINI_API_KEY) {
+    throw new Error("Missing GEMINI_API_KEY for Nano Banana model");
+  }
+
+  const model = pickNanoBananaModel(job);
+  const parts = [{ text: withAspectInPrompt(prompt, aspect) }];
+
+  if (image1) {
+    const img1 = await downloadImageForOpenAI(image1, "ref1");
+    parts.push({
+      inline_data: {
+        mime_type: img1.contentType,
+        data: img1.buffer.toString("base64"),
+      },
+    });
+  }
+
+  if (image2) {
+    const img2 = await downloadImageForOpenAI(image2, "ref2");
+    parts.push({
+      inline_data: {
+        mime_type: img2.contentType,
+        data: img2.buffer.toString("base64"),
+      },
+    });
+  }
+
+  const payload = {
+    contents: [
+      {
+        role: "user",
+        parts,
+      },
+    ],
+    generation_config: {
+      response_modalities: ["TEXT", "IMAGE"],
+    },
+  };
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
+    model
+  )}:generateContent`;
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-goog-api-key": GEMINI_API_KEY,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(`Gemini error ${res.status}: ${JSON.stringify(json).slice(0, 300)}`);
+  }
+
+  const b64 = pickGeminiImageB64(json);
+  if (!b64) {
+    throw new Error(`Gemini returned no image data: ${JSON.stringify(json).slice(0, 300)}`);
+  }
+
+  return b64;
+}
+
 async function uploadToR2(buffer, type, jobId) {
   try {
     const ext = type === 'video' ? 'mp4' : 'png';
@@ -287,6 +403,7 @@ async function processPhotoWithOpenAI(job) {
     }
 
     const size = pickOpenAISizeFromAspect(job);
+    const model = pickOpenAIModelForPhoto(job);
 
     // Check for reference images
     const image1 = job?.payload?.image_1 || null;
@@ -305,58 +422,73 @@ async function processPhotoWithOpenAI(job) {
 
     console.log("Processing PHOTO with OpenAI", job.id, "prompt:", prompt);
 
-    let openaiData;
+    let b64 = null;
+    const useNanoBanana = isNanoBananaChoice(job);
 
-    if (hasReference) {
-      // Use OpenAI SDK for edits to avoid malformed multipart requests.
-      console.log("Using OpenAI images.edit with reference image(s)");
-      const editImages = [];
-
-      if (image1) {
-        try {
-          const img1 = await downloadImageForOpenAI(image1, "ref1");
-          editImages.push(await toFile(img1.buffer, img1.filename, { type: img1.contentType }));
-        } catch (e) {
-          console.error("Failed to download image_1:", e?.message || e);
-          throw new Error("Failed to download reference image 1");
-        }
-      }
-
-      if (image2) {
-        try {
-          const img2 = await downloadImageForOpenAI(image2, "ref2");
-          editImages.push(await toFile(img2.buffer, img2.filename, { type: img2.contentType }));
-        } catch (e) {
-          console.error("Failed to download image_2:", e?.message || e);
-          throw new Error("Failed to download reference image 2");
-        }
-      }
-
-      const editRes = await openai.images.edit({
-        model: OPENAI_IMAGE_MODEL,
-        image: editImages,
+    if (useNanoBanana) {
+      console.log("Using Gemini Nano Banana", job.id);
+      b64 = await generatePhotoWithGemini(
+        job,
         prompt,
-        size,
-        n: 1,
-      });
-      openaiData = editRes;
+        job?.payload?.aspect_ratio || "",
+        image1,
+        image2
+      );
     } else {
-      // Use /v1/images/generations fallback for text-only prompts
-      console.log("Using /v1/images/generations without reference");
+      let openaiData;
 
-      const genRes = await openai.images.generate({
-        model: OPENAI_IMAGE_MODEL,
-        prompt,
-        n: 1,
-        size,
-        quality: OPENAI_IMAGE_QUALITY,
-      });
-      openaiData = genRes;
+      if (hasReference) {
+        // Use OpenAI SDK for edits to avoid malformed multipart requests.
+        console.log("Using OpenAI images.edit with reference image(s)");
+        const editImages = [];
+
+        if (image1) {
+          try {
+            const img1 = await downloadImageForOpenAI(image1, "ref1");
+            editImages.push(await toFile(img1.buffer, img1.filename, { type: img1.contentType }));
+          } catch (e) {
+            console.error("Failed to download image_1:", e?.message || e);
+            throw new Error("Failed to download reference image 1");
+          }
+        }
+
+        if (image2) {
+          try {
+            const img2 = await downloadImageForOpenAI(image2, "ref2");
+            editImages.push(await toFile(img2.buffer, img2.filename, { type: img2.contentType }));
+          } catch (e) {
+            console.error("Failed to download image_2:", e?.message || e);
+            throw new Error("Failed to download reference image 2");
+          }
+        }
+
+        const editRes = await openai.images.edit({
+          model,
+          image: editImages,
+          prompt,
+          size,
+          n: 1,
+        });
+        openaiData = editRes;
+      } else {
+        // Use /v1/images/generations fallback for text-only prompts
+        console.log("Using /v1/images/generations without reference");
+
+        const genRes = await openai.images.generate({
+          model,
+          prompt,
+          n: 1,
+          size,
+          quality: OPENAI_IMAGE_QUALITY,
+        });
+        openaiData = genRes;
+      }
+
+      b64 = openaiData?.data?.[0]?.b64_json || null;
     }
 
-    const b64 = openaiData?.data?.[0]?.b64_json;
     if (!b64) {
-      throw new Error("No b64_json in OpenAI response");
+      throw new Error("No image returned by selected model");
     }
 
     // 2) Convert to buffer

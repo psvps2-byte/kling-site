@@ -20,6 +20,7 @@ type VideoMode = "i2v" | "motion";
 type VideoQuality = "standard" | "pro";
 type VideoDuration = 5 | 10;
 type CharacterOrientation = "image" | "video";
+type PhotoModelChoice = "chatgpt" | "nano-banana";
 
 function LoadingDots() {
   return (
@@ -397,6 +398,7 @@ export default function Home() {
 
   // PHOTO (Omni O1)
   const [aspect, setAspect] = useState<Aspect>("1:1");
+  const [photoModel, setPhotoModel] = useState<PhotoModelChoice>("chatgpt");
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [srcFile, setSrcFile] = useState<File | null>(null);
   const [srcFile2, setSrcFile2] = useState<File | null>(null);
@@ -416,6 +418,7 @@ export default function Home() {
 
   // Inline small dropdowns (Format / Quantity)
   const [formatOpen, setFormatOpen] = useState(false);
+  const [modelOpen, setModelOpen] = useState(false);
   const [qtyOpen, setQtyOpen] = useState(false);
   const inlineSelectorsRef = useRef<HTMLDivElement | null>(null);
 
@@ -423,6 +426,7 @@ export default function Home() {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         setFormatOpen(false);
+        setModelOpen(false);
         setQtyOpen(false);
       }
     }
@@ -432,6 +436,7 @@ export default function Home() {
       if (!el) return;
       if (e.target instanceof Node && !el.contains(e.target)) {
         setFormatOpen(false);
+        setModelOpen(false);
         setQtyOpen(false);
       }
     }
@@ -1046,6 +1051,7 @@ export default function Home() {
       const body: any = {
         prompt: userPrompt.trim(),
         aspect_ratio: aspect,
+        model_choice: photoModel,
         n: 1,
         image_1: srcUrl || null,
         image_2: srcUrl2 || null,
@@ -2287,10 +2293,11 @@ export default function Home() {
                           <button
                             type="button"
                             className="vPill selectTrigger miniSelectTrigger"
-                            onClick={() => {
-                              setFormatOpen((v) => !v);
-                              setQtyOpen(false);
-                            }}
+                              onClick={() => {
+                                setFormatOpen((v) => !v);
+                                setModelOpen(false);
+                                setQtyOpen(false);
+                              }}
                             aria-haspopup="menu"
                             aria-expanded={formatOpen}
                           >
@@ -2319,6 +2326,61 @@ export default function Home() {
                                     <span style={{ display: "inline-flex", justifyContent: "space-between", width: "100%" }}>
                                       <span>{r}</span>
                                       {aspect === r && <span>✓</span>}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                        <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>
+                          {lang === "uk" ? "Модель" : "Model"}
+                        </div>
+                        <div style={{ position: "relative" }}>
+                          <button
+                            type="button"
+                            className="vPill selectTrigger miniSelectTrigger"
+                            onClick={() => {
+                              setModelOpen((v) => !v);
+                              setFormatOpen(false);
+                              setQtyOpen(false);
+                            }}
+                            aria-haspopup="menu"
+                            aria-expanded={modelOpen}
+                          >
+                            <span style={{ opacity: 0.95 }}>
+                              {photoModel === "chatgpt" ? "ChatGPT" : "Nano Banana"}
+                            </span>
+                            <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>▾</span>
+                          </button>
+
+                          {modelOpen && (
+                            <div
+                              className="smallDropdown miniDropdown"
+                              role="menu"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onTouchStart={(e) => e.stopPropagation()}
+                            >
+                              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                {([
+                                  { key: "chatgpt", label: "ChatGPT" },
+                                  { key: "nano-banana", label: "Nano Banana" },
+                                ] as const).map((m) => (
+                                  <button
+                                    key={m.key}
+                                    type="button"
+                                    className={photoModel === m.key ? "formatOption active numMono" : "formatOption numMono"}
+                                    onClick={() => {
+                                      setPhotoModel(m.key);
+                                      setModelOpen(false);
+                                    }}
+                                  >
+                                    <span style={{ display: "inline-flex", justifyContent: "space-between", width: "100%" }}>
+                                      <span>{m.label}</span>
+                                      {photoModel === m.key && <span>✓</span>}
                                     </span>
                                   </button>
                                 ))}
@@ -2582,10 +2644,11 @@ export default function Home() {
                           <button
                             type="button"
                             className="vPill selectTrigger miniSelectTrigger"
-                            onClick={() => {
-                              setFormatOpen((v) => !v);
-                              setQtyOpen(false);
-                            }}
+                              onClick={() => {
+                                setFormatOpen((v) => !v);
+                                setModelOpen(false);
+                                setQtyOpen(false);
+                              }}
                             aria-haspopup="menu"
                             aria-expanded={formatOpen}
                           >
@@ -2614,6 +2677,61 @@ export default function Home() {
                                     <span style={{ display: "inline-flex", justifyContent: "space-between", width: "100%" }}>
                                       <span>{r}</span>
                                       {aspect === r && <span>✓</span>}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                        <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>
+                          {lang === "uk" ? "Модель" : "Model"}
+                        </div>
+                        <div style={{ position: "relative" }}>
+                          <button
+                            type="button"
+                            className="vPill selectTrigger miniSelectTrigger"
+                            onClick={() => {
+                              setModelOpen((v) => !v);
+                              setFormatOpen(false);
+                              setQtyOpen(false);
+                            }}
+                            aria-haspopup="menu"
+                            aria-expanded={modelOpen}
+                          >
+                            <span style={{ opacity: 0.95 }}>
+                              {photoModel === "chatgpt" ? "ChatGPT" : "Nano Banana"}
+                            </span>
+                            <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>▾</span>
+                          </button>
+
+                          {modelOpen && (
+                            <div
+                              className="smallDropdown miniDropdown"
+                              role="menu"
+                              onMouseDown={(e) => e.stopPropagation()}
+                              onTouchStart={(e) => e.stopPropagation()}
+                            >
+                              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                {([
+                                  { key: "chatgpt", label: "ChatGPT" },
+                                  { key: "nano-banana", label: "Nano Banana" },
+                                ] as const).map((m) => (
+                                  <button
+                                    key={m.key}
+                                    type="button"
+                                    className={photoModel === m.key ? "formatOption active numMono" : "formatOption numMono"}
+                                    onClick={() => {
+                                      setPhotoModel(m.key);
+                                      setModelOpen(false);
+                                    }}
+                                  >
+                                    <span style={{ display: "inline-flex", justifyContent: "space-between", width: "100%" }}>
+                                      <span>{m.label}</span>
+                                      {photoModel === m.key && <span>✓</span>}
                                     </span>
                                   </button>
                                 ))}
