@@ -66,7 +66,15 @@ function withoutW(url: string) {
 }
 
 // ✅ VideoPosterTile component - generates poster from first frame
-function VideoPosterTile({ url, prompt }: { url: string; prompt?: string }) {
+function VideoPosterTile({
+  url,
+  prompt,
+  onAspect,
+}: {
+  url: string;
+  prompt?: string;
+  onAspect?: (ratio: number) => void;
+}) {
   const [posterDataUrl, setPosterDataUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -117,11 +125,20 @@ function VideoPosterTile({ url, prompt }: { url: string; prompt?: string }) {
     function onSeeked() {
       if (!mounted) return;
       try {
-        const canvas = document.createElement("canvas");
         const vw = video.videoWidth || 640;
         const vh = video.videoHeight || 360;
-        canvas.width = Math.min(vw, 600);
-        canvas.height = Math.min(vh, 600);
+        const ratio = vw / vh;
+        if (Number.isFinite(ratio) && ratio > 0) onAspect?.(ratio);
+
+        const canvas = document.createElement("canvas");
+        const maxSide = 600;
+        if (vw >= vh) {
+          canvas.width = maxSide;
+          canvas.height = Math.max(1, Math.round((vh / vw) * maxSide));
+        } else {
+          canvas.height = maxSide;
+          canvas.width = Math.max(1, Math.round((vw / vh) * maxSide));
+        }
         
         const ctx = canvas.getContext("2d");
         if (!ctx) {
@@ -154,7 +171,7 @@ function VideoPosterTile({ url, prompt }: { url: string; prompt?: string }) {
       mounted = false;
       cleanup();
     };
-  }, [url]);
+  }, [url, onAspect]);
 
   if (failed) {
     // Fallback: neutral gradient with play icon
@@ -302,6 +319,7 @@ export default function HistoryPage() {
 
   // ✅ Показуємо по 20 (кнопка “Ще”)
   const [visibleCount, setVisibleCount] = useState(20);
+  const [mediaAspect, setMediaAspect] = useState<Record<string, number>>({});
 
   const mountedRef = useRef(true);
 
@@ -738,6 +756,8 @@ export default function HistoryPage() {
             {visibleItems.map((it) => {
               const url = it.url;
               const isVid = url ? isVideoUrl(url) : false;
+              const ratio = url ? mediaAspect[url] : undefined;
+              const tileAspect = ratio && ratio > 0 ? ratio : isVid ? 9 / 16 : 1;
               const busy = deletingUid === it.uid;
 
               // статус: якщо url пустий — “processing”
@@ -751,6 +771,7 @@ export default function HistoryPage() {
                     opacity: busy ? 0.6 : 1,
                     pointerEvents: busy ? "none" : "auto",
                     cursor: url ? "pointer" : "default",
+                    aspectRatio: String(tileAspect),
                   }}
                   onClick={() => openModal(it)}
                   title={it.prompt ?? ""}
@@ -759,7 +780,17 @@ export default function HistoryPage() {
                   {url ? (
                     isVid ? (
                       // Video preview with VideoPosterTile component (no blur background)
-                      <VideoPosterTile url={url} prompt={it.prompt} />
+                      <VideoPosterTile
+                        url={url}
+                        prompt={it.prompt}
+                        onAspect={(next) => {
+                          if (!Number.isFinite(next) || next <= 0) return;
+                          setMediaAspect((prev) => {
+                            if (prev[url] === next) return prev;
+                            return { ...prev, [url]: next };
+                          });
+                        }}
+                      />
                     ) : (
                       // Image with blur background
                       <>
@@ -776,6 +807,18 @@ export default function HistoryPage() {
                           src={thumbUrl(url)}
                           alt={it.prompt || dict.noPreview}
                           loading="lazy"
+                          onLoad={(e) => {
+                            const img = e.currentTarget;
+                            const w = img.naturalWidth || 0;
+                            const h = img.naturalHeight || 0;
+                            if (!url || !w || !h) return;
+                            const next = w / h;
+                            if (!Number.isFinite(next) || next <= 0) return;
+                            setMediaAspect((prev) => {
+                              if (prev[url] === next) return prev;
+                              return { ...prev, [url]: next };
+                            });
+                          }}
                         />
                       </>
                     )

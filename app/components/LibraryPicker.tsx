@@ -49,7 +49,11 @@ function thumbUrl(url: string) {
  * Спроба зробити статичний постер для відео (без програвання) через canvas.
  * Якщо CORS не дозволяє — поверне null, тоді буде fallback на thumbUrl(url).
  */
-async function capturePoster(url: string): Promise<string | null> {
+const POSTER_FAILED = "__poster_failed__";
+
+async function capturePoster(
+  url: string
+): Promise<{ dataUrl: string | null; ratio: number | null }> {
   return new Promise((resolve) => {
     const v = document.createElement("video");
     // важливо: якщо відео з іншого домену без CORS — canvas буде tainted
@@ -76,7 +80,7 @@ async function capturePoster(url: string): Promise<string | null> {
 
     const fail = () => {
       cleanup();
-      resolve(null);
+      resolve({ dataUrl: null, ratio: null });
     };
 
     v.onerror = fail;
@@ -107,6 +111,7 @@ async function capturePoster(url: string): Promise<string | null> {
         const w = v.videoWidth || 0;
         const h = v.videoHeight || 0;
         if (!w || !h) return fail();
+        const ratio = w / h;
 
         const canvas = document.createElement("canvas");
         canvas.width = w;
@@ -120,7 +125,10 @@ async function capturePoster(url: string): Promise<string | null> {
         // jpeg достатньо для прев’ю
         const dataUrl = canvas.toDataURL("image/jpeg", 0.86);
         cleanup();
-        resolve(dataUrl);
+        resolve({
+          dataUrl,
+          ratio: Number.isFinite(ratio) && ratio > 0 ? ratio : null,
+        });
       } catch {
         // найчастіше сюди потрапляємо при CORS (tainted canvas)
         fail();
@@ -240,16 +248,20 @@ export default function LibraryPicker({
       for (const it of vids) {
         if (!alive) return;
         if (!it.url) continue;
-        if (posters[it.url]) continue;
+        if (Object.prototype.hasOwnProperty.call(posters, it.url)) continue;
 
         const p = await capturePoster(it.url);
         if (!alive) return;
 
-        if (p) {
-          setPosters((prev) => ({ ...prev, [it.url]: p }));
+        if (p.ratio && Number.isFinite(p.ratio) && p.ratio > 0) {
+          setMediaAspect((prev) => ({ ...prev, [it.url]: p.ratio as number }));
+        }
+
+        if (p.dataUrl) {
+          setPosters((prev) => ({ ...prev, [it.url]: p.dataUrl as string }));
         } else {
           // якщо не вийшло (CORS) — не повторюємо нескінченно
-          setPosters((prev) => ({ ...prev, [it.url]: "" }));
+          setPosters((prev) => ({ ...prev, [it.url]: POSTER_FAILED }));
         }
       }
     })();
@@ -343,7 +355,14 @@ export default function LibraryPicker({
             // - для video: беремо dataURL постера (якщо є), інакше fallback на thumbUrl(url)
             // - для image: thumbUrl(url)
             const poster = it.url && vid ? posters[it.url] : undefined;
-            const src = it.url ? (vid ? poster || thumbUrl(it.url) : thumbUrl(it.url)) : "";
+            const src =
+              it.url && vid
+                ? poster && poster !== POSTER_FAILED
+                  ? poster
+                  : thumbUrl(mediaUrl)
+                : it.url
+                  ? thumbUrl(it.url)
+                  : "";
 
             return (
               <button
@@ -384,35 +403,7 @@ export default function LibraryPicker({
                   }}
                 />
 
-                {vid && it.url ? (
-                  <video
-                    src={mediaUrl}
-                    muted
-                    playsInline
-                    preload="metadata"
-                    onLoadedMetadata={(e) => {
-                      const v = e.currentTarget;
-                      const w = v.videoWidth || 0;
-                      const h = v.videoHeight || 0;
-                      if (!it.url || !w || !h) return;
-                      const next = w / h;
-                      if (!Number.isFinite(next) || next <= 0) return;
-                      setMediaAspect((prev) => {
-                        if (prev[it.url] === next) return prev;
-                        return { ...prev, [it.url]: next };
-                      });
-                    }}
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      width: "100%",
-                      height: "100%",
-                      objectFit: "cover",
-                      display: "block",
-                      background: "rgba(0,0,0,0.35)",
-                    }}
-                  />
-                ) : src ? (
+                {src ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={src}
