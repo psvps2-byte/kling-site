@@ -154,7 +154,7 @@ export default function LibraryPicker({
   const [error, setError] = useState<string | null>(null);
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
-  const [videoAspect, setVideoAspect] = useState<Record<string, number>>({});
+  const [mediaAspect, setMediaAspect] = useState<Record<string, number>>({});
 
   // poster cache: key = video url, value = dataURL
   const [posters, setPosters] = useState<Record<string, string>>({});
@@ -335,8 +335,8 @@ export default function LibraryPicker({
         >
           {items.map((it) => {
             const vid = it.kind === "video" || (it.url ? isVideoUrl(it.url) : false);
-            const ratio = it.url && vid ? videoAspect[it.url] : undefined;
-            const cardAspect = vid ? (ratio && ratio > 0 ? ratio : 9 / 16) : 1;
+            const ratio = mediaAspect[it.url];
+            const cardAspect = ratio && ratio > 0 ? ratio : vid ? 9 / 16 : 1;
             const mediaUrl = stripPreviewParams(it.url);
 
             // src:
@@ -397,7 +397,7 @@ export default function LibraryPicker({
                       if (!it.url || !w || !h) return;
                       const next = w / h;
                       if (!Number.isFinite(next) || next <= 0) return;
-                      setVideoAspect((prev) => {
+                      setMediaAspect((prev) => {
                         if (prev[it.url] === next) return prev;
                         return { ...prev, [it.url]: next };
                       });
@@ -407,7 +407,7 @@ export default function LibraryPicker({
                       inset: 0,
                       width: "100%",
                       height: "100%",
-                      objectFit: "contain",
+                      objectFit: "cover",
                       display: "block",
                       background: "rgba(0,0,0,0.35)",
                     }}
@@ -418,6 +418,18 @@ export default function LibraryPicker({
                     src={src}
                     alt="history"
                     loading="lazy"
+                    onLoad={(e) => {
+                      const img = e.currentTarget;
+                      const w = img.naturalWidth || 0;
+                      const h = img.naturalHeight || 0;
+                      if (!it.url || !w || !h) return;
+                      const next = w / h;
+                      if (!Number.isFinite(next) || next <= 0) return;
+                      setMediaAspect((prev) => {
+                        if (prev[it.url] === next) return prev;
+                        return { ...prev, [it.url]: next };
+                      });
+                    }}
                     style={{
                       position: "absolute",
                       inset: 0,
