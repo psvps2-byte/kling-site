@@ -3,7 +3,8 @@ import jwt from "jsonwebtoken";
 import http from "http";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import crypto from "crypto";
-import FormData from "form-data";
+import OpenAI from "openai";
+import { toFile } from "openai/uploads";
 
 /* ================= ENV ================= */
 
@@ -49,6 +50,7 @@ const WORKER_ID = process.env.WORKER_ID || `worker-${Math.random().toString(16).
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
+const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
 
 const r2Client = new S3Client({
   region: "auto",
@@ -209,6 +211,38 @@ async function downloadToBuffer(url) {
   return Buffer.from(arrayBuffer);
 }
 
+function guessContentType(url, fallback = "image/png") {
+  const clean = String(url || "").split("?")[0].toLowerCase();
+  if (clean.endsWith(".jpg") || clean.endsWith(".jpeg")) return "image/jpeg";
+  if (clean.endsWith(".webp")) return "image/webp";
+  if (clean.endsWith(".gif")) return "image/gif";
+  if (clean.endsWith(".png")) return "image/png";
+  return fallback;
+}
+
+function extFromType(contentType) {
+  if (contentType === "image/jpeg") return "jpg";
+  if (contentType === "image/webp") return "webp";
+  if (contentType === "image/gif") return "gif";
+  return "png";
+}
+
+async function downloadImageForOpenAI(url, fallbackBaseName) {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Failed to download ${url}: ${res.status}`);
+  }
+
+  const arrayBuffer = await res.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  const headerType = (res.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+  const contentType = headerType || guessContentType(url);
+  const ext = extFromType(contentType);
+  const filename = `${fallbackBaseName}.${ext}`;
+
+  return { buffer, contentType, filename };
+}
+
 async function uploadToR2(buffer, type, jobId) {
   try {
     const ext = type === 'video' ? 'mp4' : 'png';
@@ -274,24 +308,14 @@ async function processPhotoWithOpenAI(job) {
     let openaiData;
 
     if (hasReference) {
-      // Use /v1/images/edits with multipart/form-data for multi-image input
-      console.log("Using /v1/images/edits with reference image(s)");
+      // Use OpenAI SDK for edits to avoid malformed multipart requests.
+      console.log("Using OpenAI images.edit with reference image(s)");
+      const editImages = [];
 
-      const formData = new FormData();
-      formData.append("model", OPENAI_IMAGE_MODEL);
-      formData.append("prompt", prompt);
-      formData.append("size", size);
-      formData.append("quality", OPENAI_IMAGE_QUALITY);
-      formData.append("n", "1");
-
-      // Download and append each reference image as image[]
       if (image1) {
         try {
-          const img1Buffer = await downloadToBuffer(image1);
-          formData.append("image[]", img1Buffer, {
-            filename: "ref1.png",
-            contentType: "image/png",
-          });
+          const img1 = await downloadImageForOpenAI(image1, "ref1");
+          editImages.push(await toFile(img1.buffer, img1.filename, { type: img1.contentType }));
         } catch (e) {
           console.error("Failed to download image_1:", e?.message || e);
           throw new Error("Failed to download reference image 1");
@@ -300,57 +324,34 @@ async function processPhotoWithOpenAI(job) {
 
       if (image2) {
         try {
-          const img2Buffer = await downloadToBuffer(image2);
-          formData.append("image[]", img2Buffer, {
-            filename: "ref2.png",
-            contentType: "image/png",
-          });
+          const img2 = await downloadImageForOpenAI(image2, "ref2");
+          editImages.push(await toFile(img2.buffer, img2.filename, { type: img2.contentType }));
         } catch (e) {
           console.error("Failed to download image_2:", e?.message || e);
           throw new Error("Failed to download reference image 2");
         }
       }
 
-      const openaiRes = await fetch("https://api.openai.com/v1/images/edits", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-          ...formData.getHeaders(),
-        },
-        body: formData,
+      const editRes = await openai.images.edit({
+        model: OPENAI_IMAGE_MODEL,
+        image: editImages,
+        prompt,
+        size,
+        n: 1,
       });
-
-      openaiData = await openaiRes.json();
-
-      if (!openaiRes.ok) {
-        console.log("OPENAI EDITS STATUS:", openaiRes.status);
-        console.log("OPENAI EDITS RESPONSE:", JSON.stringify(openaiData));
-        throw new Error("OpenAI edits failed (see logs)");
-      }
+      openaiData = editRes;
     } else {
       // Use /v1/images/generations fallback for text-only prompts
       console.log("Using /v1/images/generations without reference");
 
-      const openaiRes = await fetch("https://api.openai.com/v1/images/generations", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
-        },
-        body: JSON.stringify({
-          model: OPENAI_IMAGE_MODEL,
-          prompt,
-          n: 1,
-          size,
-          quality: OPENAI_IMAGE_QUALITY,
-        }),
+      const genRes = await openai.images.generate({
+        model: OPENAI_IMAGE_MODEL,
+        prompt,
+        n: 1,
+        size,
+        quality: OPENAI_IMAGE_QUALITY,
       });
-
-      openaiData = await openaiRes.json();
-
-      if (!openaiRes.ok) {
-        throw new Error(`OpenAI error ${openaiRes.status}: ${JSON.stringify(openaiData).slice(0, 300)}`);
-      }
+      openaiData = genRes;
     }
 
     const b64 = openaiData?.data?.[0]?.b64_json;
