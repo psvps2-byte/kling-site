@@ -203,6 +203,13 @@ function pickNanoBananaModel(job) {
   return GEMINI_IMAGE_MODEL_NANO_BANANA || "gemini-2.5-flash-image";
 }
 
+function pickGeminiAspectRatio(aspect) {
+  const a = String(aspect || "").trim();
+  const allowed = new Set(["1:1", "3:2", "2:3", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"]);
+  if (allowed.has(a)) return a;
+  return "1:1";
+}
+
 /* ============== OPENAI + R2 ============== */
 
 function sanitizePromptForOpenAI(prompt) {
@@ -332,6 +339,9 @@ async function generatePhotoWithGemini(job, prompt, aspect, image1, image2) {
   }
 
   const model = pickNanoBananaModel(job);
+  if (!/image/i.test(model)) {
+    throw new Error(`Nano Banana model must be an image model, got: "${model}"`);
+  }
   const parts = [{ text: withAspectInPrompt(prompt, aspect) }];
 
   if (image1) {
@@ -363,6 +373,9 @@ async function generatePhotoWithGemini(job, prompt, aspect, image1, image2) {
     ],
     generationConfig: {
       responseModalities: ["TEXT", "IMAGE"],
+      imageConfig: {
+        aspectRatio: pickGeminiAspectRatio(aspect),
+      },
     },
   };
 
@@ -370,21 +383,18 @@ async function generatePhotoWithGemini(job, prompt, aspect, image1, image2) {
   let b64 = pickGeminiImageB64(first);
   if (b64) return b64;
 
-  // Retry once with strict IMAGE-only modality if first response is text-only.
+  // Retry once with stronger instruction if first response is text-only.
   const retryPayload = {
     ...payload,
     contents: [
       {
         role: "user",
         parts: [
-          ...parts,
-          { text: "Return only IMAGE output." },
+          { text: `${withAspectInPrompt(prompt, aspect)} Return an image output.` },
+          ...parts.slice(1),
         ],
       },
     ],
-    generationConfig: {
-      responseModalities: ["IMAGE"],
-    },
   };
   const second = await callGeminiGenerateContent(model, retryPayload);
   b64 = pickGeminiImageB64(second);
