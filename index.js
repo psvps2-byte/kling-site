@@ -286,6 +286,36 @@ function withAspectInPrompt(prompt, aspect) {
   return `${prompt}\n\nAspect ratio: ${a}.`;
 }
 
+function buildGeminiInstruction(userPrompt, aspect, hasImage1, hasImage2) {
+  const ar = pickGeminiAspectRatio(aspect);
+
+  if (hasImage1 && hasImage2) {
+    return [
+      "Generate exactly one photorealistic image.",
+      "Use reference image 1 as the main subject identity and structure.",
+      "Use reference image 2 as style reference only (lighting, color palette, mood).",
+      "Keep key facial/body identity from reference image 1.",
+      `Output aspect ratio ${ar}.`,
+      `User request: ${userPrompt}`,
+    ].join(" ");
+  }
+
+  if (hasImage1) {
+    return [
+      "Generate exactly one photorealistic image.",
+      "Use reference image 1 as the main subject and preserve identity/features.",
+      `Output aspect ratio ${ar}.`,
+      `User request: ${userPrompt}`,
+    ].join(" ");
+  }
+
+  return [
+    "Generate exactly one photorealistic image.",
+    `Output aspect ratio ${ar}.`,
+    `User request: ${userPrompt}`,
+  ].join(" ");
+}
+
 function pickGeminiImageB64(json) {
   const candidates = Array.isArray(json?.candidates) ? json.candidates : [];
   for (const c of candidates) {
@@ -382,7 +412,16 @@ async function generatePhotoWithGemini(job, prompt, aspect, image1, image2) {
   if (!/image/i.test(model)) {
     throw new Error(`Nano Banana model must be an image model, got: "${model}"`);
   }
-  const parts = [{ text: withAspectInPrompt(prompt, aspect) }];
+  const parts = [
+    {
+      text: buildGeminiInstruction(
+        prompt,
+        aspect,
+        Boolean(image1),
+        Boolean(image2)
+      ),
+    },
+  ];
 
   if (image1) {
     const img1 = await downloadImageForOpenAI(image1, "ref1");
@@ -435,7 +474,14 @@ async function generatePhotoWithGemini(job, prompt, aspect, image1, image2) {
         {
           role: "user",
           parts: [
-            { text: `${withAspectInPrompt(prompt, aspect)} Return an image output.` },
+            {
+              text: `${buildGeminiInstruction(
+                prompt,
+                aspect,
+                Boolean(image1),
+                Boolean(image2)
+              )} Return image output only.`,
+            },
             ...parts.slice(1),
           ],
         },
@@ -588,20 +634,11 @@ async function processPhotoWithOpenAI(job) {
           openaiData = genRes;
         }
       } catch (e) {
-        // Auto-fallback: if OpenAI blocks with safety, retry the same request through Gemini.
-        if (GEMINI_API_KEY && isOpenAISafetyError(e)) {
-          console.warn("OpenAI safety rejection, falling back to Gemini for job", job?.id);
-          b64 = await generatePhotoWithGemini(
-            job,
-            prompt,
-            job?.payload?.aspect_ratio || "",
-            image1,
-            image2
-          );
-          openaiData = null;
-        } else {
-          throw e;
+        // Keep model behavior predictable: do not silently switch providers for ChatGPT jobs.
+        if (isOpenAISafetyError(e)) {
+          console.warn("OpenAI safety rejection for job", job?.id);
         }
+        throw e;
       }
 
       if (!b64) {
