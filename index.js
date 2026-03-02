@@ -293,46 +293,18 @@ function pickGeminiImageB64(json) {
   return null;
 }
 
-async function generatePhotoWithGemini(job, prompt, aspect, image1, image2) {
-  if (!GEMINI_API_KEY) {
-    throw new Error("Missing GEMINI_API_KEY for Nano Banana model");
+function pickGeminiText(json) {
+  const candidates = Array.isArray(json?.candidates) ? json.candidates : [];
+  for (const c of candidates) {
+    const parts = Array.isArray(c?.content?.parts) ? c.content.parts : [];
+    for (const p of parts) {
+      if (typeof p?.text === "string" && p.text.trim()) return p.text.trim();
+    }
   }
+  return "";
+}
 
-  const model = pickNanoBananaModel(job);
-  const parts = [{ text: withAspectInPrompt(prompt, aspect) }];
-
-  if (image1) {
-    const img1 = await downloadImageForOpenAI(image1, "ref1");
-    parts.push({
-      inline_data: {
-        mime_type: img1.contentType,
-        data: img1.buffer.toString("base64"),
-      },
-    });
-  }
-
-  if (image2) {
-    const img2 = await downloadImageForOpenAI(image2, "ref2");
-    parts.push({
-      inline_data: {
-        mime_type: img2.contentType,
-        data: img2.buffer.toString("base64"),
-      },
-    });
-  }
-
-  const payload = {
-    contents: [
-      {
-        role: "user",
-        parts,
-      },
-    ],
-    generation_config: {
-      response_modalities: ["TEXT", "IMAGE"],
-    },
-  };
-
+async function callGeminiGenerateContent(model, payload) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
     model
   )}:generateContent`;
@@ -351,12 +323,78 @@ async function generatePhotoWithGemini(job, prompt, aspect, image1, image2) {
     throw new Error(`Gemini error ${res.status}: ${JSON.stringify(json).slice(0, 300)}`);
   }
 
-  const b64 = pickGeminiImageB64(json);
-  if (!b64) {
-    throw new Error(`Gemini returned no image data: ${JSON.stringify(json).slice(0, 300)}`);
+  return json;
+}
+
+async function generatePhotoWithGemini(job, prompt, aspect, image1, image2) {
+  if (!GEMINI_API_KEY) {
+    throw new Error("Missing GEMINI_API_KEY for Nano Banana model");
   }
 
-  return b64;
+  const model = pickNanoBananaModel(job);
+  const parts = [{ text: withAspectInPrompt(prompt, aspect) }];
+
+  if (image1) {
+    const img1 = await downloadImageForOpenAI(image1, "ref1");
+    parts.push({
+      inlineData: {
+        mimeType: img1.contentType,
+        data: img1.buffer.toString("base64"),
+      },
+    });
+  }
+
+  if (image2) {
+    const img2 = await downloadImageForOpenAI(image2, "ref2");
+    parts.push({
+      inlineData: {
+        mimeType: img2.contentType,
+        data: img2.buffer.toString("base64"),
+      },
+    });
+  }
+
+  const payload = {
+    contents: [
+      {
+        role: "user",
+        parts,
+      },
+    ],
+    generationConfig: {
+      responseModalities: ["TEXT", "IMAGE"],
+    },
+  };
+
+  const first = await callGeminiGenerateContent(model, payload);
+  let b64 = pickGeminiImageB64(first);
+  if (b64) return b64;
+
+  // Retry once with strict IMAGE-only modality if first response is text-only.
+  const retryPayload = {
+    ...payload,
+    contents: [
+      {
+        role: "user",
+        parts: [
+          ...parts,
+          { text: "Return only IMAGE output." },
+        ],
+      },
+    ],
+    generationConfig: {
+      responseModalities: ["IMAGE"],
+    },
+  };
+  const second = await callGeminiGenerateContent(model, retryPayload);
+  b64 = pickGeminiImageB64(second);
+  if (b64) return b64;
+
+  const t1 = pickGeminiText(first);
+  const t2 = pickGeminiText(second);
+  throw new Error(
+    `Gemini returned no image data. text1="${t1.slice(0, 120)}" text2="${t2.slice(0, 120)}"`
+  );
 }
 
 async function uploadToR2(buffer, type, jobId) {
