@@ -311,6 +311,46 @@ function pickGeminiText(json) {
   return "";
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function normalizeErrMsg(e) {
+  if (!e) return "";
+  if (typeof e === "string") return e;
+  if (typeof e?.message === "string") return e.message;
+  try {
+    return JSON.stringify(e);
+  } catch {
+    return String(e);
+  }
+}
+
+function isOpenAISafetyError(e) {
+  const msg = normalizeErrMsg(e).toLowerCase();
+  return (
+    msg.includes("rejected by the safety system") ||
+    msg.includes("safety_violation") ||
+    msg.includes("safety system")
+  );
+}
+
+function extractPromptFromJob(job) {
+  const p = job?.payload;
+  const payload = typeof p === "string" ? (() => {
+    try { return JSON.parse(p); } catch { return {}; }
+  })() : (p || {});
+
+  const raw =
+    payload?.prompt ??
+    payload?.text ??
+    payload?.description ??
+    job?.prompt ??
+    "";
+
+  return String(raw || "").trim();
+}
+
 async function callGeminiGenerateContent(model, payload) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(
     model
@@ -379,31 +419,42 @@ async function generatePhotoWithGemini(job, prompt, aspect, image1, image2) {
     },
   };
 
-  const first = await callGeminiGenerateContent(model, payload);
-  let b64 = pickGeminiImageB64(first);
-  if (b64) return b64;
+  let lastT1 = "";
+  let lastT2 = "";
 
-  // Retry once with stronger instruction if first response is text-only.
-  const retryPayload = {
-    ...payload,
-    contents: [
-      {
-        role: "user",
-        parts: [
-          { text: `${withAspectInPrompt(prompt, aspect)} Return an image output.` },
-          ...parts.slice(1),
-        ],
-      },
-    ],
-  };
-  const second = await callGeminiGenerateContent(model, retryPayload);
-  b64 = pickGeminiImageB64(second);
-  if (b64) return b64;
+  // Extra resiliency: repeat the pair of requests once if model returns text-only.
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    const first = await callGeminiGenerateContent(model, payload);
+    let b64 = pickGeminiImageB64(first);
+    if (b64) return b64;
 
-  const t1 = pickGeminiText(first);
-  const t2 = pickGeminiText(second);
+    // Retry with stronger instruction if first response is text-only.
+    const retryPayload = {
+      ...payload,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: `${withAspectInPrompt(prompt, aspect)} Return an image output.` },
+            ...parts.slice(1),
+          ],
+        },
+      ],
+    };
+    const second = await callGeminiGenerateContent(model, retryPayload);
+    b64 = pickGeminiImageB64(second);
+    if (b64) return b64;
+
+    lastT1 = pickGeminiText(first);
+    lastT2 = pickGeminiText(second);
+
+    if (attempt < 2) {
+      await sleep(500);
+    }
+  }
+
   throw new Error(
-    `Gemini returned no image data. text1="${t1.slice(0, 120)}" text2="${t2.slice(0, 120)}"`
+    `Gemini returned no image data. text1="${lastT1.slice(0, 120)}" text2="${lastT2.slice(0, 120)}"`
   );
 }
 
@@ -445,18 +496,22 @@ async function uploadToR2(buffer, type, jobId) {
 
 async function processPhotoWithOpenAI(job) {
   try {
-    let prompt = String(job?.payload?.prompt || "").trim();
+    const image1 = job?.payload?.image_1 || null;
+    const image2 = job?.payload?.image_2 || null;
+    const hasReference = image1 || image2;
+
+    let prompt = extractPromptFromJob(job);
+    if (!prompt && hasReference) {
+      // Fallback prompt keeps generation alive for malformed legacy payloads.
+      prompt = "Create a high-quality photorealistic image based on the reference image(s).";
+      console.warn("Missing prompt in job payload, using fallback prompt for job", job?.id);
+    }
     if (!prompt) {
       throw new Error("Missing prompt in job payload");
     }
 
     const size = pickOpenAISizeFromAspect(job);
     const model = pickOpenAIModelForPhoto(job);
-
-    // Check for reference images
-    const image1 = job?.payload?.image_1 || null;
-    const image2 = job?.payload?.image_2 || null;
-    const hasReference = image1 || image2;
 
     // Sanitize prompt
     prompt = sanitizePromptForOpenAI(prompt);
@@ -485,54 +540,73 @@ async function processPhotoWithOpenAI(job) {
     } else {
       let openaiData;
 
-      if (hasReference) {
-        // Use OpenAI SDK for edits to avoid malformed multipart requests.
-        console.log("Using OpenAI images.edit with reference image(s)");
-        const editImages = [];
+      try {
+        if (hasReference) {
+          // Use OpenAI SDK for edits to avoid malformed multipart requests.
+          console.log("Using OpenAI images.edit with reference image(s)");
+          const editImages = [];
 
-        if (image1) {
-          try {
-            const img1 = await downloadImageForOpenAI(image1, "ref1");
-            editImages.push(await toFile(img1.buffer, img1.filename, { type: img1.contentType }));
-          } catch (e) {
-            console.error("Failed to download image_1:", e?.message || e);
-            throw new Error("Failed to download reference image 1");
+          if (image1) {
+            try {
+              const img1 = await downloadImageForOpenAI(image1, "ref1");
+              editImages.push(await toFile(img1.buffer, img1.filename, { type: img1.contentType }));
+            } catch (e) {
+              console.error("Failed to download image_1:", e?.message || e);
+              throw new Error("Failed to download reference image 1");
+            }
           }
-        }
 
-        if (image2) {
-          try {
-            const img2 = await downloadImageForOpenAI(image2, "ref2");
-            editImages.push(await toFile(img2.buffer, img2.filename, { type: img2.contentType }));
-          } catch (e) {
-            console.error("Failed to download image_2:", e?.message || e);
-            throw new Error("Failed to download reference image 2");
+          if (image2) {
+            try {
+              const img2 = await downloadImageForOpenAI(image2, "ref2");
+              editImages.push(await toFile(img2.buffer, img2.filename, { type: img2.contentType }));
+            } catch (e) {
+              console.error("Failed to download image_2:", e?.message || e);
+              throw new Error("Failed to download reference image 2");
+            }
           }
+
+          const editRes = await openai.images.edit({
+            model,
+            image: editImages,
+            prompt,
+            size,
+            n: 1,
+          });
+          openaiData = editRes;
+        } else {
+          // Use /v1/images/generations fallback for text-only prompts
+          console.log("Using /v1/images/generations without reference");
+
+          const genRes = await openai.images.generate({
+            model,
+            prompt,
+            n: 1,
+            size,
+            quality: OPENAI_IMAGE_QUALITY,
+          });
+          openaiData = genRes;
         }
-
-        const editRes = await openai.images.edit({
-          model,
-          image: editImages,
-          prompt,
-          size,
-          n: 1,
-        });
-        openaiData = editRes;
-      } else {
-        // Use /v1/images/generations fallback for text-only prompts
-        console.log("Using /v1/images/generations without reference");
-
-        const genRes = await openai.images.generate({
-          model,
-          prompt,
-          n: 1,
-          size,
-          quality: OPENAI_IMAGE_QUALITY,
-        });
-        openaiData = genRes;
+      } catch (e) {
+        // Auto-fallback: if OpenAI blocks with safety, retry the same request through Gemini.
+        if (GEMINI_API_KEY && isOpenAISafetyError(e)) {
+          console.warn("OpenAI safety rejection, falling back to Gemini for job", job?.id);
+          b64 = await generatePhotoWithGemini(
+            job,
+            prompt,
+            job?.payload?.aspect_ratio || "",
+            image1,
+            image2
+          );
+          openaiData = null;
+        } else {
+          throw e;
+        }
       }
 
-      b64 = openaiData?.data?.[0]?.b64_json || null;
+      if (!b64) {
+        b64 = openaiData?.data?.[0]?.b64_json || null;
+      }
     }
 
     if (!b64) {
