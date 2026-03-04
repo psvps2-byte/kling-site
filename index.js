@@ -169,25 +169,23 @@ function pickTaskId(json) {
   );
 }
 
-async function retryInternalKlingFailure(job, failMsg) {
-  const msg = String(failMsg || "").toLowerCase();
-  if (!msg.includes("internal error")) return false;
+function stripRetryMeta(payload) {
+  const out = { ...(payload || {}) };
+  for (const k of Object.keys(out)) {
+    if (k.startsWith("_retry_")) delete out[k];
+  }
+  return out;
+}
 
-  const payload = parsePayload(job);
-  const prevRetry = Number(payload?._retry_internal || 0);
-  if (prevRetry >= 2) return false;
-
-  const createUrl = klingCreateUrl(job, payload);
+async function resubmitKlingTask(job, payloadForDb, reason) {
+  const createUrl = klingCreateUrl(job, payloadForDb);
   if (!createUrl) return false;
 
-  const nextPayload = { ...payload, _retry_internal: prevRetry + 1 };
-  const submitPayload = { ...nextPayload };
-  delete submitPayload._retry_internal;
-
+  const submitPayload = stripRetryMeta(payloadForDb);
   console.log(
-    "Retrying Kling internal error",
+    "Resubmitting Kling task",
     job.id,
-    `attempt=${nextPayload._retry_internal}`,
+    `reason=${reason}`,
     `endpoint=${createUrl}`
   );
 
@@ -200,17 +198,18 @@ async function retryInternalKlingFailure(job, failMsg) {
 
   if (!res.ok || (typeof json?.code === "number" && json.code !== 0)) {
     console.error(
-      "Retry submit failed",
+      "Resubmit failed",
       job.id,
+      reason,
       res.status,
-      JSON.stringify(json).slice(0, 400)
+      JSON.stringify(json).slice(0, 500)
     );
     return false;
   }
 
   const taskId = pickTaskId(json);
   if (!taskId) {
-    console.error("Retry submit returned no task_id", job.id, JSON.stringify(json).slice(0, 400));
+    console.error("Resubmit returned no task_id", job.id, reason, JSON.stringify(json).slice(0, 500));
     return false;
   }
 
@@ -219,15 +218,50 @@ async function retryInternalKlingFailure(job, failMsg) {
     .update({
       status: "RUNNING",
       task_id: String(taskId),
-      payload: nextPayload,
+      payload: payloadForDb,
       finished_at: null,
       locked_at: null,
       locked_by: null,
     })
     .eq("id", job.id);
 
-  console.log("Retry submitted", job.id, "new_task_id=", taskId);
+  console.log("Resubmit success", job.id, reason, "new_task_id=", taskId);
   return true;
+}
+
+async function retryInternalKlingFailure(job, failMsg) {
+  const msg = String(failMsg || "").toLowerCase();
+  if (!msg.includes("internal error")) return false;
+
+  const payload = parsePayload(job);
+  const prevRetry = Number(payload?._retry_internal || 0);
+  if (prevRetry >= 2) return false;
+
+  const nextPayload = { ...payload, _retry_internal: prevRetry + 1 };
+  return resubmitKlingTask(
+    job,
+    nextPayload,
+    `internal_error_attempt_${nextPayload._retry_internal}`
+  );
+}
+
+async function retryStuckKlingTask(job, status) {
+  const s = String(status || "").toUpperCase();
+  if (!["SUBMITTED", "PROCESSING"].includes(s)) return false;
+
+  const ageMin = minutesAgo(job.created_at);
+  if (ageMin < 12) return false;
+
+  const payload = parsePayload(job);
+  const prevRetry = Number(payload?._retry_stuck || 0);
+  if (prevRetry >= 1) return false;
+
+  const nextPayload = { ...payload, _retry_stuck: prevRetry + 1 };
+  return resubmitKlingTask(
+    job,
+    nextPayload,
+    `stuck_${s.toLowerCase()}_${Math.floor(ageMin)}min`
+  );
 }
 
 /* ============== HELPERS ============== */
@@ -888,6 +922,9 @@ async function runOnce() {
 
   const status = normalizeStatus(json);
   const resultUrls = pickResultUrls(json);
+
+  const retriedStuck = await retryStuckKlingTask(job, status);
+  if (retriedStuck) return;
 
   if (["FAILED", "ERROR", "FAILURE", "CANCELED", "CANCELLED"].includes(status)) {
     const failMsg =
