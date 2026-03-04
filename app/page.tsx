@@ -16,7 +16,7 @@ const supabase = createClient(
 );
 
 type MediaTab = "photo" | "video";
-type VideoMode = "i2v" | "motion";
+type VideoMode = "i2v" | "motion" | "edit";
 type VideoQuality = "standard" | "pro";
 type VideoDuration = 5 | 10;
 type CharacterOrientation = "image" | "video";
@@ -232,7 +232,7 @@ export default function Home() {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [libraryKind, setLibraryKind] = useState<"image" | "video">("image");
   const [libraryTarget, setLibraryTarget] = useState<
-    "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character"
+    "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character" | "editVideo"
   >("photo1");
 
   // Unified source selection modal
@@ -316,7 +316,7 @@ export default function Home() {
     setLangState(getLang());
   }, []);
 
-  function openLibrary(kind: "image" | "video", target: "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character") {
+  function openLibrary(kind: "image" | "video", target: "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character" | "editVideo") {
     setLibraryKind(kind);
     setLibraryTarget(target);
     setLibraryOpen(true);
@@ -357,6 +357,13 @@ export default function Home() {
       case "character":
         setCharacterUrl(url);
         setVCharacterImg(null);
+        break;
+      case "editVideo":
+        setEditVideoUrl(url);
+        setVEditVideo(null);
+        computeVideoDuration(url).then((duration) => {
+          setRefVideoSeconds(duration);
+        });
         break;
     }
     setLibraryOpen(false);
@@ -483,6 +490,9 @@ export default function Home() {
   const [vMotionVideo, setVMotionVideo] = useState<File | null>(null);
   const [motionPreviewUrl, setMotionPreviewUrl] = useState<string>("");
   const [motionUrl, setMotionUrl] = useState<string>("");
+  const [vEditVideo, setVEditVideo] = useState<File | null>(null);
+  const [editVideoPreviewUrl, setEditVideoPreviewUrl] = useState<string>("");
+  const [editVideoUrl, setEditVideoUrl] = useState<string>("");
   const [vCharacterImg, setVCharacterImg] = useState<File | null>(null);
   const [characterUrl, setCharacterUrl] = useState<string>("");
   const [characterOrientation, setCharacterOrientation] =
@@ -537,6 +547,21 @@ export default function Home() {
     }
   }, [vMotionVideo, motionUrl]);
 
+  useEffect(() => {
+    if (vEditVideo) {
+      const url = URL.createObjectURL(vEditVideo);
+      setEditVideoPreviewUrl(url);
+      return () => {
+        URL.revokeObjectURL(url);
+      };
+    }
+    if (editVideoUrl) {
+      setEditVideoPreviewUrl(editVideoUrl);
+    } else {
+      setEditVideoPreviewUrl("");
+    }
+  }, [vEditVideo, editVideoUrl]);
+
   // при зміні табу — скидаємо UI генерації
   useEffect(() => {
     setError(null);
@@ -560,11 +585,29 @@ export default function Home() {
       setVCharacterImg(null);
       setMotionUrl("");
       setCharacterUrl("");
+      setVEditVideo(null);
+      setEditVideoUrl("");
+      setEditVideoPreviewUrl("");
+      setRefVideoSeconds(0);
+    } else if (videoMode === "motion") {
+      setVStartImg(null);
+      setVEndImg(null);
+      setVStartUrl("");
+      setVEndUrl("");
+      setVEditVideo(null);
+      setEditVideoUrl("");
+      setEditVideoPreviewUrl("");
+      setRefVideoSeconds(0);
     } else {
       setVStartImg(null);
       setVEndImg(null);
       setVStartUrl("");
       setVEndUrl("");
+      setVMotionVideo(null);
+      setMotionUrl("");
+      setVCharacterImg(null);
+      setCharacterUrl("");
+      setRefVideoSeconds(0);
     }
   }, [videoMode]);
 
@@ -650,14 +693,16 @@ export default function Home() {
   }
 
   async function pollVideoTask(opts: {
-    kind: "image2video" | "motion-control";
+    kind: "image2video" | "motion-control" | "omni-video";
     taskId: string;
   }) {
     const { kind, taskId } = opts;
     const endpoint =
       kind === "image2video"
         ? `/api/kling/image2video/${taskId}`
-        : `/api/kling/motion-control/${taskId}`;
+        : kind === "motion-control"
+          ? `/api/kling/motion-control/${taskId}`
+          : `/api/kling/omni-video/${taskId}`;
 
     const started = Date.now();
     const maxMs = 10 * 60 * 1000;
@@ -813,6 +858,12 @@ export default function Home() {
       return videoDuration === 5 ? 14 : 28;
     }
 
+    if (videoMode === "edit") {
+      const secs = Math.max(1, Math.ceil(refVideoSeconds || 0));
+      const perSec = videoQuality === "standard" ? 4 : 5;
+      return perSec * secs;
+    }
+
     const perSec = videoQuality === "standard" ? 3 : 4;
     const secs = Math.min(30, Math.max(1, Math.ceil(refVideoSeconds || 0)));
     return perSec * secs;
@@ -915,6 +966,20 @@ export default function Home() {
       return;
     }
 
+    if (
+      mediaTab === "video" &&
+      videoMode === "edit" &&
+      vEditVideo &&
+      (refVideoSeconds || 0) <= 0
+    ) {
+      setError(
+        lang === "uk"
+          ? "Ще зчитую тривалість відео..."
+          : "Still reading video duration..."
+      );
+      return;
+    }
+
     setLoading(true);
     setImageUrls([]);
 
@@ -974,6 +1039,58 @@ export default function Home() {
             throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
 
           await pollVideoTask({ kind: "image2video", taskId });
+          return;
+        }
+
+        if (videoMode === "edit") {
+          if (!vEditVideo && !editVideoUrl)
+            throw new Error(
+              lang === "uk" ? "Потрібне відео для редагування" : "Video for editing is required"
+            );
+          if (!prompt.trim())
+            throw new Error(
+              lang === "uk" ? "Для редагування відео потрібен промт" : "Prompt is required for video editing"
+            );
+
+          const baseVideoUrl = vEditVideo
+            ? (await uploadToR2AndGetPublicUrl(vEditVideo)).url
+            : editVideoUrl;
+
+          const body: any = {
+            mode: videoQuality === "pro" ? "pro" : "std",
+            prompt: prompt.trim(),
+            duration_sec: Math.max(1, Math.ceil(refVideoSeconds || 0)),
+            video_list: [
+              {
+                video_url: baseVideoUrl,
+                refer_type: "base",
+                keep_original_sound: keepOriginalSound ? "yes" : "no",
+              },
+            ],
+          };
+
+          const res = await fetch("/api/kling/omni-video", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+
+          const data = await readJsonOrRaw(res);
+          if (!res.ok) {
+            const msg =
+              data?.error ||
+              data?.message ||
+              data?.details?.message ||
+              "Server error";
+            const reqId = data?.details?.request_id || data?.request_id;
+            throw new Error(reqId ? `${msg} (request_id: ${reqId})` : msg);
+          }
+
+          const taskId = extractTaskId(data);
+          if (!taskId)
+            throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
+
+          await pollVideoTask({ kind: "omni-video", taskId });
           return;
         }
 
@@ -1102,7 +1219,9 @@ export default function Home() {
         : prompt.trim().length < 1
       : videoMode === "i2v"
         ? !vStartImg && !vStartUrl
-        : (!vCharacterImg && !characterUrl) || (!vMotionVideo && !motionUrl));
+        : videoMode === "motion"
+          ? (!vCharacterImg && !characterUrl) || (!vMotionVideo && !motionUrl)
+          : (!vEditVideo && !editVideoUrl) || !prompt.trim());
 
   const generateBtnText = useMemo(() => {
     if (!session) return dict.signIn;
@@ -2873,6 +2992,9 @@ export default function Home() {
                 <button className={videoMode === "motion" ? "active" : ""} onClick={() => setVideoMode("motion")} type="button">
                   {lang === "uk" ? "Контроль рухів" : "Motion Control"}
                 </button>
+                <button className={videoMode === "edit" ? "active" : ""} onClick={() => setVideoMode("edit")} type="button">
+                  {lang === "uk" ? "Редагувати відео" : "Edit Video"}
+                </button>
               </div>
 
               {videoMode === "i2v" ? (
@@ -2979,7 +3101,7 @@ export default function Home() {
                     )}
                   </div>
                 </>
-              ) : (
+              ) : videoMode === "motion" ? (
                 <>
                   <div className="uploadRow">
                     <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
@@ -3103,6 +3225,86 @@ export default function Home() {
 
                     <div className="vPill" style={{ cursor: "pointer" }} onClick={() => setKeepOriginalSound((v) => !v)}>
                       <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Аудіо" : "Audio"}</span>
+                      <span style={{ opacity: 0.9 }}>{keepOriginalSound ? "ON" : "OFF"}</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="uploadRow">
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                      <div
+                        className="uploadTile"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={lang === "uk" ? "Відео для редагування" : "Video for editing"}
+                        onClick={() => openSourceModal("video", "vEdit")}
+                      >
+                        {editVideoPreviewUrl ? (
+                          <>
+                            <video
+                              src={editVideoPreviewUrl}
+                              muted
+                              playsInline
+                              controls
+                              preload="metadata"
+                              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+                            />
+                            <span className="tile-label">{lang === "uk" ? "Відео" : "Video"}</span>
+                            <button
+                              type="button"
+                              className="tile-remove"
+                              aria-label={lang === "uk" ? "Видалити" : "Remove"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setVEditVideo(null);
+                                setEditVideoUrl("");
+                                setEditVideoPreviewUrl("");
+                                setRefVideoSeconds(0);
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="uploadPlus">+</span>
+                            <span className="tile-label">{lang === "uk" ? "Відео" : "Video"}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <input
+                      id="vEdit"
+                      type="file"
+                      accept={acceptVid}
+                      style={{ display: "none" }}
+                      onChange={async (e) => {
+                        const f = e.target.files?.[0] ?? null;
+                        setEditVideoUrl("");
+                        setVEditVideo(f);
+                        if (!f) {
+                          setRefVideoSeconds(0);
+                          return;
+                        }
+                        try {
+                          const duration = await computeVideoDuration(f);
+                          setRefVideoSeconds(duration);
+                        } catch {
+                          setRefVideoSeconds(0);
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <div className="vRow">
+                    <div className="vPill">
+                      <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Тривалість референсу" : "Reference duration"}</span>
+                      <span style={{ opacity: 0.9, marginLeft: 8 }}>{Math.max(1, Math.ceil(refVideoSeconds || 0))}с</span>
+                    </div>
+                    <div className="vPill" style={{ cursor: "pointer" }} onClick={() => setKeepOriginalSound((v) => !v)}>
+                      <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Оригінальний звук" : "Original sound"}</span>
                       <span style={{ opacity: 0.9 }}>{keepOriginalSound ? "ON" : "OFF"}</span>
                     </div>
                   </div>
@@ -3360,7 +3562,7 @@ export default function Home() {
                 onClick={() => {
                   setSourceModalOpen(false);
                   // Map input ID to appropriate target for library picker
-                  const inputToTarget: Record<string, "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character"> = {
+                  const inputToTarget: Record<string, "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character" | "editVideo"> = {
                     file1: "photo1",
                     file2: "photo2",   // ✅ додали
                     file2t: "photo2",
@@ -3368,6 +3570,7 @@ export default function Home() {
                     vEnd: "vEnd",
                     vMotion: "motion",
                     vChar: "character",
+                    vEdit: "editVideo",
                   };
                   const target = inputToTarget[sourceModalInputId || ""];
                   if (target) {

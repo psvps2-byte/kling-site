@@ -93,8 +93,14 @@ function klingHeaders() {
 function klingStatusUrl(job) {
   const kind = String(job?.kind || "").toUpperCase().trim();
   const taskId = job?.task_id;
+  const modelName = String(job?.payload?.model_name || "").toLowerCase();
 
   if (!taskId) return null;
+
+  // Omni video tasks are stored as I2V kind in DB, so use payload hint first.
+  if (modelName === "kling-video-o1") {
+    return `${KLING_API_BASE}/v1/videos/omni-video/${encodeURIComponent(taskId)}`;
+  }
 
   switch (kind) {
     case "PHOTO":
