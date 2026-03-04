@@ -93,7 +93,8 @@ function klingHeaders() {
 function klingStatusUrl(job) {
   const kind = String(job?.kind || "").toUpperCase().trim();
   const taskId = job?.task_id;
-  const modelName = String(job?.payload?.model_name || "").toLowerCase();
+  const payload = parsePayload(job);
+  const modelName = String(payload?.model_name || "").toLowerCase();
 
   if (!taskId) return null;
 
@@ -180,6 +181,8 @@ async function retryInternalKlingFailure(job, failMsg) {
   if (!createUrl) return false;
 
   const nextPayload = { ...payload, _retry_internal: prevRetry + 1 };
+  const submitPayload = { ...nextPayload };
+  delete submitPayload._retry_internal;
 
   console.log(
     "Retrying Kling internal error",
@@ -191,7 +194,7 @@ async function retryInternalKlingFailure(job, failMsg) {
   const res = await fetch(createUrl, {
     method: "POST",
     headers: klingHeaders(),
-    body: JSON.stringify(nextPayload),
+    body: JSON.stringify(submitPayload),
   });
   const json = await res.json().catch(() => ({}));
 
@@ -946,7 +949,8 @@ async function runOnce() {
             existing.push(r2Url);
           } catch (e) {
             console.error("Failed to upload video to R2:", e?.message || e);
-            // Don't store Kling URL if upload fails
+            // Fallback: keep Kling URL so result is still available in UI/history.
+            existing.push(klingUrl);
           }
         }
         // For non-video jobs (images), don't store Kling URLs
