@@ -125,6 +125,108 @@ function klingStatusUrl(job) {
   }
 }
 
+function parsePayload(job) {
+  const p = job?.payload;
+  if (!p) return {};
+  if (typeof p === "string") {
+    try {
+      return JSON.parse(p);
+    } catch {
+      return {};
+    }
+  }
+  if (typeof p === "object") return p;
+  return {};
+}
+
+function klingCreateUrl(job, payload) {
+  const modelName = String(payload?.model_name || "").toLowerCase();
+  const kind = String(job?.kind || "").toUpperCase().trim();
+
+  if (modelName === "kling-video-o1") {
+    return `${KLING_API_BASE}/v1/videos/omni-video`;
+  }
+
+  if (["MOTION", "MOTION-CONTROL", "MOTION_CONTROL"].includes(kind)) {
+    return `${KLING_API_BASE}/v1/videos/motion-control`;
+  }
+
+  if (["I2V", "IMAGE2VIDEO", "IMAGE_2_VIDEO", "IMAGE-2-VIDEO"].includes(kind)) {
+    return `${KLING_API_BASE}/v1/videos/image2video`;
+  }
+
+  return null;
+}
+
+function pickTaskId(json) {
+  return (
+    json?.data?.task_id ||
+    json?.task_id ||
+    json?.data?.id ||
+    json?.id ||
+    null
+  );
+}
+
+async function retryInternalKlingFailure(job, failMsg) {
+  const msg = String(failMsg || "").toLowerCase();
+  if (!msg.includes("internal error")) return false;
+
+  const payload = parsePayload(job);
+  const prevRetry = Number(payload?._retry_internal || 0);
+  if (prevRetry >= 2) return false;
+
+  const createUrl = klingCreateUrl(job, payload);
+  if (!createUrl) return false;
+
+  const nextPayload = { ...payload, _retry_internal: prevRetry + 1 };
+
+  console.log(
+    "Retrying Kling internal error",
+    job.id,
+    `attempt=${nextPayload._retry_internal}`,
+    `endpoint=${createUrl}`
+  );
+
+  const res = await fetch(createUrl, {
+    method: "POST",
+    headers: klingHeaders(),
+    body: JSON.stringify(nextPayload),
+  });
+  const json = await res.json().catch(() => ({}));
+
+  if (!res.ok || (typeof json?.code === "number" && json.code !== 0)) {
+    console.error(
+      "Retry submit failed",
+      job.id,
+      res.status,
+      JSON.stringify(json).slice(0, 400)
+    );
+    return false;
+  }
+
+  const taskId = pickTaskId(json);
+  if (!taskId) {
+    console.error("Retry submit returned no task_id", job.id, JSON.stringify(json).slice(0, 400));
+    return false;
+  }
+
+  await supabase
+    .from("generations")
+    .update({
+      status: "RUNNING",
+      task_id: String(taskId),
+      payload: nextPayload,
+      finished_at: null,
+      locked_at: null,
+      locked_by: null,
+    })
+    .eq("id", job.id);
+
+  console.log("Retry submitted", job.id, "new_task_id=", taskId);
+  return true;
+}
+
 /* ============== HELPERS ============== */
 
 // ✅ беремо всі url
@@ -791,6 +893,9 @@ async function runOnce() {
       json?.data?.message ||
       "";
     const reqId = json?.request_id || json?.data?.request_id || "";
+
+    const retried = await retryInternalKlingFailure(job, failMsg);
+    if (retried) return;
 
     await supabase
       .from("generations")
