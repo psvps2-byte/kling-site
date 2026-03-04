@@ -232,7 +232,7 @@ export default function Home() {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [libraryKind, setLibraryKind] = useState<"image" | "video">("image");
   const [libraryTarget, setLibraryTarget] = useState<
-    "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character" | "editVideo"
+    "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character" | "editVideo" | "editRef1" | "editRef2"
   >("photo1");
 
   // Unified source selection modal
@@ -316,7 +316,7 @@ export default function Home() {
     setLangState(getLang());
   }, []);
 
-  function openLibrary(kind: "image" | "video", target: "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character" | "editVideo") {
+  function openLibrary(kind: "image" | "video", target: "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character" | "editVideo" | "editRef1" | "editRef2") {
     setLibraryKind(kind);
     setLibraryTarget(target);
     setLibraryOpen(true);
@@ -364,6 +364,14 @@ export default function Home() {
         computeVideoDuration(url).then((duration) => {
           setRefVideoSeconds(duration);
         });
+        break;
+      case "editRef1":
+        setEditRef1Url(url);
+        setVEditRef1Img(null);
+        break;
+      case "editRef2":
+        setEditRef2Url(url);
+        setVEditRef2Img(null);
         break;
     }
     setLibraryOpen(false);
@@ -493,6 +501,10 @@ export default function Home() {
   const [vEditVideo, setVEditVideo] = useState<File | null>(null);
   const [editVideoPreviewUrl, setEditVideoPreviewUrl] = useState<string>("");
   const [editVideoUrl, setEditVideoUrl] = useState<string>("");
+  const [vEditRef1Img, setVEditRef1Img] = useState<File | null>(null);
+  const [vEditRef2Img, setVEditRef2Img] = useState<File | null>(null);
+  const [editRef1Url, setEditRef1Url] = useState<string>("");
+  const [editRef2Url, setEditRef2Url] = useState<string>("");
   const [vCharacterImg, setVCharacterImg] = useState<File | null>(null);
   const [characterUrl, setCharacterUrl] = useState<string>("");
   const [characterOrientation, setCharacterOrientation] =
@@ -516,6 +528,16 @@ export default function Home() {
     [vCharacterImg]
   );
   const vCharPreview = vCharFilePreview || characterUrl;
+  const vEditRef1FilePreview = useMemo(
+    () => (vEditRef1Img ? URL.createObjectURL(vEditRef1Img) : ""),
+    [vEditRef1Img]
+  );
+  const vEditRef2FilePreview = useMemo(
+    () => (vEditRef2Img ? URL.createObjectURL(vEditRef2Img) : ""),
+    [vEditRef2Img]
+  );
+  const vEditRef1Preview = vEditRef1FilePreview || editRef1Url;
+  const vEditRef2Preview = vEditRef2FilePreview || editRef2Url;
 
   // ✅ anti-double-upload cache (fileSig -> url)
   const uploadCacheRef = useRef<Map<string, { key: string; url: string }>>(
@@ -529,8 +551,18 @@ export default function Home() {
       if (vStartFilePreview) URL.revokeObjectURL(vStartFilePreview);
       if (vEndFilePreview) URL.revokeObjectURL(vEndFilePreview);
       if (vCharFilePreview) URL.revokeObjectURL(vCharFilePreview);
+      if (vEditRef1FilePreview) URL.revokeObjectURL(vEditRef1FilePreview);
+      if (vEditRef2FilePreview) URL.revokeObjectURL(vEditRef2FilePreview);
     };
-  }, [srcFilePreview, srcFile2Preview, vStartFilePreview, vEndFilePreview, vCharFilePreview]);
+  }, [
+    srcFilePreview,
+    srcFile2Preview,
+    vStartFilePreview,
+    vEndFilePreview,
+    vCharFilePreview,
+    vEditRef1FilePreview,
+    vEditRef2FilePreview,
+  ]);
 
   useEffect(() => {
     if (vMotionVideo) {
@@ -588,6 +620,10 @@ export default function Home() {
       setVEditVideo(null);
       setEditVideoUrl("");
       setEditVideoPreviewUrl("");
+      setVEditRef1Img(null);
+      setVEditRef2Img(null);
+      setEditRef1Url("");
+      setEditRef2Url("");
       setRefVideoSeconds(0);
     } else if (videoMode === "motion") {
       setVStartImg(null);
@@ -597,6 +633,10 @@ export default function Home() {
       setVEditVideo(null);
       setEditVideoUrl("");
       setEditVideoPreviewUrl("");
+      setVEditRef1Img(null);
+      setVEditRef2Img(null);
+      setEditRef1Url("");
+      setEditRef2Url("");
       setRefVideoSeconds(0);
     } else {
       setVStartImg(null);
@@ -1055,6 +1095,15 @@ export default function Home() {
           const baseVideoUrl = vEditVideo
             ? (await uploadToR2AndGetPublicUrl(vEditVideo)).url
             : editVideoUrl;
+          const ref1UrlFinal = vEditRef1Img
+            ? (await uploadToR2AndGetPublicUrl(vEditRef1Img)).url
+            : editRef1Url;
+          const ref2UrlFinal = vEditRef2Img
+            ? (await uploadToR2AndGetPublicUrl(vEditRef2Img)).url
+            : editRef2Url;
+          const imageList = [ref1UrlFinal, ref2UrlFinal]
+            .filter((u): u is string => typeof u === "string" && !!u.trim())
+            .map((imageUrl) => ({ image_url: imageUrl }));
 
           const body: any = {
             mode: videoQuality === "pro" ? "pro" : "std",
@@ -1068,6 +1117,7 @@ export default function Home() {
               },
             ],
           };
+          if (imageList.length > 0) body.image_list = imageList;
 
           const res = await fetch("/api/kling/omni-video", {
             method: "POST",
@@ -3274,6 +3324,74 @@ export default function Home() {
                         )}
                       </div>
                     </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                      <div
+                        className="uploadTile"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={lang === "uk" ? "Фото-референс 1" : "Photo reference 1"}
+                        onClick={() => openSourceModal("image", "vEditRef1")}
+                      >
+                        {vEditRef1Preview ? (
+                          <>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={vEditRef1Preview} alt="edit ref 1" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            <span className="tile-label">{lang === "uk" ? "Реф 1" : "Ref 1"}</span>
+                            <button
+                              type="button"
+                              className="tile-remove"
+                              aria-label={lang === "uk" ? "Видалити" : "Remove"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setVEditRef1Img(null);
+                                setEditRef1Url("");
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="uploadPlus">+</span>
+                            <span className="tile-label">{lang === "uk" ? "Фото реф" : "Photo ref"}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                      <div
+                        className="uploadTile"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={lang === "uk" ? "Фото-референс 2" : "Photo reference 2"}
+                        onClick={() => openSourceModal("image", "vEditRef2")}
+                      >
+                        {vEditRef2Preview ? (
+                          <>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={vEditRef2Preview} alt="edit ref 2" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            <span className="tile-label">{lang === "uk" ? "Реф 2" : "Ref 2"}</span>
+                            <button
+                              type="button"
+                              className="tile-remove"
+                              aria-label={lang === "uk" ? "Видалити" : "Remove"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setVEditRef2Img(null);
+                                setEditRef2Url("");
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="uploadPlus">+</span>
+                            <span className="tile-label">{lang === "uk" ? "Фото реф" : "Photo ref"}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
 
                     <input
                       id="vEdit"
@@ -3294,6 +3412,30 @@ export default function Home() {
                         } catch {
                           setRefVideoSeconds(0);
                         }
+                      }}
+                    />
+                    <input
+                      id="vEditRef1"
+                      type="file"
+                      accept={acceptImg}
+                      style={{ display: "none" }}
+                      onChange={async (e) => {
+                        let f = e.target.files?.[0] ?? null;
+                        if (f) f = await normalizeImageFile(f);
+                        setEditRef1Url("");
+                        setVEditRef1Img(f ?? null);
+                      }}
+                    />
+                    <input
+                      id="vEditRef2"
+                      type="file"
+                      accept={acceptImg}
+                      style={{ display: "none" }}
+                      onChange={async (e) => {
+                        let f = e.target.files?.[0] ?? null;
+                        if (f) f = await normalizeImageFile(f);
+                        setEditRef2Url("");
+                        setVEditRef2Img(f ?? null);
                       }}
                     />
                   </div>
@@ -3562,7 +3704,7 @@ export default function Home() {
                 onClick={() => {
                   setSourceModalOpen(false);
                   // Map input ID to appropriate target for library picker
-                  const inputToTarget: Record<string, "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character" | "editVideo"> = {
+                  const inputToTarget: Record<string, "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character" | "editVideo" | "editRef1" | "editRef2"> = {
                     file1: "photo1",
                     file2: "photo2",   // ✅ додали
                     file2t: "photo2",
@@ -3571,6 +3713,8 @@ export default function Home() {
                     vMotion: "motion",
                     vChar: "character",
                     vEdit: "editVideo",
+                    vEditRef1: "editRef1",
+                    vEditRef2: "editRef2",
                   };
                   const target = inputToTarget[sourceModalInputId || ""];
                   if (target) {
