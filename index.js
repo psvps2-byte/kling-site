@@ -785,6 +785,13 @@ async function runOnce() {
   const resultUrls = pickResultUrls(json);
 
   if (["FAILED", "ERROR", "FAILURE", "CANCELED", "CANCELLED"].includes(status)) {
+    const failMsg =
+      json?.data?.task_status_msg ||
+      json?.message ||
+      json?.data?.message ||
+      "";
+    const reqId = json?.request_id || json?.data?.request_id || "";
+
     await supabase
       .from("generations")
       .update({
@@ -795,7 +802,7 @@ async function runOnce() {
       })
       .eq("id", job.id);
 
-    console.log("ERROR", job.id, status);
+    console.log("ERROR", job.id, status, failMsg, reqId ? `request_id=${reqId}` : "");
     return;
   }
 

@@ -17,6 +17,33 @@ function calcOmniVideoEditCost(mode: "std" | "pro", seconds: number) {
   return sec * perSec;
 }
 
+function hasToken(prompt: string, token: string) {
+  return prompt.toLowerCase().includes(token.toLowerCase());
+}
+
+function buildPromptWithOmniRefs(
+  prompt: string,
+  hasBaseVideo: boolean,
+  imageCount: number
+) {
+  const parts: string[] = [];
+  const p = prompt.trim();
+
+  if (hasBaseVideo && !hasToken(p, "<<<video_1>>>")) {
+    parts.push("Use <<<video_1>>> as the base video to edit.");
+  }
+
+  for (let i = 1; i <= imageCount; i += 1) {
+    const token = `<<<image_${i}>>>`;
+    if (!hasToken(p, token)) {
+      parts.push(`Use ${token} as reference image ${i}.`);
+    }
+  }
+
+  if (parts.length === 0) return p;
+  return `${p}\n\n${parts.join(" ")}`;
+}
+
 export async function POST(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
 
@@ -76,6 +103,8 @@ export async function POST(req: Request) {
   delete payload.duration_sec;
   payload.model_name = "kling-video-o1";
   payload.mode = mode;
+  const imageList = Array.isArray(payload?.image_list) ? payload.image_list : [];
+  payload.prompt = buildPromptWithOmniRefs(prompt, true, imageList.length);
 
   let res: Response;
   try {
