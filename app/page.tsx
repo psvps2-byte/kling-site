@@ -1058,14 +1058,6 @@ export default function Home() {
       return;
     }
 
-    if (mediaTab === "video" && (videoMode === "motion" || videoMode === "edit")) {
-      const vErr = validateKlingReferenceVideo(refVideoMeta, lang);
-      if (vErr) {
-        setError(vErr);
-        return;
-      }
-    }
-
     setLoading(true);
     setImageUrls([]);
 
@@ -3322,13 +3314,6 @@ export default function Home() {
                       <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Тривалість референсу" : "Reference duration"}</span>
                       <span style={{ opacity: 0.9, marginLeft: 8 }}>{Math.min(30, Math.ceil(refVideoSeconds || 0))}с</span>
                     </div>
-                    {refVideoMeta.width > 0 && refVideoMeta.height > 0 && (
-                      <div className="vPill">
-                        <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Розмір" : "Size"}</span>
-                        <span style={{ opacity: 0.9, marginLeft: 8 }}>{refVideoMeta.width}x{refVideoMeta.height}</span>
-                      </div>
-                    )}
-
                     <div className="vPill" style={{ cursor: "pointer" }} onClick={() => setKeepOriginalSound((v) => !v)}>
                       <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Аудіо" : "Audio"}</span>
                       <span style={{ opacity: 0.9 }}>{keepOriginalSound ? "ON" : "OFF"}</span>
@@ -3459,12 +3444,6 @@ export default function Home() {
                       <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Тривалість референсу" : "Reference duration"}</span>
                       <span style={{ opacity: 0.9, marginLeft: 8 }}>{Math.max(1, Math.ceil(refVideoSeconds || 0))}с</span>
                     </div>
-                    {refVideoMeta.width > 0 && refVideoMeta.height > 0 && (
-                      <div className="vPill">
-                        <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Розмір" : "Size"}</span>
-                        <span style={{ opacity: 0.9, marginLeft: 8 }}>{refVideoMeta.width}x{refVideoMeta.height}</span>
-                      </div>
-                    )}
                     <div className="vPill" style={{ cursor: "pointer" }} onClick={() => setKeepOriginalSound((v) => !v)}>
                       <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Оригінальний звук" : "Original sound"}</span>
                       <span style={{ opacity: 0.9 }}>{keepOriginalSound ? "ON" : "OFF"}</span>
