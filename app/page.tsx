@@ -94,11 +94,15 @@ function fileSig(f: File) {
   return `${f.name}|${f.size}|${f.lastModified}`;
 }
 
-// ✅ Helper to compute video duration from File or URL
-async function computeVideoDuration(input: File | string): Promise<number> {
+type VideoMeta = {
+  duration: number;
+  width: number;
+  height: number;
+};
+
+async function computeVideoMeta(input: File | string): Promise<VideoMeta> {
   try {
     if (typeof input === "string") {
-      // URL: create video element and load metadata
       const vid = document.createElement("video");
       vid.preload = "metadata";
       vid.muted = true;
@@ -107,50 +111,67 @@ async function computeVideoDuration(input: File | string): Promise<number> {
       vid.src = input;
 
       return new Promise((resolve) => {
-        const timeout = setTimeout(() => {
-          resolve(0);
-        }, 8000);
-
+        const timeout = setTimeout(() => resolve({ duration: 0, width: 0, height: 0 }), 8000);
         vid.onloadedmetadata = () => {
           clearTimeout(timeout);
-          const duration = Math.round(vid.duration || 0);
-          resolve(duration);
+          resolve({
+            duration: Math.round(vid.duration || 0),
+            width: Number(vid.videoWidth || 0),
+            height: Number(vid.videoHeight || 0),
+          });
         };
-
         vid.onerror = () => {
           clearTimeout(timeout);
-          resolve(0);
-        };
-      });
-    } else {
-      // File: same as current logic
-      const url = URL.createObjectURL(input);
-      const vid = document.createElement("video");
-      vid.preload = "metadata";
-      vid.src = url;
-
-      return new Promise((resolve) => {
-        const timeout = setTimeout(() => {
-          resolve(0);
-        }, 8000);
-
-        vid.onloadedmetadata = () => {
-          clearTimeout(timeout);
-          const duration = Math.round(vid.duration || 0);
-          URL.revokeObjectURL(url);
-          resolve(duration);
-        };
-
-        vid.onerror = () => {
-          clearTimeout(timeout);
-          URL.revokeObjectURL(url);
-          resolve(0);
+          resolve({ duration: 0, width: 0, height: 0 });
         };
       });
     }
+
+    const url = URL.createObjectURL(input);
+    const vid = document.createElement("video");
+    vid.preload = "metadata";
+    vid.src = url;
+
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        URL.revokeObjectURL(url);
+        resolve({ duration: 0, width: 0, height: 0 });
+      }, 8000);
+      vid.onloadedmetadata = () => {
+        clearTimeout(timeout);
+        const meta = {
+          duration: Math.round(vid.duration || 0),
+          width: Number(vid.videoWidth || 0),
+          height: Number(vid.videoHeight || 0),
+        };
+        URL.revokeObjectURL(url);
+        resolve(meta);
+      };
+      vid.onerror = () => {
+        clearTimeout(timeout);
+        URL.revokeObjectURL(url);
+        resolve({ duration: 0, width: 0, height: 0 });
+      };
+    });
   } catch {
-    return 0;
+    return { duration: 0, width: 0, height: 0 };
   }
+}
+
+function validateKlingReferenceVideo(meta: VideoMeta, lang: Lang): string | null {
+  // If metadata cannot be read (e.g. remote URL without CORS), do not block request.
+  if (!meta.width || !meta.height) return null;
+  if (meta.width < 720 || meta.width > 2160 || meta.height < 720 || meta.height > 2160) {
+    return lang === "uk"
+      ? `Розмір відео ${meta.width}x${meta.height} не підтримується. Для Kling потрібно 720-2160 px по обох сторонах.`
+      : `Video size ${meta.width}x${meta.height} is not supported. Kling requires 720-2160 px for both sides.`;
+  }
+  if (meta.duration > 0 && (meta.duration < 3 || meta.duration > 10)) {
+    return lang === "uk"
+      ? `Тривалість ${meta.duration}с не підтримується. Для reference video потрібно 3-10с.`
+      : `Duration ${meta.duration}s is not supported. Reference video must be 3-10s.`;
+  }
+  return null;
 }
 
 // ✅ Server-side conversion to JPEG using /api/convert-image
@@ -219,6 +240,22 @@ async function normalizeImageFile(file: File): Promise<File> {
   // For other formats, keep as-is (or reject if needed)
   console.warn(`[normalizeImageFile] Unsupported format: ${file.type || ext}, keeping original`);
   return file;
+}
+
+async function normalizeVideoFileForKling(file: File): Promise<File> {
+  const fd = new FormData();
+  fd.append("file", file, file.name);
+
+  const res = await fetch("/api/convert-video", { method: "POST", body: fd });
+  if (!res.ok) {
+    const data = await readJsonOrRaw(res);
+    throw new Error(data?.error || data?.details || `Video conversion failed (${res.status})`);
+  }
+
+  const blob = await res.blob();
+  const outType = blob.type || "video/mp4";
+  const outName = file.name.replace(/\.[^.]+$/, "") + (outType === "video/mp4" ? ".mp4" : ".mov");
+  return new File([blob], outName, { type: outType });
 }
 
 
@@ -349,9 +386,9 @@ export default function Home() {
       case "motion":
         setMotionUrl(url);
         setVMotionVideo(null);
-        // ✅ Compute duration for video from history
-        computeVideoDuration(url).then((duration) => {
-          setRefVideoSeconds(duration);
+        computeVideoMeta(url).then((meta) => {
+          setRefVideoMeta(meta);
+          setRefVideoSeconds(meta.duration);
         });
         break;
       case "character":
@@ -361,8 +398,9 @@ export default function Home() {
       case "editVideo":
         setEditVideoUrl(url);
         setVEditVideo(null);
-        computeVideoDuration(url).then((duration) => {
-          setRefVideoSeconds(duration);
+        computeVideoMeta(url).then((meta) => {
+          setRefVideoMeta(meta);
+          setRefVideoSeconds(meta.duration);
         });
         break;
       case "editRef":
@@ -505,6 +543,7 @@ export default function Home() {
     useState<CharacterOrientation>("image");
   const [keepOriginalSound, setKeepOriginalSound] = useState(true);
   const [refVideoSeconds, setRefVideoSeconds] = useState<number>(0);
+  const [refVideoMeta, setRefVideoMeta] = useState<VideoMeta>({ duration: 0, width: 0, height: 0 });
 
   const acceptVid = "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov";
   const vStartFilePreview = useMemo(
@@ -603,6 +642,7 @@ export default function Home() {
       setVEditRefImg(null);
       setEditRefUrl("");
       setRefVideoSeconds(0);
+      setRefVideoMeta({ duration: 0, width: 0, height: 0 });
     } else if (videoMode === "motion") {
       setVStartImg(null);
       setVEndImg(null);
@@ -614,6 +654,7 @@ export default function Home() {
       setVEditRefImg(null);
       setEditRefUrl("");
       setRefVideoSeconds(0);
+      setRefVideoMeta({ duration: 0, width: 0, height: 0 });
     } else {
       setVStartImg(null);
       setVEndImg(null);
@@ -624,6 +665,7 @@ export default function Home() {
       setVCharacterImg(null);
       setCharacterUrl("");
       setRefVideoSeconds(0);
+      setRefVideoMeta({ duration: 0, width: 0, height: 0 });
     }
   }, [videoMode]);
 
@@ -660,7 +702,12 @@ export default function Home() {
   async function uploadToR2AndGetPublicUrl(
     file: File
   ): Promise<{ key: string; url: string }> {
-    const sig = fileSig(file);
+    let uploadFile = file;
+    if ((file.type || "").startsWith("video/")) {
+      uploadFile = await normalizeVideoFileForKling(file);
+    }
+
+    const sig = fileSig(uploadFile);
     const cached = uploadCacheRef.current.get(sig);
     if (cached) return cached;
 
@@ -668,8 +715,8 @@ export default function Home() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        filename: file.name,
-        contentType: file.type || "application/octet-stream",
+        filename: uploadFile.name,
+        contentType: uploadFile.type || "application/octet-stream",
       }),
     }).then((r) => r.json());
 
@@ -677,8 +724,8 @@ export default function Home() {
 
     const put = await fetch(pres.uploadUrl, {
       method: "PUT",
-      headers: { "Content-Type": file.type || "application/octet-stream" },
-      body: file,
+      headers: { "Content-Type": uploadFile.type || "application/octet-stream" },
+      body: uploadFile,
     });
 
     if (!put.ok) throw new Error(`Upload failed: ${put.status}`);
@@ -994,6 +1041,14 @@ export default function Home() {
           : "Still reading video duration..."
       );
       return;
+    }
+
+    if (mediaTab === "video" && (videoMode === "motion" || videoMode === "edit")) {
+      const vErr = validateKlingReferenceVideo(refVideoMeta, lang);
+      if (vErr) {
+        setError(vErr);
+        return;
+      }
     }
 
     setLoading(true);
@@ -3154,6 +3209,7 @@ export default function Home() {
                                 setVMotionVideo(null);
                                 setMotionPreviewUrl("");
                                 setRefVideoSeconds(0);
+                                setRefVideoMeta({ duration: 0, width: 0, height: 0 });
                                 setMotionUrl("");
                               }}
                             >
@@ -3180,13 +3236,16 @@ export default function Home() {
                         setVMotionVideo(f);
                         if (!f) {
                           setRefVideoSeconds(0);
+                          setRefVideoMeta({ duration: 0, width: 0, height: 0 });
                           return;
                         }
                         try {
-                          const duration = await computeVideoDuration(f);
-                          setRefVideoSeconds(duration);
+                          const meta = await computeVideoMeta(f);
+                          setRefVideoMeta(meta);
+                          setRefVideoSeconds(meta.duration);
                         } catch {
                           setRefVideoSeconds(0);
+                          setRefVideoMeta({ duration: 0, width: 0, height: 0 });
                         }
                       }}
                     />
@@ -3244,6 +3303,12 @@ export default function Home() {
                       <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Тривалість референсу" : "Reference duration"}</span>
                       <span style={{ opacity: 0.9, marginLeft: 8 }}>{Math.min(30, Math.ceil(refVideoSeconds || 0))}с</span>
                     </div>
+                    {refVideoMeta.width > 0 && refVideoMeta.height > 0 && (
+                      <div className="vPill">
+                        <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Розмір" : "Size"}</span>
+                        <span style={{ opacity: 0.9, marginLeft: 8 }}>{refVideoMeta.width}x{refVideoMeta.height}</span>
+                      </div>
+                    )}
 
                     <div className="vPill" style={{ cursor: "pointer" }} onClick={() => setKeepOriginalSound((v) => !v)}>
                       <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Аудіо" : "Audio"}</span>
@@ -3283,6 +3348,7 @@ export default function Home() {
                                 setEditVideoUrl("");
                                 setEditVideoPreviewUrl("");
                                 setRefVideoSeconds(0);
+                                setRefVideoMeta({ duration: 0, width: 0, height: 0 });
                               }}
                             >
                               ✕
@@ -3342,13 +3408,16 @@ export default function Home() {
                         setVEditVideo(f);
                         if (!f) {
                           setRefVideoSeconds(0);
+                          setRefVideoMeta({ duration: 0, width: 0, height: 0 });
                           return;
                         }
                         try {
-                          const duration = await computeVideoDuration(f);
-                          setRefVideoSeconds(duration);
+                          const meta = await computeVideoMeta(f);
+                          setRefVideoMeta(meta);
+                          setRefVideoSeconds(meta.duration);
                         } catch {
                           setRefVideoSeconds(0);
+                          setRefVideoMeta({ duration: 0, width: 0, height: 0 });
                         }
                       }}
                     />
@@ -3371,6 +3440,12 @@ export default function Home() {
                       <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Тривалість референсу" : "Reference duration"}</span>
                       <span style={{ opacity: 0.9, marginLeft: 8 }}>{Math.max(1, Math.ceil(refVideoSeconds || 0))}с</span>
                     </div>
+                    {refVideoMeta.width > 0 && refVideoMeta.height > 0 && (
+                      <div className="vPill">
+                        <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Розмір" : "Size"}</span>
+                        <span style={{ opacity: 0.9, marginLeft: 8 }}>{refVideoMeta.width}x{refVideoMeta.height}</span>
+                      </div>
+                    )}
                     <div className="vPill" style={{ cursor: "pointer" }} onClick={() => setKeepOriginalSound((v) => !v)}>
                       <span style={{ opacity: 0.75 }}>{lang === "uk" ? "Оригінальний звук" : "Original sound"}</span>
                       <span style={{ opacity: 0.9 }}>{keepOriginalSound ? "ON" : "OFF"}</span>
