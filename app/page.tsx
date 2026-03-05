@@ -258,6 +258,21 @@ async function normalizeVideoFileForKling(file: File): Promise<File> {
   return new File([blob], outName, { type: outType });
 }
 
+async function normalizeRemoteVideoUrlForKling(url: string): Promise<File> {
+  const res = await fetch("/api/convert-video", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url, filename: "remote-video.mov" }),
+  });
+  if (!res.ok) {
+    const data = await readJsonOrRaw(res);
+    throw new Error(data?.error || data?.details || `Video conversion failed (${res.status})`);
+  }
+  const blob = await res.blob();
+  const outType = blob.type || "video/mp4";
+  return new File([blob], "remote-video_kling.mp4", { type: outType });
+}
+
 
 export default function Home() {
   const SHOW_TEMPLATES = false;
@@ -1125,7 +1140,9 @@ export default function Home() {
 
           const baseVideoUrl = vEditVideo
             ? (await uploadToR2AndGetPublicUrl(vEditVideo)).url
-            : editVideoUrl;
+            : editVideoUrl
+              ? (await uploadToR2AndGetPublicUrl(await normalizeRemoteVideoUrlForKling(editVideoUrl))).url
+              : "";
           const refImageUrl = vEditRefImg
             ? (await uploadToR2AndGetPublicUrl(vEditRefImg)).url
             : editRefUrl;
@@ -1182,7 +1199,9 @@ export default function Home() {
 
         const motionUrlFinal = vMotionVideo
           ? (await uploadToR2AndGetPublicUrl(vMotionVideo)).url
-          : motionUrl;
+          : motionUrl
+            ? (await uploadToR2AndGetPublicUrl(await normalizeRemoteVideoUrlForKling(motionUrl))).url
+            : "";
         const characterUrlFinal = vCharacterImg
           ? (await uploadToR2AndGetPublicUrl(vCharacterImg)).url
           : characterUrl;

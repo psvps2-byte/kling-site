@@ -90,10 +90,34 @@ export async function POST(req: Request) {
   let outputPath = "";
 
   try {
-    const form = await req.formData();
-    const file = form.get("file");
+    const ct = (req.headers.get("content-type") || "").toLowerCase();
+    let file: File | null = null;
+
+    if (ct.includes("application/json")) {
+      const body = await req.json().catch(() => ({} as any));
+      const remoteUrl = String(body?.url || "").trim();
+      const filename = String(body?.filename || "remote-video.mov");
+      if (!remoteUrl) {
+        return NextResponse.json({ error: "Missing url" }, { status: 400 });
+      }
+
+      const remoteRes = await fetch(remoteUrl);
+      if (!remoteRes.ok) {
+        return NextResponse.json(
+          { error: `Failed to fetch remote video (${remoteRes.status})` },
+          { status: 400 }
+        );
+      }
+      const blob = await remoteRes.blob();
+      file = new File([blob], filename, { type: blob.type || "video/quicktime" });
+    } else {
+      const form = await req.formData();
+      const f = form.get("file");
+      if (f instanceof File) file = f;
+    }
+
     if (!(file instanceof File)) {
-      return NextResponse.json({ error: "Missing file" }, { status: 400 });
+      return NextResponse.json({ error: "Missing file or url" }, { status: 400 });
     }
 
     const id = randomUUID();
@@ -203,4 +227,3 @@ export async function POST(req: Request) {
     }
   }
 }
-
