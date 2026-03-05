@@ -17,6 +17,19 @@ function calcOmniVideoEditCost(mode: "std" | "pro", seconds: number) {
   return sec * perSec;
 }
 
+function ensureOmniRefsInPrompt(prompt: string, hasImageRef: boolean) {
+  let out = prompt.trim();
+
+  if (!out.includes("<<<video_1>>>")) {
+    out = `${out}\n\nUse <<<video_1>>> as the base video for editing.`;
+  }
+  if (hasImageRef && !out.includes("<<<image_1>>>")) {
+    out = `${out}\nUse <<<image_1>>> as the reference image.`;
+  }
+
+  return out;
+}
+
 export async function POST(req: Request) {
   const supabaseAdmin = getSupabaseAdmin();
 
@@ -76,6 +89,8 @@ export async function POST(req: Request) {
   delete payload.duration_sec;
   payload.model_name = "kling-video-o1";
   payload.mode = mode;
+  const hasImageRef = Array.isArray(payload.image_list) && payload.image_list.length > 0;
+  payload.prompt = ensureOmniRefsInPrompt(prompt, hasImageRef);
 
   let res: Response;
   try {

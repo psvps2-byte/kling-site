@@ -232,7 +232,7 @@ export default function Home() {
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [libraryKind, setLibraryKind] = useState<"image" | "video">("image");
   const [libraryTarget, setLibraryTarget] = useState<
-    "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character" | "editVideo"
+    "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character" | "editVideo" | "editRef"
   >("photo1");
 
   // Unified source selection modal
@@ -316,7 +316,7 @@ export default function Home() {
     setLangState(getLang());
   }, []);
 
-  function openLibrary(kind: "image" | "video", target: "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character" | "editVideo") {
+  function openLibrary(kind: "image" | "video", target: "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character" | "editVideo" | "editRef") {
     setLibraryKind(kind);
     setLibraryTarget(target);
     setLibraryOpen(true);
@@ -364,6 +364,10 @@ export default function Home() {
         computeVideoDuration(url).then((duration) => {
           setRefVideoSeconds(duration);
         });
+        break;
+      case "editRef":
+        setEditRefUrl(url);
+        setVEditRefImg(null);
         break;
     }
     setLibraryOpen(false);
@@ -493,6 +497,8 @@ export default function Home() {
   const [vEditVideo, setVEditVideo] = useState<File | null>(null);
   const [editVideoPreviewUrl, setEditVideoPreviewUrl] = useState<string>("");
   const [editVideoUrl, setEditVideoUrl] = useState<string>("");
+  const [vEditRefImg, setVEditRefImg] = useState<File | null>(null);
+  const [editRefUrl, setEditRefUrl] = useState<string>("");
   const [vCharacterImg, setVCharacterImg] = useState<File | null>(null);
   const [characterUrl, setCharacterUrl] = useState<string>("");
   const [characterOrientation, setCharacterOrientation] =
@@ -516,6 +522,11 @@ export default function Home() {
     [vCharacterImg]
   );
   const vCharPreview = vCharFilePreview || characterUrl;
+  const vEditRefFilePreview = useMemo(
+    () => (vEditRefImg ? URL.createObjectURL(vEditRefImg) : ""),
+    [vEditRefImg]
+  );
+  const vEditRefPreview = vEditRefFilePreview || editRefUrl;
 
   // ✅ anti-double-upload cache (fileSig -> url)
   const uploadCacheRef = useRef<Map<string, { key: string; url: string }>>(
@@ -529,8 +540,9 @@ export default function Home() {
       if (vStartFilePreview) URL.revokeObjectURL(vStartFilePreview);
       if (vEndFilePreview) URL.revokeObjectURL(vEndFilePreview);
       if (vCharFilePreview) URL.revokeObjectURL(vCharFilePreview);
+      if (vEditRefFilePreview) URL.revokeObjectURL(vEditRefFilePreview);
     };
-  }, [srcFilePreview, srcFile2Preview, vStartFilePreview, vEndFilePreview, vCharFilePreview]);
+  }, [srcFilePreview, srcFile2Preview, vStartFilePreview, vEndFilePreview, vCharFilePreview, vEditRefFilePreview]);
 
   useEffect(() => {
     if (vMotionVideo) {
@@ -588,6 +600,8 @@ export default function Home() {
       setVEditVideo(null);
       setEditVideoUrl("");
       setEditVideoPreviewUrl("");
+      setVEditRefImg(null);
+      setEditRefUrl("");
       setRefVideoSeconds(0);
     } else if (videoMode === "motion") {
       setVStartImg(null);
@@ -597,6 +611,8 @@ export default function Home() {
       setVEditVideo(null);
       setEditVideoUrl("");
       setEditVideoPreviewUrl("");
+      setVEditRefImg(null);
+      setEditRefUrl("");
       setRefVideoSeconds(0);
     } else {
       setVStartImg(null);
@@ -1055,6 +1071,9 @@ export default function Home() {
           const baseVideoUrl = vEditVideo
             ? (await uploadToR2AndGetPublicUrl(vEditVideo)).url
             : editVideoUrl;
+          const refImageUrl = vEditRefImg
+            ? (await uploadToR2AndGetPublicUrl(vEditRefImg)).url
+            : editRefUrl;
 
           const body: any = {
             mode: videoQuality === "pro" ? "pro" : "std",
@@ -1068,6 +1087,9 @@ export default function Home() {
               },
             ],
           };
+          if (refImageUrl) {
+            body.image_list = [{ image_url: refImageUrl }];
+          }
 
           const res = await fetch("/api/kling/omni-video", {
             method: "POST",
@@ -3274,6 +3296,40 @@ export default function Home() {
                         )}
                       </div>
                     </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                      <div
+                        className="uploadTile"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={lang === "uk" ? "Фото-референс" : "Photo reference"}
+                        onClick={() => openSourceModal("image", "vEditRef")}
+                      >
+                        {vEditRefPreview ? (
+                          <>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={vEditRefPreview} alt="edit reference" />
+                            <span className="tile-label">{lang === "uk" ? "Фото реф" : "Photo ref"}</span>
+                            <button
+                              type="button"
+                              className="tile-remove"
+                              aria-label={lang === "uk" ? "Видалити" : "Remove"}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setVEditRefImg(null);
+                                setEditRefUrl("");
+                              }}
+                            >
+                              ✕
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="uploadPlus">+</span>
+                            <span className="tile-label">{lang === "uk" ? "Фото реф" : "Photo ref"}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
 
                     <input
                       id="vEdit"
@@ -3294,6 +3350,18 @@ export default function Home() {
                         } catch {
                           setRefVideoSeconds(0);
                         }
+                      }}
+                    />
+                    <input
+                      id="vEditRef"
+                      type="file"
+                      accept={acceptImg}
+                      style={{ display: "none" }}
+                      onChange={async (e) => {
+                        let f = e.target.files?.[0] ?? null;
+                        if (f) f = await normalizeImageFile(f);
+                        setEditRefUrl("");
+                        setVEditRefImg(f ?? null);
                       }}
                     />
                   </div>
@@ -3562,7 +3630,7 @@ export default function Home() {
                 onClick={() => {
                   setSourceModalOpen(false);
                   // Map input ID to appropriate target for library picker
-                  const inputToTarget: Record<string, "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character" | "editVideo"> = {
+                  const inputToTarget: Record<string, "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character" | "editVideo" | "editRef"> = {
                     file1: "photo1",
                     file2: "photo2",   // ✅ додали
                     file2t: "photo2",
@@ -3571,6 +3639,7 @@ export default function Home() {
                     vMotion: "motion",
                     vChar: "character",
                     vEdit: "editVideo",
+                    vEditRef: "editRef",
                   };
                   const target = inputToTarget[sourceModalInputId || ""];
                   if (target) {
