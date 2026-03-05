@@ -2,6 +2,7 @@ import {
   S3Client,
   GetObjectCommand,
   PutObjectCommand,
+  DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "crypto";
@@ -12,17 +13,20 @@ function mustEnv(name: string) {
   return v;
 }
 
-export const r2 = new S3Client({
-  region: "auto",
-  endpoint: mustEnv("R2_ENDPOINT"),
-  forcePathStyle: true,
-  credentials: {
-    accessKeyId: mustEnv("R2_ACCESS_KEY_ID"),
-    secretAccessKey: mustEnv("R2_SECRET_ACCESS_KEY"),
-  },
-});
+function getR2Client() {
+  return new S3Client({
+    region: "auto",
+    endpoint: mustEnv("R2_ENDPOINT"),
+    forcePathStyle: true,
+    credentials: {
+      accessKeyId: mustEnv("R2_ACCESS_KEY_ID"),
+      secretAccessKey: mustEnv("R2_SECRET_ACCESS_KEY"),
+    },
+  });
+}
 
 export async function presignGet(key: string, expiresInSeconds = 7200) {
+  const r2 = getR2Client();
   const cmd = new GetObjectCommand({
     Bucket: mustEnv("R2_BUCKET"),
     Key: key,
@@ -36,6 +40,7 @@ export async function uploadToR2(params: {
   contentType: string;
   prefix?: string; // наприклад "refs/" або "uploads/"
 }) {
+  const r2 = getR2Client();
   const bucket = mustEnv("R2_BUCKET");
   const prefix = params.prefix ?? "uploads/";
   const key = `${prefix}${crypto.randomUUID()}`;
@@ -53,8 +58,8 @@ export async function uploadToR2(params: {
   // URL для Kling будемо робити signed через presignGet(key)
   return { key };
 }
-import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 export async function deleteFromR2(key: string) {
+  const r2 = getR2Client();
   const cmd = new DeleteObjectCommand({
     Bucket: mustEnv("R2_BUCKET"),
     Key: key,
