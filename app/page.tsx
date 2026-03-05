@@ -10,10 +10,12 @@ import LangSwitch from "./components/LangSwitch";
 import LibraryPicker from "./components/LibraryPicker";
 import { createClient } from "@supabase/supabase-js";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ""
-);
+function getSupabaseClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
+  if (!url || !anonKey) return null;
+  return createClient(url, anonKey);
+}
 
 type MediaTab = "photo" | "video";
 type VideoMode = "i2v" | "motion" | "edit";
@@ -297,6 +299,8 @@ export default function Home() {
     if (!SHOW_TEMPLATES) return;
 
     const loadTemplates = async () => {
+      const supabase = getSupabaseClient();
+      if (!supabase) return;
       const { data } = await supabase
         .from("templates")
         .select("*")
