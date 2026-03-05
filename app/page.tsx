@@ -749,12 +749,13 @@ export default function Home() {
 
     if (!put.ok) throw new Error(`Upload failed: ${put.status}`);
 
-    const base = process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
-    if (!base) throw new Error("Missing NEXT_PUBLIC_R2_PUBLIC_BASE_URL");
-    const url = `${base.replace(/\/+$/, "")}/${String(pres.key).replace(
-      /^\/+/,
-      ""
-    )}`;
+    const url = typeof pres.publicUrl === "string" && pres.publicUrl.trim()
+      ? pres.publicUrl
+      : (() => {
+          const base = process.env.NEXT_PUBLIC_R2_PUBLIC_BASE_URL;
+          if (!base) throw new Error("Missing R2 public base URL");
+          return `${base.replace(/\/+$/, "")}/${String(pres.key).replace(/^\/+/, "")}`;
+        })();
 
     const result = { key: String(pres.key), url };
     uploadCacheRef.current.set(sig, result);

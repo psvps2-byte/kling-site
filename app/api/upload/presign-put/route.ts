@@ -38,5 +38,10 @@ export async function POST(req: Request) {
   });
 
   const uploadUrl = await getSignedUrl(s3, cmd, { expiresIn: 300 });
-  return NextResponse.json({ uploadUrl, key });
+  const base = process.env.R2_PUBLIC_BASE_URL?.trim();
+  const publicUrl = base
+    ? `${base.replace(/\/+$/, "")}/${String(key).replace(/^\/+/, "")}`
+    : null;
+
+  return NextResponse.json({ uploadUrl, key, publicUrl });
 }
