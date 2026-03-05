@@ -81,13 +81,14 @@ export async function POST(req: Request) {
         outputPath,
       ]);
     } catch (e: any) {
+      const stderr = String(e?.stderr || "").slice(-1000);
       return NextResponse.json(
         {
           error: "ffmpeg_failed",
           details:
             e?.message?.includes("ENOENT")
               ? "ffmpeg is not available on server. Install ffmpeg in runtime."
-              : e?.message || "Conversion failed",
+              : stderr || e?.message || "Conversion failed",
         },
         { status: 500 }
       );

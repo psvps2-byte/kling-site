@@ -249,7 +249,7 @@ async function normalizeVideoFileForKling(file: File): Promise<File> {
   const res = await fetch("/api/convert-video", { method: "POST", body: fd });
   if (!res.ok) {
     const data = await readJsonOrRaw(res);
-    throw new Error(data?.error || data?.details || `Video conversion failed (${res.status})`);
+    throw new Error(data?.details || data?.error || `Video conversion failed (${res.status})`);
   }
 
   const blob = await res.blob();
@@ -266,7 +266,7 @@ async function normalizeRemoteVideoUrlForKling(url: string): Promise<File> {
   });
   if (!res.ok) {
     const data = await readJsonOrRaw(res);
-    throw new Error(data?.error || data?.details || `Video conversion failed (${res.status})`);
+    throw new Error(data?.details || data?.error || `Video conversion failed (${res.status})`);
   }
   const blob = await res.blob();
   const outType = blob.type || "video/mp4";
