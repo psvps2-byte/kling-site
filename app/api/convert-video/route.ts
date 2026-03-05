@@ -10,81 +10,6 @@ export const runtime = "nodejs";
 
 const execFileAsync = promisify(execFile);
 
-type ProbeMeta = {
-  width: number;
-  height: number;
-  duration: number;
-};
-
-function toEven(n: number) {
-  const x = Math.max(2, Math.round(n));
-  return x % 2 === 0 ? x : x - 1;
-}
-
-function parseProbe(jsonText: string): ProbeMeta {
-  try {
-    const json = JSON.parse(jsonText);
-    const stream = Array.isArray(json?.streams)
-      ? json.streams.find((s: any) => Number(s?.width) > 0 && Number(s?.height) > 0)
-      : null;
-    const width = Number(stream?.width || 0);
-    const height = Number(stream?.height || 0);
-    const durationRaw = Number(stream?.duration || json?.format?.duration || 0);
-    const duration = Number.isFinite(durationRaw) ? durationRaw : 0;
-    return { width, height, duration: Math.max(0, duration) };
-  } catch {
-    return { width: 0, height: 0, duration: 0 };
-  }
-}
-
-async function probeVideo(filePath: string): Promise<ProbeMeta> {
-  const { stdout } = await execFileAsync("ffprobe", [
-    "-v",
-    "error",
-    "-show_entries",
-    "stream=width,height,duration:format=duration",
-    "-of",
-    "json",
-    filePath,
-  ]);
-  return parseProbe(stdout || "");
-}
-
-function needsConvert(name: string, meta: ProbeMeta) {
-  const ext = (name.split(".").pop() || "").toLowerCase();
-  const isMp4Mov = ext === "mp4" || ext === "mov";
-  const validSize =
-    meta.width >= 720 &&
-    meta.width <= 2160 &&
-    meta.height >= 720 &&
-    meta.height <= 2160;
-  const validDuration = meta.duration >= 3 && meta.duration <= 10;
-  return !(isMp4Mov && validSize && validDuration);
-}
-
-function calcTargetSize(meta: ProbeMeta) {
-  const w = Math.max(1, meta.width);
-  const h = Math.max(1, meta.height);
-
-  // Fit inside 2160x2160 and preserve aspect ratio.
-  const fit = Math.min(2160 / w, 2160 / h);
-  const scaledW = w * fit;
-  const scaledH = h * fit;
-
-  const outW = toEven(scaledW);
-  const outH = toEven(scaledH);
-
-  const padW = Math.max(720, outW);
-  const padH = Math.max(720, outH);
-
-  return {
-    outW,
-    outH,
-    padW,
-    padH,
-  };
-}
-
 export async function POST(req: Request) {
   let inputPath = "";
   let outputPath = "";
@@ -128,51 +53,17 @@ export async function POST(req: Request) {
     const inBuf = Buffer.from(await file.arrayBuffer());
     await fs.writeFile(inputPath, inBuf);
 
-    let meta: ProbeMeta;
-    try {
-      meta = await probeVideo(inputPath);
-    } catch (e: any) {
-      return NextResponse.json(
-        {
-          error: "ffprobe_failed",
-          details:
-            e?.message?.includes("ENOENT")
-              ? "ffprobe is not available on server. Install ffmpeg/ffprobe in runtime."
-              : e?.message || "Probe failed",
-        },
-        { status: 500 }
-      );
-    }
-
-    if (!needsConvert(file.name, meta)) {
-      return new NextResponse(inBuf, {
-        status: 200,
-        headers: {
-          "Content-Type": file.type || "video/quicktime",
-          "Content-Disposition": `inline; filename="${file.name}"`,
-          "X-Video-Converted": "0",
-          "Cache-Control": "no-store",
-        },
-      });
-    }
-
-    if (meta.duration > 0 && meta.duration < 3) {
-      return NextResponse.json(
-        { error: `Video too short (${meta.duration.toFixed(2)}s). Minimum is 3s.` },
-        { status: 400 }
-      );
-    }
-
-    const target = calcTargetSize(meta);
-    const vf = `scale=${target.outW}:${target.outH}:flags=lanczos,pad=${target.padW}:${target.padH}:(ow-iw)/2:(oh-ih)/2:black`;
-    const trimArgs = meta.duration > 10 ? ["-t", "10"] : [];
+    // Convert without ffprobe dependency: keep aspect ratio, fit max 2160, pad min 720.
+    const vf =
+      "scale=w='trunc(min(2160/iw,2160/ih)*iw/2)*2':h='trunc(min(2160/iw,2160/ih)*ih/2)*2':flags=lanczos,pad=w='max(iw,720)':h='max(ih,720)':x='(ow-iw)/2':y='(oh-ih)/2':color=black";
 
     try {
       await execFileAsync("ffmpeg", [
         "-y",
         "-i",
         inputPath,
-        ...trimArgs,
+        "-t",
+        "10",
         "-vf",
         vf,
         "-c:v",
