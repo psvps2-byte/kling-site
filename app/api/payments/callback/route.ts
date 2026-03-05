@@ -4,11 +4,12 @@ import { createClient } from "@supabase/supabase-js";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+function getAdminSupabase() {
+  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY");
+  return createClient(url, key, { auth: { persistSession: false } });
+}
 
 async function readPayload(req: NextRequest) {
   const ct = (req.headers.get("content-type") || "").toLowerCase();
@@ -82,6 +83,7 @@ async function readPayload(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const supabase = getAdminSupabase();
   let data: any = await readPayload(req);
 
   // ✅ якщо раптом data все ще рядок — пробуємо JSON.parse

@@ -4,13 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 
-const SUPABASE_URL = process.env.SUPABASE_URL!;
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-
 // WayForPay
-const MERCHANT_ACCOUNT = process.env.WFP_MERCHANT_ACCOUNT!;
-const MERCHANT_SECRET = process.env.WFP_MERCHANT_SECRET!;
-
 // Дуже важливо: merchantDomainName має бути БЕЗ https://
 const MERCHANT_DOMAIN = (process.env.WFP_MERCHANT_DOMAIN || "www.vilna.pro").trim();
 
@@ -29,17 +23,28 @@ const PACKS_USD: Record<string, { priceUsd: number; points: number; title: strin
   ultra: { priceUsd: 200, points: 5600, title: "Ultra" },
 };
 
-function buildSignature(parts: (string | number)[]) {
+function buildSignature(parts: (string | number)[], merchantSecret: string) {
   const str = parts.map((x) => String(x)).join(";");
-  return crypto.createHmac("md5", MERCHANT_SECRET).update(str).digest("hex");
+  return crypto.createHmac("md5", merchantSecret).update(str).digest("hex");
 }
 
 function round2(n: number) {
   return Math.round(n * 100) / 100;
 }
 
+function requireEnv(name: string) {
+  const v = process.env[name];
+  if (!v) throw new Error(`Missing ${name}`);
+  return v;
+}
+
 export async function POST(req: NextRequest) {
   try {
+    const SUPABASE_URL = requireEnv("SUPABASE_URL");
+    const SUPABASE_SERVICE_ROLE_KEY = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+    const MERCHANT_ACCOUNT = requireEnv("WFP_MERCHANT_ACCOUNT");
+    const MERCHANT_SECRET = requireEnv("WFP_MERCHANT_SECRET");
+
     // 1) auth
     const session = await getServerSession(authOptions);
     const email = session?.user?.email;
@@ -121,17 +126,20 @@ export async function POST(req: NextRequest) {
     const productCount = ["1"];
     const productPrice = [amountFinalUAH.toFixed(2)];
 
-    const merchantSignature = buildSignature([
-      MERCHANT_ACCOUNT,
-      MERCHANT_DOMAIN,
-      orderReference,
-      orderDate,
-      amountFinalUAH.toFixed(2),
-      currency,
-      productName[0],
-      productCount[0],
-      productPrice[0],
-    ]);
+    const merchantSignature = buildSignature(
+      [
+        MERCHANT_ACCOUNT,
+        MERCHANT_DOMAIN,
+        orderReference,
+        orderDate,
+        amountFinalUAH.toFixed(2),
+        currency,
+        productName[0],
+        productCount[0],
+        productPrice[0],
+      ],
+      MERCHANT_SECRET
+    );
 
     return NextResponse.json({
       merchantAccount: MERCHANT_ACCOUNT,
