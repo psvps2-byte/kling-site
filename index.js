@@ -93,8 +93,7 @@ function klingHeaders() {
 function klingStatusUrl(job) {
   const kind = String(job?.kind || "").toUpperCase().trim();
   const taskId = job?.task_id;
-  const payload = parsePayload(job);
-  const modelName = String(payload?.model_name || "").toLowerCase();
+  const modelName = String(job?.payload?.model_name || "").toLowerCase();
 
   if (!taskId) return null;
 
@@ -124,144 +123,6 @@ function klingStatusUrl(job) {
       console.warn("Unknown job.kind:", job?.kind);
       return null;
   }
-}
-
-function parsePayload(job) {
-  const p = job?.payload;
-  if (!p) return {};
-  if (typeof p === "string") {
-    try {
-      return JSON.parse(p);
-    } catch {
-      return {};
-    }
-  }
-  if (typeof p === "object") return p;
-  return {};
-}
-
-function klingCreateUrl(job, payload) {
-  const modelName = String(payload?.model_name || "").toLowerCase();
-  const kind = String(job?.kind || "").toUpperCase().trim();
-
-  if (modelName === "kling-video-o1") {
-    return `${KLING_API_BASE}/v1/videos/omni-video`;
-  }
-
-  if (["MOTION", "MOTION-CONTROL", "MOTION_CONTROL"].includes(kind)) {
-    return `${KLING_API_BASE}/v1/videos/motion-control`;
-  }
-
-  if (["I2V", "IMAGE2VIDEO", "IMAGE_2_VIDEO", "IMAGE-2-VIDEO"].includes(kind)) {
-    return `${KLING_API_BASE}/v1/videos/image2video`;
-  }
-
-  return null;
-}
-
-function pickTaskId(json) {
-  return (
-    json?.data?.task_id ||
-    json?.task_id ||
-    json?.data?.id ||
-    json?.id ||
-    null
-  );
-}
-
-function stripRetryMeta(payload) {
-  const out = { ...(payload || {}) };
-  for (const k of Object.keys(out)) {
-    if (k.startsWith("_retry_")) delete out[k];
-  }
-  return out;
-}
-
-async function resubmitKlingTask(job, payloadForDb, reason) {
-  const createUrl = klingCreateUrl(job, payloadForDb);
-  if (!createUrl) return false;
-
-  const submitPayload = stripRetryMeta(payloadForDb);
-  console.log(
-    "Resubmitting Kling task",
-    job.id,
-    `reason=${reason}`,
-    `endpoint=${createUrl}`
-  );
-
-  const res = await fetch(createUrl, {
-    method: "POST",
-    headers: klingHeaders(),
-    body: JSON.stringify(submitPayload),
-  });
-  const json = await res.json().catch(() => ({}));
-
-  if (!res.ok || (typeof json?.code === "number" && json.code !== 0)) {
-    console.error(
-      "Resubmit failed",
-      job.id,
-      reason,
-      res.status,
-      JSON.stringify(json).slice(0, 500)
-    );
-    return false;
-  }
-
-  const taskId = pickTaskId(json);
-  if (!taskId) {
-    console.error("Resubmit returned no task_id", job.id, reason, JSON.stringify(json).slice(0, 500));
-    return false;
-  }
-
-  await supabase
-    .from("generations")
-    .update({
-      status: "RUNNING",
-      task_id: String(taskId),
-      payload: payloadForDb,
-      finished_at: null,
-      locked_at: null,
-      locked_by: null,
-    })
-    .eq("id", job.id);
-
-  console.log("Resubmit success", job.id, reason, "new_task_id=", taskId);
-  return true;
-}
-
-async function retryInternalKlingFailure(job, failMsg) {
-  const msg = String(failMsg || "").toLowerCase();
-  if (!msg.includes("internal error")) return false;
-
-  const payload = parsePayload(job);
-  const prevRetry = Number(payload?._retry_internal || 0);
-  if (prevRetry >= 2) return false;
-
-  const nextPayload = { ...payload, _retry_internal: prevRetry + 1 };
-  return resubmitKlingTask(
-    job,
-    nextPayload,
-    `internal_error_attempt_${nextPayload._retry_internal}`
-  );
-}
-
-async function retryStuckKlingTask(job, status) {
-  const s = String(status || "").toUpperCase();
-  if (!["SUBMITTED", "PROCESSING"].includes(s)) return false;
-
-  const ageMin = minutesAgo(job.created_at);
-  if (ageMin < 12) return false;
-
-  const payload = parsePayload(job);
-  const prevRetry = Number(payload?._retry_stuck || 0);
-  if (prevRetry >= 1) return false;
-
-  const nextPayload = { ...payload, _retry_stuck: prevRetry + 1 };
-  return resubmitKlingTask(
-    job,
-    nextPayload,
-    `stuck_${s.toLowerCase()}_${Math.floor(ageMin)}min`
-  );
 }
 
 /* ============== HELPERS ============== */
@@ -923,20 +784,7 @@ async function runOnce() {
   const status = normalizeStatus(json);
   const resultUrls = pickResultUrls(json);
 
-  const retriedStuck = await retryStuckKlingTask(job, status);
-  if (retriedStuck) return;
-
   if (["FAILED", "ERROR", "FAILURE", "CANCELED", "CANCELLED"].includes(status)) {
-    const failMsg =
-      json?.data?.task_status_msg ||
-      json?.message ||
-      json?.data?.message ||
-      "";
-    const reqId = json?.request_id || json?.data?.request_id || "";
-
-    const retried = await retryInternalKlingFailure(job, failMsg);
-    if (retried) return;
-
     await supabase
       .from("generations")
       .update({
@@ -947,7 +795,7 @@ async function runOnce() {
       })
       .eq("id", job.id);
 
-    console.log("ERROR", job.id, status, failMsg, reqId ? `request_id=${reqId}` : "");
+    console.log("ERROR", job.id, status);
     return;
   }
 
@@ -986,8 +834,7 @@ async function runOnce() {
             existing.push(r2Url);
           } catch (e) {
             console.error("Failed to upload video to R2:", e?.message || e);
-            // Fallback: keep Kling URL so result is still available in UI/history.
-            existing.push(klingUrl);
+            // Don't store Kling URL if upload fails
           }
         }
         // For non-video jobs (images), don't store Kling URLs
