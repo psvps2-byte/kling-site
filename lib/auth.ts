@@ -8,13 +8,20 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { SupabaseAdapter } from "@auth/supabase-adapter";
 import { Resend } from "resend";
 
-function mustEnv(name: string): string {
-  const v = process.env[name];
-  if (!v) throw new Error(`Missing env: ${name}`);
-  return v;
+function env(name: string): string | undefined {
+  const v = process.env[name]?.trim();
+  return v ? v : undefined;
 }
 
 const isDev = process.env.NODE_ENV !== "production";
+const supabaseUrl = env("NEXT_PUBLIC_SUPABASE_URL");
+const supabaseServiceRoleKey = env("SUPABASE_SERVICE_ROLE_KEY");
+const googleClientId = env("GOOGLE_CLIENT_ID");
+const googleClientSecret = env("GOOGLE_CLIENT_SECRET");
+const nextAuthSecret = env("NEXTAUTH_SECRET");
+const resendApiKey = env("RESEND_API_KEY");
+
+const canUseAdapter = !isDev && !!supabaseUrl && !!supabaseServiceRoleKey;
 
 export const authOptions: NextAuthOptions = {
   useSecureCookies: false,
@@ -32,14 +39,14 @@ export const authOptions: NextAuthOptions = {
   },
 
   // Adapter only in production (for database sessions)
-  ...(isDev
-    ? {}
-    : {
+  ...(canUseAdapter
+    ? {
         adapter: SupabaseAdapter({
-          url: mustEnv("NEXT_PUBLIC_SUPABASE_URL"),
-          secret: mustEnv("SUPABASE_SERVICE_ROLE_KEY"),
+          url: supabaseUrl!,
+          secret: supabaseServiceRoleKey!,
         }),
-      }),
+      }
+    : {}),
 
   providers: [
     // DEV ONLY: credentials provider with admin role
@@ -61,20 +68,24 @@ export const authOptions: NextAuthOptions = {
         ]
       : []),
 
-    GoogleProvider({
-      clientId: mustEnv("GOOGLE_CLIENT_ID"),
-      clientSecret: mustEnv("GOOGLE_CLIENT_SECRET"),
-      authorization: { params: { prompt: "select_account" } },
-    }),
+    ...(googleClientId && googleClientSecret
+      ? [
+          GoogleProvider({
+            clientId: googleClientId,
+            clientSecret: googleClientSecret,
+            authorization: { params: { prompt: "select_account" } },
+          }),
+        ]
+      : []),
 
     // Email provider ONLY in production (requires adapter)
-    ...(isDev
-      ? []
-      : [
+    ...(canUseAdapter
+      ? [
           EmailProvider({
             from: "Vilna <login@vilna.pro>",
             async sendVerificationRequest({ identifier, url }) {
-              const resend = new Resend(mustEnv("RESEND_API_KEY"));
+              if (!resendApiKey) throw new Error("Missing env: RESEND_API_KEY");
+              const resend = new Resend(resendApiKey);
 
               await resend.emails.send({
                 from: "Vilna <login@vilna.pro>",
@@ -102,10 +113,11 @@ export const authOptions: NextAuthOptions = {
               });
             },
           }),
-        ]),
+        ]
+      : []),
   ],
 
-  secret: mustEnv("NEXTAUTH_SECRET"),
+  ...(nextAuthSecret ? { secret: nextAuthSecret } : {}),
   pages: { signIn: "/auth" },
 
   // JWT in dev, database in production
