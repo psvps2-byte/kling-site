@@ -11,28 +11,31 @@ function mustEnv(name: string) {
   return v;
 }
 
-const s3 = new S3Client({
-  region: "auto",
-  endpoint: mustEnv("R2_ENDPOINT"),
-  forcePathStyle: true,
-  credentials: {
-    accessKeyId: mustEnv("R2_ACCESS_KEY_ID"),
-    secretAccessKey: mustEnv("R2_SECRET_ACCESS_KEY"),
-  },
-});
+function createS3Client() {
+  return new S3Client({
+    region: "auto",
+    endpoint: mustEnv("R2_ENDPOINT"),
+    forcePathStyle: true,
+    credentials: {
+      accessKeyId: mustEnv("R2_ACCESS_KEY_ID"),
+      secretAccessKey: mustEnv("R2_SECRET_ACCESS_KEY"),
+    },
+  });
+}
 
 export async function POST(req: Request) {
   const { filename, contentType } = await req.json();
   const bucket = mustEnv("R2_BUCKET");
+  const s3 = createS3Client();
 
   const ext = (filename?.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "");
   const key = `uploads/${Date.now()}-${crypto.randomBytes(8).toString("hex")}.${ext}`;
 
   const cmd = new PutObjectCommand({
-  Bucket: bucket,
-  Key: key,
-  ContentType: contentType,
-});
+    Bucket: bucket,
+    Key: key,
+    ContentType: contentType,
+  });
 
   const uploadUrl = await getSignedUrl(s3, cmd, { expiresIn: 300 });
   return NextResponse.json({ uploadUrl, key });
