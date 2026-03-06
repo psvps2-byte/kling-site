@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
     // 3) Взяти ТІЛЬКИ свої генерації
     const { data, error } = await admin
       .from("generations")
-      .select("id, created_at, kind, status, prompt, result_url, result_urls")
+      .select("id, created_at, kind, status, payload, result_url, result_urls")
       .eq("user_id", user_id) // ✅ ключова штука
       .order("created_at", { ascending: false })
       .limit(200);
@@ -141,7 +141,7 @@ export async function GET(req: NextRequest) {
           kind: row.kind,
           status: row.status,
           urls,
-          prompt: row.prompt,
+          prompt: asString(row?.payload?.prompt || ""),
         };
       });
 
