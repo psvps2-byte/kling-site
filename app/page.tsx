@@ -23,6 +23,32 @@ type VideoQuality = "standard" | "pro";
 type VideoDuration = 5 | 10;
 type CharacterOrientation = "image" | "video";
 type PhotoModelChoice = "chatgpt" | "nano-banana";
+type PendingKind = "photo" | "video";
+type PendingGeneration = {
+  id: string;
+  kind: PendingKind;
+  createdAt: number;
+  prompt: string;
+};
+
+const PENDING_GENERATIONS_KEY = "vilna_pending_generations_v1";
+
+function readPendingGenerations(): PendingGeneration[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(PENDING_GENERATIONS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writePendingGenerations(next: PendingGeneration[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(PENDING_GENERATIONS_KEY, JSON.stringify(next));
+  window.dispatchEvent(new Event("vilna:pending-updated"));
+}
 
 function LoadingDots() {
   return (
@@ -367,10 +393,55 @@ export default function Home() {
   const [lang, setLangState] = useState<Lang>("uk");
   const dict = t(lang);
   const { data: session } = useSession();
+  const [historyHint, setHistoryHint] = useState<string | null>(null);
+  const [historyPulse, setHistoryPulse] = useState(false);
 
   useEffect(() => {
     setLangState(getLang());
   }, []);
+
+  function markPendingGeneration(id: string, kind: PendingKind, pendingPrompt: string) {
+    const current = readPendingGenerations();
+    const filtered = current.filter((x) => x.id !== id);
+    filtered.unshift({
+      id,
+      kind,
+      createdAt: Date.now(),
+      prompt: pendingPrompt.trim(),
+    });
+    writePendingGenerations(filtered.slice(0, 30));
+  }
+
+  function clearPendingGeneration(id: string) {
+    const current = readPendingGenerations();
+    const next = current.filter((x) => x.id !== id);
+    writePendingGenerations(next);
+  }
+
+  function notifyHistoryHint(kind: PendingKind) {
+    setHistoryPulse(true);
+    setHistoryHint(
+      lang === "uk"
+        ? kind === "photo"
+          ? "Фото генерується. Результат скоро з’явиться в Історії."
+          : "Відео генерується. Результат скоро з’явиться в Історії."
+        : kind === "photo"
+          ? "Image is being generated. Result will appear in History."
+          : "Video is being generated. Result will appear in History."
+    );
+  }
+
+  useEffect(() => {
+    if (!historyPulse) return;
+    const t = setTimeout(() => setHistoryPulse(false), 3500);
+    return () => clearTimeout(t);
+  }, [historyPulse]);
+
+  useEffect(() => {
+    if (!historyHint) return;
+    const t = setTimeout(() => setHistoryHint(null), 5000);
+    return () => clearTimeout(t);
+  }, [historyHint]);
 
   function openLibrary(kind: "image" | "video", target: "photo1" | "photo2" | "vStart" | "vEnd" | "motion" | "character" | "editVideo" | "editRef") {
     setLibraryKind(kind);
@@ -832,18 +903,21 @@ export default function Home() {
           }),
         });
 
+        clearPendingGeneration(taskId);
         window.open(imp.publicUrl || vurl, "_blank", "noopener,noreferrer");
         return;
       }
 
       if (status === "failed") {
         const msg = data?.data?.task_status_msg || data?.message || "Task failed";
+        clearPendingGeneration(taskId);
         throw new Error(String(msg));
       }
 
       await new Promise((r) => setTimeout(r, intervalMs));
     }
 
+    clearPendingGeneration(taskId);
     throw new Error(lang === "uk" ? "Час очікування задачі вичерпано" : "Task timeout");
   }
 
@@ -913,11 +987,13 @@ export default function Home() {
         // показуємо результат на цій сторінці (якщо хочеш тільки History — прибери це)
         setImageUrls(urls);
 
+        clearPendingGeneration(photoTaskId);
         setQueued(false);
         setPhotoTaskId(null);
         setPhotoProgressText("");
       } catch (e: any) {
         if (cancelled) return;
+        clearPendingGeneration(photoTaskId);
         setError(normalizeErr(e));
         setQueued(false);
         setPhotoTaskId(null);
@@ -1121,6 +1197,8 @@ export default function Home() {
           if (!taskId)
             throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
 
+          markPendingGeneration(taskId, "video", prompt.trim());
+          notifyHistoryHint("video");
           await pollVideoTask({ kind: "image2video", taskId });
           return;
         }
@@ -1181,6 +1259,8 @@ export default function Home() {
           if (!taskId)
             throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
 
+          markPendingGeneration(taskId, "video", prompt.trim());
+          notifyHistoryHint("video");
           await pollVideoTask({ kind: "omni-video", taskId });
           return;
         }
@@ -1234,6 +1314,8 @@ export default function Home() {
         if (!taskId)
           throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
 
+        markPendingGeneration(taskId, "video", prompt.trim());
+        notifyHistoryHint("video");
         await pollVideoTask({ kind: "motion-control", taskId });
         return;
       }
@@ -1286,6 +1368,8 @@ export default function Home() {
       if (!taskId)
         throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
 
+      markPendingGeneration(taskId, "photo", userPrompt.trim());
+      notifyHistoryHint("photo");
       setPhotoTaskId(taskId);
       setPhotoProgressText(lang === "uk" ? "Генерація у процесі " : "Generation in progress ");
       return;
@@ -1489,6 +1573,88 @@ export default function Home() {
             }
             100% {
               transform: translateX(60%);
+            }
+          }
+
+          .historyCtaPulse {
+            position: relative;
+            border-color: rgba(36, 132, 255, 0.6) !important;
+            box-shadow:
+              0 0 0 0 rgba(36, 132, 255, 0.55),
+              0 8px 24px rgba(10, 90, 200, 0.28);
+            animation: historyPulse 1.1s ease-in-out 3;
+          }
+          .historyCtaPulse::after {
+            content: "";
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: #46d7ff;
+            box-shadow: 0 0 0 0 rgba(70, 215, 255, 0.65);
+            animation: historyDot 1.1s ease-in-out 3;
+          }
+          @keyframes historyPulse {
+            0% {
+              transform: translateY(0);
+              box-shadow:
+                0 0 0 0 rgba(36, 132, 255, 0.55),
+                0 8px 24px rgba(10, 90, 200, 0.28);
+            }
+            50% {
+              transform: translateY(-1px);
+              box-shadow:
+                0 0 0 10px rgba(36, 132, 255, 0),
+                0 12px 30px rgba(10, 90, 200, 0.34);
+            }
+            100% {
+              transform: translateY(0);
+              box-shadow:
+                0 0 0 0 rgba(36, 132, 255, 0),
+                0 8px 24px rgba(10, 90, 200, 0.2);
+            }
+          }
+          @keyframes historyDot {
+            0%,
+            100% {
+              box-shadow: 0 0 0 0 rgba(70, 215, 255, 0.65);
+            }
+            50% {
+              box-shadow: 0 0 0 8px rgba(70, 215, 255, 0);
+            }
+          }
+
+          .historyHintToast {
+            position: fixed;
+            top: 86px;
+            right: 28px;
+            z-index: 80;
+            max-width: min(420px, calc(100vw - 32px));
+            border-radius: 14px;
+            border: 1px solid rgba(76, 174, 255, 0.4);
+            background: linear-gradient(
+              135deg,
+              rgba(10, 24, 48, 0.88) 0%,
+              rgba(18, 48, 84, 0.84) 50%,
+              rgba(24, 62, 94, 0.8) 100%
+            );
+            color: rgba(236, 246, 255, 0.95);
+            padding: 12px 14px;
+            font-size: 13px;
+            line-height: 1.35;
+            box-shadow: 0 16px 40px rgba(6, 20, 44, 0.5);
+            animation: historyToastIn 0.28s ease-out;
+          }
+          @keyframes historyToastIn {
+            from {
+              opacity: 0;
+              transform: translateY(-8px) scale(0.98);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0) scale(1);
             }
           }
 
@@ -2247,7 +2413,11 @@ export default function Home() {
 
             {session ? (
               <>
-                <Link className="ios-btn ios-btn--ghost" href="/history" style={{ textDecoration: "none" }}>
+                <Link
+                  className={`ios-btn ios-btn--ghost ${historyPulse ? "historyCtaPulse" : ""}`}
+                  href="/history"
+                  style={{ textDecoration: "none" }}
+                >
                   {dict.history}
                 </Link>
 
@@ -2278,6 +2448,8 @@ export default function Home() {
             )}
           </div>
         </div>
+
+        {historyHint && <div className="historyHintToast">{historyHint}</div>}
 
         {/* Main card */}
         <div className="glass-card">

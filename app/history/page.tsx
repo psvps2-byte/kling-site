@@ -29,6 +29,26 @@ type DisplayItem = {
   r2Key?: string;
 };
 
+type PendingGeneration = {
+  id: string;
+  kind: "photo" | "video";
+  createdAt: number;
+  prompt: string;
+};
+
+const PENDING_GENERATIONS_KEY = "vilna_pending_generations_v1";
+
+function readPendingGenerations(): PendingGeneration[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(PENDING_GENERATIONS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 async function readJsonOrRaw(res: Response) {
   const rawText = await res.text();
   try {
@@ -316,6 +336,8 @@ export default function HistoryPage() {
 
   const [deletingUid, setDeletingUid] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pendingLocal, setPendingLocal] = useState<PendingGeneration[]>([]);
+  const [nowTs, setNowTs] = useState<number>(Date.now());
 
   // ✅ Показуємо по 20 (кнопка “Ще”)
   const [visibleCount, setVisibleCount] = useState(20);
@@ -355,6 +377,25 @@ export default function HistoryPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const refreshPending = () => setPendingLocal(readPendingGenerations());
+    refreshPending();
+    window.addEventListener("storage", refreshPending);
+    window.addEventListener("vilna:pending-updated", refreshPending);
+    window.addEventListener("focus", refreshPending);
+    return () => {
+      window.removeEventListener("storage", refreshPending);
+      window.removeEventListener("vilna:pending-updated", refreshPending);
+      window.removeEventListener("focus", refreshPending);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!pendingLocal.length) return;
+    const timer = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [pendingLocal.length]);
 
   // ✅ Скидаємо “показати ще”, коли змінився пошук/фільтр/сорт
   useEffect(() => {
@@ -409,7 +450,9 @@ export default function HistoryPage() {
   // ✅ Головне: розгортання “групи” (urls[]) в окремі елементи (1 url = 1 плитка)
   const expandedAll = useMemo<DisplayItem[]>(() => {
     const out: DisplayItem[] = [];
+    const existingEntryIds = new Set<string>();
     for (const entry of items) {
+      existingEntryIds.add(entry.id);
       const urls = Array.isArray(entry.urls) ? entry.urls : [];
       urls.forEach((url, idx) => {
         out.push({
@@ -436,8 +479,21 @@ export default function HistoryPage() {
         });
       }
     }
+
+    for (const pending of pendingLocal) {
+      if (!pending?.id || existingEntryIds.has(pending.id)) continue;
+      out.push({
+        uid: `${pending.id}__pending_local`,
+        entryId: pending.id,
+        createdAt: Number(pending.createdAt) || Date.now(),
+        prompt: pending.prompt || "",
+        url: "",
+        urlIndex: 0,
+        r2Key: undefined,
+      });
+    }
     return out;
-  }, [items]);
+  }, [items, pendingLocal]);
 
   // ✅ фільтри/пошук/сортування вже над “розгорнутими” елементами
   const filteredAll = useMemo(() => {
@@ -762,6 +818,10 @@ export default function HistoryPage() {
 
               // статус: якщо url пустий — “processing”
               const badge = url ? (dict.done ?? "Готово") : (dict.processing ?? "Генерується");
+              const elapsedSec = Math.max(0, Math.floor((nowTs - Number(it.createdAt || 0)) / 1000));
+              const elapsedMin = Math.floor(elapsedSec / 60);
+              const elapsedRem = String(elapsedSec % 60).padStart(2, "0");
+              const elapsedText = `${String(elapsedMin).padStart(2, "0")}:${elapsedRem}`;
 
               return (
                 <div
@@ -827,14 +887,16 @@ export default function HistoryPage() {
                       style={{
                         position: "absolute",
                         inset: 0,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
+                        display: "grid",
+                        placeItems: "center",
+                        gap: 8,
                         color: "rgba(255,255,255,0.65)",
                         fontSize: 13,
+                        textAlign: "center",
                       }}
                     >
-                      {badge}
+                      <div style={{ fontWeight: 650 }}>{badge}</div>
+                      <div style={{ fontSize: 12, opacity: 0.85 }}>{elapsedText}</div>
                     </div>
                   )}
                 </div>
