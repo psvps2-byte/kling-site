@@ -50,6 +50,10 @@ function writePendingGenerations(next: PendingGeneration[]) {
   window.dispatchEvent(new Event("vilna:pending-updated"));
 }
 
+function makePendingId() {
+  return `pending_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function LoadingDots() {
   return (
     <span className="ldots" aria-hidden="true">
@@ -416,6 +420,19 @@ export default function Home() {
     const current = readPendingGenerations();
     const next = current.filter((x) => x.id !== id);
     writePendingGenerations(next);
+  }
+
+  function beginPendingGeneration(kind: PendingKind, pendingPrompt: string) {
+    const id = makePendingId();
+    markPendingGeneration(id, kind, pendingPrompt);
+    notifyHistoryHint(kind);
+    return id;
+  }
+
+  function replacePendingGenerationId(fromId: string, toId: string, kind: PendingKind, pendingPrompt: string) {
+    if (fromId === toId) return;
+    markPendingGeneration(toId, kind, pendingPrompt);
+    clearPendingGeneration(fromId);
   }
 
   function notifyHistoryHint(kind: PendingKind) {
@@ -1141,6 +1158,7 @@ export default function Home() {
 
     setLoading(true);
     setImageUrls([]);
+    let pendingIdForCleanup: string | null = null;
 
     try {
       if (mediaTab === "video") {
@@ -1175,6 +1193,7 @@ export default function Home() {
 
           if (imageTailB64 && videoQuality === "pro") body.image_tail = imageTailB64;
           if (prompt.trim()) body.prompt = prompt.trim();
+          pendingIdForCleanup = beginPendingGeneration("video", prompt.trim());
 
           const res = await fetch("/api/kling/image2video", {
             method: "POST",
@@ -1197,8 +1216,12 @@ export default function Home() {
           if (!taskId)
             throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
 
-          markPendingGeneration(taskId, "video", prompt.trim());
-          notifyHistoryHint("video");
+          if (pendingIdForCleanup) {
+            replacePendingGenerationId(pendingIdForCleanup, taskId, "video", prompt.trim());
+          } else {
+            markPendingGeneration(taskId, "video", prompt.trim());
+          }
+          pendingIdForCleanup = taskId;
           await pollVideoTask({ kind: "image2video", taskId });
           return;
         }
@@ -1237,6 +1260,7 @@ export default function Home() {
           if (refImageUrl) {
             body.image_list = [{ image_url: refImageUrl }];
           }
+          pendingIdForCleanup = beginPendingGeneration("video", prompt.trim());
 
           const res = await fetch("/api/kling/omni-video", {
             method: "POST",
@@ -1259,8 +1283,12 @@ export default function Home() {
           if (!taskId)
             throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
 
-          markPendingGeneration(taskId, "video", prompt.trim());
-          notifyHistoryHint("video");
+          if (pendingIdForCleanup) {
+            replacePendingGenerationId(pendingIdForCleanup, taskId, "video", prompt.trim());
+          } else {
+            markPendingGeneration(taskId, "video", prompt.trim());
+          }
+          pendingIdForCleanup = taskId;
           await pollVideoTask({ kind: "omni-video", taskId });
           return;
         }
@@ -1292,6 +1320,7 @@ export default function Home() {
         };
 
         if (prompt.trim()) body.prompt = prompt.trim();
+        pendingIdForCleanup = beginPendingGeneration("video", prompt.trim());
 
         const res = await fetch("/api/kling/motion-control", {
           method: "POST",
@@ -1314,8 +1343,12 @@ export default function Home() {
         if (!taskId)
           throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
 
-        markPendingGeneration(taskId, "video", prompt.trim());
-        notifyHistoryHint("video");
+        if (pendingIdForCleanup) {
+          replacePendingGenerationId(pendingIdForCleanup, taskId, "video", prompt.trim());
+        } else {
+          markPendingGeneration(taskId, "video", prompt.trim());
+        }
+        pendingIdForCleanup = taskId;
         await pollVideoTask({ kind: "motion-control", taskId });
         return;
       }
@@ -1348,6 +1381,7 @@ export default function Home() {
         image_1: srcUrl || null,
         image_2: srcUrl2 || null,
       };
+      pendingIdForCleanup = beginPendingGeneration("photo", userPrompt.trim());
 
       const res = await fetch("/api/kling/omni-image", {
         method: "POST",
@@ -1368,12 +1402,19 @@ export default function Home() {
       if (!taskId)
         throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
 
-      markPendingGeneration(taskId, "photo", userPrompt.trim());
-      notifyHistoryHint("photo");
+      if (pendingIdForCleanup) {
+        replacePendingGenerationId(pendingIdForCleanup, taskId, "photo", userPrompt.trim());
+      } else {
+        markPendingGeneration(taskId, "photo", userPrompt.trim());
+      }
+      pendingIdForCleanup = taskId;
       setPhotoTaskId(taskId);
       setPhotoProgressText(lang === "uk" ? "Генерація у процесі " : "Generation in progress ");
       return;
     } catch (e: any) {
+      if (pendingIdForCleanup) {
+        clearPendingGeneration(pendingIdForCleanup);
+      }
       setQueued(false);
       setPhotoTaskId(null);
       setPhotoProgressText("");
