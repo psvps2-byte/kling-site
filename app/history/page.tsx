@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 type Entry = {
   id: string;
   createdAt: number;
+  kind?: string;
   urls: string[];
   prompt?: string;
   r2Keys?: string[];
@@ -27,6 +28,7 @@ type DisplayItem = {
 
   // відповідний r2Key (якщо є)
   r2Key?: string;
+  pendingKind?: "photo" | "video";
 };
 
 type PendingGeneration = {
@@ -483,6 +485,9 @@ export default function HistoryPage() {
           url: "",
           urlIndex: 0,
           r2Key: undefined,
+          pendingKind: String(entry?.kind || "").toUpperCase().includes("VIDEO") || String(entry?.kind || "").toUpperCase().includes("I2V")
+            ? "video"
+            : "photo",
         });
       }
     }
@@ -497,6 +502,7 @@ export default function HistoryPage() {
         url: "",
         urlIndex: 0,
         r2Key: undefined,
+        pendingKind: pending.kind,
       });
     }
     return out;
@@ -829,6 +835,11 @@ export default function HistoryPage() {
               const elapsedMin = Math.floor(elapsedSec / 60);
               const elapsedRem = String(elapsedSec % 60).padStart(2, "0");
               const elapsedText = `${String(elapsedMin).padStart(2, "0")}:${elapsedRem}`;
+              const waitHint = !url && it.pendingKind === "video"
+                ? lang === "uk"
+                  ? "Відео може генеруватися до 10-15 хвилин"
+                  : "Video generation may take up to 10-15 minutes"
+                : null;
 
               return (
                 <div
@@ -904,6 +915,9 @@ export default function HistoryPage() {
                     >
                       <div style={{ fontWeight: 650 }}>{badge}</div>
                       <div style={{ fontSize: 12, opacity: 0.85 }}>{elapsedText}</div>
+                      {waitHint && (
+                        <div style={{ fontSize: 11, opacity: 0.75, maxWidth: 220 }}>{waitHint}</div>
+                      )}
                     </div>
                   )}
                 </div>

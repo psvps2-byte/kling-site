@@ -460,10 +460,10 @@ export default function Home() {
       lang === "uk"
         ? kind === "photo"
           ? "Фото генерується. Результат скоро з’явиться в Історії."
-          : "Відео генерується. Результат скоро з’явиться в Історії."
+          : "Відео генерується. Це може тривати 10-15 хвилин. Результат з’явиться в Історії."
         : kind === "photo"
           ? "Image is being generated. Result will appear in History."
-          : "Video is being generated. Result will appear in History."
+          : "Video is being generated. It may take 10-15 minutes. Result will appear in History."
     );
   }
 
