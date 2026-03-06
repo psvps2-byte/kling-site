@@ -32,13 +32,20 @@ type PendingGeneration = {
 };
 
 const PENDING_GENERATIONS_KEY = "vilna_pending_generations_v1";
+const PENDING_TTL_MS = 60 * 60 * 1000;
 
 function readPendingGenerations(): PendingGeneration[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(PENDING_GENERATIONS_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    const now = Date.now();
+    return parsed.filter((x: any) => {
+      const createdAt = Number(x?.createdAt || 0);
+      const id = typeof x?.id === "string" ? x.id : "";
+      return id && createdAt > 0 && now - createdAt <= PENDING_TTL_MS;
+    });
   } catch {
     return [];
   }
@@ -52,6 +59,18 @@ function writePendingGenerations(next: PendingGeneration[]) {
 
 function makePendingId() {
   return `pending_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function isLikelyAbortError(e: any) {
+  const name = String(e?.name || "");
+  const msg = String(e?.message || "").toLowerCase();
+  return (
+    name === "AbortError" ||
+    msg.includes("abort") ||
+    msg.includes("aborted") ||
+    msg.includes("canceled") ||
+    msg.includes("cancelled")
+  );
 }
 
 function LoadingDots() {
@@ -1412,7 +1431,7 @@ export default function Home() {
       setPhotoProgressText(lang === "uk" ? "Генерація у процесі " : "Generation in progress ");
       return;
     } catch (e: any) {
-      if (pendingIdForCleanup) {
+      if (pendingIdForCleanup && !isLikelyAbortError(e)) {
         clearPendingGeneration(pendingIdForCleanup);
       }
       setQueued(false);
@@ -1669,10 +1688,11 @@ export default function Home() {
 
           .historyHintToast {
             position: fixed;
-            top: 86px;
-            right: 28px;
+            bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+            left: 50%;
+            transform: translateX(-50%);
             z-index: 80;
-            max-width: min(420px, calc(100vw - 32px));
+            width: min(420px, calc(100vw - 24px));
             border-radius: 14px;
             border: 1px solid rgba(76, 174, 255, 0.4);
             background: linear-gradient(

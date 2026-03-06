@@ -37,13 +37,20 @@ type PendingGeneration = {
 };
 
 const PENDING_GENERATIONS_KEY = "vilna_pending_generations_v1";
+const PENDING_TTL_MS = 60 * 60 * 1000;
 
 function readPendingGenerations(): PendingGeneration[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(PENDING_GENERATIONS_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    const now = Date.now();
+    return parsed.filter((x: any) => {
+      const createdAt = Number(x?.createdAt || 0);
+      const id = typeof x?.id === "string" ? x.id : "";
+      return id && createdAt > 0 && now - createdAt <= PENDING_TTL_MS;
+    });
   } catch {
     return [];
   }
