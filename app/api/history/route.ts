@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
     // 3) Взяти ТІЛЬКИ свої генерації
     const { data, error } = await admin
       .from("generations")
-      .select("id, created_at, kind, status, result_url, result_urls")
+      .select("id, created_at, kind, status, prompt, result_url, result_urls")
       .eq("user_id", user_id) // ✅ ключова штука
       .order("created_at", { ascending: false })
       .limit(200);
@@ -102,17 +102,31 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // 4) Додатковий захист від "чужих/битих" карток:
-    //    не повертаємо записи без result_url, щоб не з’являлось "Немає превʼю".
+    // 4) Повертаємо також pending/failed записи без url,
+    //    щоб у History було видно нові задачі одразу після старту.
     const items = (data ?? [])
       .filter((row: any) => {
         const direct = asString(row?.result_url).trim();
         const arr = Array.isArray(row.result_urls) ? row.result_urls : [];
-        return direct.length > 10 || arr.length > 0;
+        const status = asString(row?.status).toUpperCase();
+        const isPendingLike =
+          status === "QUEUED" ||
+          status === "CLAIMED" ||
+          status === "RUNNING" ||
+          status === "PENDING" ||
+          status === "PROCESSING" ||
+          status === "FAILED" ||
+          status === "ERROR";
+        return direct.length > 10 || arr.length > 0 || isPendingLike;
       })
       .map((row: any) => {
         const arr = Array.isArray(row.result_urls) ? row.result_urls : [];
         const direct = asString(row.result_url).trim();
+        const createdAtRaw = row.created_at;
+        const createdAt =
+          typeof createdAtRaw === "number"
+            ? createdAtRaw
+            : Date.parse(String(createdAtRaw || "")) || Date.now();
 
         const urls =
           arr.length > 0
@@ -123,7 +137,7 @@ export async function GET(req: NextRequest) {
 
         return {
           id: row.id,
-          createdAt: row.created_at,
+          createdAt,
           kind: row.kind,
           status: row.status,
           urls,
