@@ -8,6 +8,7 @@ type Entry = {
   id: string;
   createdAt: number;
   kind?: string;
+  status?: string;
   urls: string[];
   prompt?: string;
   r2Keys?: string[];
@@ -29,6 +30,7 @@ type DisplayItem = {
   // відповідний r2Key (якщо є)
   r2Key?: string;
   pendingKind?: "photo" | "video";
+  status?: string;
 };
 
 type PendingGeneration = {
@@ -40,6 +42,7 @@ type PendingGeneration = {
 
 const PENDING_GENERATIONS_KEY = "vilna_pending_generations_v1";
 const PENDING_TTL_MS = 60 * 60 * 1000;
+const STALE_PENDING_MS = 90 * 60 * 1000;
 
 function readPendingGenerations(): PendingGeneration[] {
   if (typeof window === "undefined") return [];
@@ -469,6 +472,7 @@ export default function HistoryPage() {
           entryId: entry.id,
           createdAt: entry.createdAt,
           prompt: entry.prompt,
+          status: entry.status,
           url,
           urlIndex: idx,
           r2Key: Array.isArray(entry.r2Keys) ? entry.r2Keys[idx] : undefined,
@@ -485,6 +489,7 @@ export default function HistoryPage() {
           url: "",
           urlIndex: 0,
           r2Key: undefined,
+          status: entry.status,
           pendingKind: String(entry?.kind || "").toUpperCase().includes("VIDEO") || String(entry?.kind || "").toUpperCase().includes("I2V")
             ? "video"
             : "photo",
@@ -502,11 +507,42 @@ export default function HistoryPage() {
         url: "",
         urlIndex: 0,
         r2Key: undefined,
+        status: "PENDING_LOCAL",
         pendingKind: pending.kind,
       });
     }
     return out;
   }, [items, pendingLocal]);
+
+  useEffect(() => {
+    const now = Date.now();
+    const toDelete = items
+      .filter((entry) => {
+        const hasUrls = Array.isArray(entry.urls) && entry.urls.length > 0;
+        if (hasUrls) return false;
+        const st = String(entry.status || "").toUpperCase();
+        if (st === "FAILED" || st === "ERROR") return true;
+        return now - Number(entry.createdAt || 0) > STALE_PENDING_MS;
+      })
+      .map((entry) => String(entry.id))
+      .filter(Boolean);
+
+    if (!toDelete.length) return;
+
+    let cancelled = false;
+    (async () => {
+      for (const id of toDelete) {
+        if (cancelled) return;
+        await fetch(`/api/history?id=${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => null);
+      }
+      if (!cancelled) loadHistory();
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
 
   // ✅ фільтри/пошук/сортування вже над “розгорнутими” елементами
   const filteredAll = useMemo(() => {
