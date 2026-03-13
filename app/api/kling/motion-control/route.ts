@@ -17,7 +17,7 @@ function asStr(v: any) {
  * PRO:      4 бали за 1s
  */
 function calcMotionCost(opts: { mode: "std" | "pro"; seconds: number }) {
-  const sec = Math.max(1, Math.floor(opts.seconds || 0));
+  const sec = Math.max(1, Math.ceil(opts.seconds || 0));
   const perSec = opts.mode === "pro" ? 4 : 3;
   return sec * perSec;
 }
@@ -29,9 +29,10 @@ function calcMotionCost(opts: { mode: "std" | "pro"; seconds: number }) {
  * - duration_sec (number)
  * - seconds (number)
  *
- * Якщо нічого нема — беремо 5 сек за замовчуванням (щоб не було 0).
+ * Якщо нічого нема — повертаємо null, щоб не створювати задачу
+ * з некоректною/довільною тривалістю.
  */
-function readSeconds(body: any): number {
+function readSeconds(body: any): number | null {
   const d1 = Number(body?.duration);
   if (Number.isFinite(d1) && d1 > 0) return d1;
 
@@ -41,7 +42,7 @@ function readSeconds(body: any): number {
   const d3 = Number(body?.seconds);
   if (Number.isFinite(d3) && d3 > 0) return d3;
 
-  return 5;
+  return null;
 }
 
 export async function POST(req: Request) {
@@ -64,6 +65,12 @@ export async function POST(req: Request) {
 
   // 2) seconds
   const seconds = readSeconds(body);
+  if (!seconds) {
+    return NextResponse.json(
+      { error: "Reference video duration is required" },
+      { status: 400 }
+    );
+  }
 
   // 3) cost
   const costPoints = calcMotionCost({ mode, seconds });
@@ -77,7 +84,7 @@ export async function POST(req: Request) {
       p_tier: mode === "pro" ? "PRO" : "STANDARD",
       p_duration_sec: null,
       p_has_start_end: false,
-      p_motion_control_sec: Math.max(1, Math.floor(seconds)),
+      p_motion_control_sec: Math.max(1, Math.ceil(seconds)),
       p_cost_points: costPoints,
     }
   );

@@ -217,10 +217,10 @@ function validateKlingReferenceVideo(meta: VideoMeta, lang: Lang): string | null
       ? `Розмір відео ${meta.width}x${meta.height} не підтримується. Для Kling потрібно 720-2160 px по обох сторонах.`
       : `Video size ${meta.width}x${meta.height} is not supported. Kling requires 720-2160 px for both sides.`;
   }
-  if (meta.duration > 0 && (meta.duration < 3 || meta.duration > 10)) {
+  if (meta.duration > 0 && (meta.duration < 3 || meta.duration > 30)) {
     return lang === "uk"
-      ? `Тривалість ${meta.duration}с не підтримується. Для reference video потрібно 3-10с.`
-      : `Duration ${meta.duration}s is not supported. Reference video must be 3-10s.`;
+      ? `Тривалість ${meta.duration}с не підтримується. Для reference video потрібно 3-30с.`
+      : `Duration ${meta.duration}s is not supported. Reference video must be 3-30s.`;
   }
   return null;
 }
@@ -1060,7 +1060,7 @@ export default function Home() {
     }
 
     const perSec = videoQuality === "standard" ? 3 : 4;
-    const secs = Math.min(30, Math.max(1, Math.ceil(refVideoSeconds || 0)));
+    const secs = Math.max(1, Math.ceil(refVideoSeconds || 0));
     return perSec * secs;
   }, [mediaTab, omniN, videoMode, videoQuality, videoDuration, refVideoSeconds]);
 
@@ -1321,6 +1321,11 @@ export default function Home() {
             lang === "uk" ? "Потрібне відео з рухами" : "Motion video is required"
           );
 
+        const motionVideoErr = validateKlingReferenceVideo(refVideoMeta, lang);
+        if (motionVideoErr) {
+          throw new Error(motionVideoErr);
+        }
+
         const motionUrlFinal = vMotionVideo
           ? (await uploadToR2AndGetPublicUrl(vMotionVideo)).url
           : motionUrl
@@ -1336,6 +1341,7 @@ export default function Home() {
           keep_original_sound: keepOriginalSound ? "yes" : "no",
           image_url: characterUrlFinal,
           video_url: motionUrlFinal,
+          duration_sec: Math.max(1, Math.ceil(refVideoSeconds || 0)),
         };
 
         if (prompt.trim()) body.prompt = prompt.trim();
