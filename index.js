@@ -94,12 +94,18 @@ function klingStatusUrl(job) {
   const kind = String(job?.kind || "").toUpperCase().trim();
   const taskId = job?.task_id;
   const modelName = String(job?.payload?.model_name || "").toLowerCase();
+  const hasMotionPayload = !!job?.payload?.video_url && !!job?.payload?.image_url;
 
   if (!taskId) return null;
 
   // Omni video tasks are stored as I2V kind in DB, so use payload hint first.
   if (modelName === "kling-video-o1") {
     return `${KLING_API_BASE}/v1/videos/omni-video/${encodeURIComponent(taskId)}`;
+  }
+
+  // Older motion-control jobs were stored as I2V, so detect them from payload shape/model.
+  if (kind === "MOTION_CONTROL" || kind === "MOTION-CONTROL" || kind === "MOTION" || modelName === "kling-v2-6" || hasMotionPayload) {
+    return `${KLING_API_BASE}/v1/videos/motion-control/${encodeURIComponent(taskId)}`;
   }
 
   switch (kind) {
@@ -113,12 +119,6 @@ function klingStatusUrl(job) {
     case "IMAGE_2_VIDEO":
     case "IMAGE-2-VIDEO":
       return `${KLING_API_BASE}/v1/videos/image2video/${encodeURIComponent(taskId)}`;
-
-    case "MOTION":
-    case "MOTION-CONTROL":
-    case "MOTION_CONTROL":
-      return `${KLING_API_BASE}/v1/videos/motion-control/${encodeURIComponent(taskId)}`;
-
     default:
       console.warn("Unknown job.kind:", job?.kind);
       return null;

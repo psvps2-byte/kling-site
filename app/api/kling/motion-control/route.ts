@@ -161,8 +161,10 @@ export async function POST(req: Request) {
   await supabaseAdmin
     .from("generations")
     .update({
+      kind: "MOTION_CONTROL",
       status: "RUNNING",
       task_id: id ? String(id) : null,
+      payload,
       result_url: null,
     })
     .eq("id", generationId);
