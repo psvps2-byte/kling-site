@@ -328,6 +328,7 @@ async function normalizeRemoteVideoUrlForKling(url: string): Promise<File> {
 
 export default function Home() {
   const SHOW_TEMPLATES = false;
+  const SHOW_HOME_HUB = false;
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [templates, setTemplates] = useState<any[]>([]);
@@ -452,7 +453,7 @@ export default function Home() {
   ];
 
   // GLOBAL
-  const [mediaTab, setMediaTab] = useState<MediaTab>("home");
+  const [mediaTab, setMediaTab] = useState<MediaTab>(SHOW_HOME_HUB ? "home" : "photo");
 
   const [loading, setLoading] = useState(false);
 
@@ -2781,15 +2782,17 @@ export default function Home() {
           {/* Tabs */}
           <div className="tabs">
             <div className="tabsWrap" role="tablist" aria-label="media tabs">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mediaTab === "home"}
-                className={`tabBtn ${mediaTab === "home" ? "tabBtnActive" : ""}`}
-                onClick={() => openMediaTab("home")}
-              >
-                {lang === "uk" ? "Головна" : "Home"}
-              </button>
+              {SHOW_HOME_HUB && (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mediaTab === "home"}
+                  className={`tabBtn ${mediaTab === "home" ? "tabBtnActive" : ""}`}
+                  onClick={() => openMediaTab("home")}
+                >
+                  {lang === "uk" ? "Головна" : "Home"}
+                </button>
+              )}
               <button
                 type="button"
                 role="tab"
@@ -2811,7 +2814,7 @@ export default function Home() {
             </div>
           </div>
 
-          {mediaTab === "home" && (
+          {SHOW_HOME_HUB && mediaTab === "home" && (
             <div className="homeHub">
               <div className="homeHubHeader">
                 <h2 className="homeHubTitle">{lang === "uk" ? "Оберіть що відкрити" : "Choose what to open"}</h2>
