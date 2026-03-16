@@ -5,6 +5,7 @@ import type { Aspect } from "./types";
 import { getLang, setLang, t, type Lang } from "./i18n";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import Image from "next/image";
 import LegalMenu from "./components/LegalMenu";
 import LangSwitch from "./components/LangSwitch";
 import LibraryPicker from "./components/LibraryPicker";
@@ -17,7 +18,7 @@ function getSupabaseClient() {
   return createClient(url, anonKey);
 }
 
-type MediaTab = "photo" | "video";
+type MediaTab = "home" | "photo" | "video";
 type VideoMode = "i2v" | "motion" | "edit";
 type VideoQuality = "standard" | "pro";
 type VideoDuration = 5 | 10;
@@ -362,9 +363,19 @@ export default function Home() {
     loadTemplates();
   }, []);
 
-  // GLOBAL
-  const [mediaTab, setMediaTab] = useState<MediaTab>("photo");
   const localTemplates = [
+    {
+      id: "sakura-bench",
+      title: "Sakura Bench",
+      preview: "/templates/copy-26324caf-preview.jpg",
+      previewVideo: "/templates/sakura-bench-preview.m4v",
+      preferredModel: "nano-banana" as PhotoModelChoice,
+      autoOpenUpload: true,
+      homeSubtitleUk: "Рожева cinematic fashion сцена з лавкою",
+      homeSubtitleEn: "Pink cinematic fashion bench scene",
+      prompt:
+        "Стильна жінка сидить на рожевій парковій лавці на тихій міській вулиці, оточеній деревами з рожевими квітами сакури. Вона одягнена повністю в рожевий образ: блискучий рожевий плащ, рожеві черевики на підборах зі шнурівкою, тримає в руках букет рожевих квітів. Ніжний макіяж, спокійний трохи задумливий погляд у камеру.\nНавколо атмосфера дощового ранку: мокрий асфальт віддзеркалює світло, на землі лежать пелюстки сакури. Позаду видно вузьку європейську вулицю з ліхтарями, рожевими фасадами будинків та автомобілем у легкому боке.\nКольорова палітра майже монохромна — різні відтінки рожевого. Атмосфера романтична, кінематографічна та трохи казкова. М’яке розсіяне світло, легкий туман, глибина різкості з сильним боке на фоні.\nФотореалістичний стиль, висока деталізація, модна фотосесія, shallow depth of field, 85mm lens, cinematic lighting, soft pastel tones, ultra realistic, high resolution, fashion photography, композиція з акцентом на модель на лавці.",
+    },
     {
       id: "0001",
       title: "Valentine’s Day",
@@ -401,6 +412,47 @@ export default function Home() {
         "A photorealistic fantasy-glam fashion portrait of a woman, shot in a studio from a frontal angle, with the camera positioned slightly below eye level to emphasize the grandeur of the look. The model is seated at the center of the frame on the hood of a vintage pink car from the 1950s–1960s, with a symmetrical composition and sharp focus on her figure. Behind her are large pink angel wings made of feathers, fully spread to both sides, creating a sense of power, magic, and divine presence. The wings are highly detailed, soft, and fluffy, with rich feather texture. Her look features a luxurious bright pink gown with a voluminous, multi-layered tulle tutu skirt and a corset lavishly embellished with crystals and shimmer. The neckline is deep yet elegant. On her feet are pink high-heeled shoes encrusted with gemstones. Her legs are crossed, and her pose is confident, glamorous, and iconic. The makeup is flawless glam: glowing skin, sculpted contouring, emphasis on the eyes, long lashes, and glossy lips in a pink palette. Her facial expression is calm and confident, with a touch of cool elegance and pop-diva attitude. Surrounding the car is dense pink smoke or mist, enveloping the scene and adding mystique and depth. The background is dark, almost black, creating strong contrast and enhancing the pink color palette. The lighting is cinematic studio lighting: soft frontal light to flatter the skin, rim lighting to highlight the wings and silhouette, with subtle glow and bloom effects. The overall atmosphere is luxury fantasy fashion, pop-culture icon, modern angel aesthetic, blending gloss, fairytale elements, and high fashion. Photorealistic, ultra-high detail, fantasy fashion photography, pink monochrome palette, cinematic studio lighting, ultra-sharp focus, shallow depth of field, 8K resolution, dramatic glamorous mood.",
     },
   ];
+  const effectiveTemplates = SHOW_TEMPLATES ? templates : localTemplates;
+  const homeCards = [
+    {
+      id: "home-photo",
+      kind: "tab" as const,
+      titleUk: "Фото",
+      titleEn: "Photo",
+      subtitleUk: "Створення та редагування фото",
+      subtitleEn: "Create and edit photos",
+      tab: "photo" as MediaTab,
+      accentClass: "homeCardAccentPhoto",
+      sizeClass: "homeCardWide",
+    },
+    {
+      id: "home-video",
+      kind: "tab" as const,
+      titleUk: "Відео",
+      titleEn: "Video",
+      subtitleUk: "Image to video, motion, edit",
+      subtitleEn: "Image to video, motion, edit",
+      tab: "video" as MediaTab,
+      accentClass: "homeCardAccentVideo",
+      sizeClass: "homeCardTall",
+    },
+    ...localTemplates.map((tpl, index) => ({
+      id: `tpl-${tpl.id}`,
+      kind: "template" as const,
+      titleUk: tpl.title,
+      titleEn: tpl.title,
+      subtitleUk: tpl.homeSubtitleUk || tpl.title,
+      subtitleEn: tpl.homeSubtitleEn || tpl.title,
+      templateId: tpl.id,
+      preview: tpl.preview,
+      previewVideo: tpl.previewVideo,
+      accentClass: index % 2 === 0 ? "homeCardAccentWarm" : "homeCardAccentRose",
+      sizeClass: index % 3 === 0 ? "homeCardTall" : "homeCardMedium",
+    })),
+  ];
+
+  // GLOBAL
+  const [mediaTab, setMediaTab] = useState<MediaTab>("home");
 
   const [loading, setLoading] = useState(false);
 
@@ -418,6 +470,24 @@ export default function Home() {
   const { data: session } = useSession();
   const [historyHint, setHistoryHint] = useState<string | null>(null);
   const [historyPulse, setHistoryPulse] = useState(false);
+
+  function openMediaTab(tab: MediaTab) {
+    setMediaTab(tab);
+  }
+
+  function openTemplate(templateId: string) {
+    const nextTemplate = effectiveTemplates.find((tpl) => tpl.id === templateId);
+    if (!nextTemplate) return;
+    setSelectedTemplateId(nextTemplate.id);
+    setTemplatePrompt(nextTemplate.prompt);
+    if (nextTemplate.preferredModel) {
+      setPhotoModel(nextTemplate.preferredModel);
+    }
+    setMediaTab("photo");
+    if (nextTemplate.autoOpenUpload && typeof window !== "undefined") {
+      window.setTimeout(() => openSourceModal("image", "file1"), 80);
+    }
+  }
 
   useEffect(() => {
     setLangState(getLang());
@@ -1788,6 +1858,164 @@ export default function Home() {
             color: rgba(255, 255, 255, 0.92);
           }
 
+          .homeHub {
+            max-width: 1120px;
+            margin: 8px auto 0;
+          }
+
+          .homeHubHeader {
+            margin-bottom: 16px;
+          }
+
+          .homeHubTitle {
+            margin: 0;
+            font-size: clamp(28px, 4vw, 40px);
+            line-height: 1.04;
+            color: rgba(255, 255, 255, 0.95);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+          }
+
+          .homeHubSubtitle {
+            margin: 8px 0 0;
+            max-width: 680px;
+            color: rgba(255, 255, 255, 0.64);
+            font-size: 15px;
+            line-height: 1.45;
+          }
+
+          .homeGrid {
+            display: grid;
+            grid-template-columns: repeat(12, minmax(0, 1fr));
+            gap: 14px;
+          }
+
+          .homeCard {
+            position: relative;
+            min-height: 220px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 28px;
+            overflow: hidden;
+            cursor: pointer;
+            padding: 0;
+            text-align: left;
+            background:
+              radial-gradient(circle at top, rgba(255, 255, 255, 0.12), transparent 52%),
+              linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+            box-shadow: 0 18px 46px rgba(0, 0, 0, 0.3);
+            transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+          }
+
+          .homeCard:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.18);
+            box-shadow: 0 24px 56px rgba(0, 0, 0, 0.36);
+          }
+
+          .homeCardWide {
+            grid-column: span 6;
+          }
+
+          .homeCardMedium {
+            grid-column: span 4;
+          }
+
+          .homeCardTall {
+            grid-column: span 6;
+            min-height: 300px;
+          }
+
+          .homeCardAccentPhoto {
+            background:
+              radial-gradient(circle at 18% 18%, rgba(93, 173, 255, 0.35), transparent 36%),
+              linear-gradient(135deg, rgba(13, 27, 47, 0.96), rgba(8, 18, 38, 0.84));
+          }
+
+          .homeCardAccentVideo {
+            background:
+              radial-gradient(circle at 82% 12%, rgba(163, 108, 255, 0.28), transparent 34%),
+              linear-gradient(135deg, rgba(25, 17, 58, 0.95), rgba(9, 16, 38, 0.88));
+          }
+
+          .homeCardAccentWarm {
+            background-color: rgba(255, 255, 255, 0.04);
+          }
+
+          .homeCardAccentRose {
+            background-color: rgba(255, 255, 255, 0.03);
+          }
+
+          .homeCardGlow {
+            position: absolute;
+            inset: auto -16% -28% auto;
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.16), transparent 64%);
+            filter: blur(8px);
+          }
+
+          .homeCardImageWrap,
+          .homeCardScrim {
+            position: absolute;
+            inset: 0;
+          }
+
+          .homeCardImage {
+            object-fit: cover;
+          }
+
+          .homeCardVideo {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+          }
+
+          .homeCardScrim {
+            background: linear-gradient(180deg, rgba(8, 10, 18, 0.06), rgba(8, 10, 18, 0.78));
+          }
+
+          .homeCardContent {
+            position: absolute;
+            inset: auto 16px 16px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            z-index: 1;
+          }
+
+          .homeCardKicker {
+            display: inline-flex;
+            width: fit-content;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.28);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            color: rgba(255, 255, 255, 0.72);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+          }
+
+          .homeCardTitle {
+            color: rgba(255, 255, 255, 0.96);
+            font-size: clamp(24px, 3vw, 34px);
+            line-height: 1;
+            font-weight: 800;
+            letter-spacing: -0.04em;
+          }
+
+          .homeCardText {
+            color: rgba(255, 255, 255, 0.78);
+            font-size: 14px;
+            line-height: 1.35;
+            max-width: 28ch;
+          }
+
           .vRow {
             display: flex;
             gap: 10px;
@@ -2372,6 +2600,36 @@ export default function Home() {
             margin: 0 0 14px;
           }
 
+          @media (max-width: 900px) {
+            .homeCardWide,
+            .homeCardMedium,
+            .homeCardTall {
+              grid-column: span 6;
+            }
+          }
+
+          @media (max-width: 640px) {
+            .tabBtn {
+              min-width: 96px;
+              padding: 10px 14px;
+            }
+
+            .homeGrid {
+              grid-template-columns: repeat(1, minmax(0, 1fr));
+            }
+
+            .homeCardWide,
+            .homeCardMedium,
+            .homeCardTall {
+              grid-column: span 1;
+              min-height: 240px;
+            }
+
+            .homeHubSubtitle {
+              font-size: 14px;
+            }
+          }
+
           /* Telegram CTA Bubble */
           .tgCta {
             position: fixed;
@@ -2526,9 +2784,18 @@ export default function Home() {
               <button
                 type="button"
                 role="tab"
+                aria-selected={mediaTab === "home"}
+                className={`tabBtn ${mediaTab === "home" ? "tabBtnActive" : ""}`}
+                onClick={() => openMediaTab("home")}
+              >
+                {lang === "uk" ? "Головна" : "Home"}
+              </button>
+              <button
+                type="button"
+                role="tab"
                 aria-selected={mediaTab === "photo"}
                 className={`tabBtn ${mediaTab === "photo" ? "tabBtnActive" : ""}`}
-                onClick={() => setMediaTab("photo")}
+                onClick={() => openMediaTab("photo")}
               >
                 {dict.image}
               </button>
@@ -2537,12 +2804,82 @@ export default function Home() {
                 role="tab"
                 aria-selected={mediaTab === "video"}
                 className={`tabBtn ${mediaTab === "video" ? "tabBtnActive" : ""}`}
-                onClick={() => setMediaTab("video")}
+                onClick={() => openMediaTab("video")}
               >
                 {dict.video}
               </button>
             </div>
           </div>
+
+          {mediaTab === "home" && (
+            <div className="homeHub">
+              <div className="homeHubHeader">
+                <h2 className="homeHubTitle">{lang === "uk" ? "Оберіть що відкрити" : "Choose what to open"}</h2>
+                <p className="homeHubSubtitle">
+                  {lang === "uk"
+                    ? "Легкі локальні прев'ю завантажуються миттєво. Натисни на вкладку або шаблон."
+                    : "Light local previews load instantly. Tap a tab or template."}
+                </p>
+              </div>
+
+              <div className="homeGrid">
+                {homeCards.map((card) => {
+                  const isTemplate = card.kind === "template";
+                  return (
+                    <button
+                      key={card.id}
+                      type="button"
+                      className={`homeCard ${card.sizeClass} ${card.accentClass}`}
+                      onClick={() => {
+                        if (isTemplate) {
+                          openTemplate(card.templateId);
+                          return;
+                        }
+                        openMediaTab(card.tab);
+                      }}
+                    >
+                      {isTemplate && card.preview ? (
+                        <div className="homeCardImageWrap">
+                          {card.previewVideo ? (
+                            <video
+                              src={card.previewVideo}
+                              className="homeCardVideo"
+                              autoPlay
+                              muted
+                              loop
+                              playsInline
+                              preload="metadata"
+                              poster={card.preview}
+                              aria-hidden="true"
+                            />
+                          ) : (
+                            <Image
+                              src={card.preview}
+                              alt={lang === "uk" ? card.subtitleUk : card.subtitleEn}
+                              fill
+                              sizes="(max-width: 640px) 100vw, (max-width: 1100px) 50vw, 33vw"
+                              className="homeCardImage"
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <div className="homeCardGlow" aria-hidden="true" />
+                      )}
+
+                      <div className="homeCardScrim" aria-hidden="true" />
+                      <div className="homeCardContent">
+                        <span className="homeCardKicker">
+                          {isTemplate ? (lang === "uk" ? "Шаблон" : "Template") : (lang === "uk" ? "Вкладка" : "Tab")}
+                        </span>
+                        <span className="homeCardTitle">{lang === "uk" ? card.titleUk : card.titleEn}</span>
+                        <span className="homeCardText">{lang === "uk" ? card.subtitleUk : card.subtitleEn}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* PHOTO UI */}
           {mediaTab === "photo" && (
@@ -2563,7 +2900,7 @@ export default function Home() {
                       ← {lang === "uk" ? "Назад" : "Back"}
                     </button>
                     <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "rgba(255,255,255,0.92)" }}>
-                      {templates.find((t) => t.id === selectedTemplateId)?.title}
+                      {effectiveTemplates.find((t) => t.id === selectedTemplateId)?.title}
                     </h2>
                   </div>
 
@@ -2643,11 +2980,26 @@ export default function Home() {
                     )}
 
                     <div className="uploadTile uploadTileBig templatePreviewBig">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={templates.find((t) => t.id === selectedTemplateId)?.preview_url}
-                        alt={templates.find((t) => t.id === selectedTemplateId)?.title}
-                      />
+                      {effectiveTemplates.find((t) => t.id === selectedTemplateId)?.previewVideo ? (
+                        <video
+                          src={effectiveTemplates.find((t) => t.id === selectedTemplateId)?.previewVideo}
+                          muted
+                          loop
+                          autoPlay
+                          playsInline
+                          preload="metadata"
+                          poster={effectiveTemplates.find((t) => t.id === selectedTemplateId)?.preview}
+                          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+                        />
+                      ) : (
+                        <>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={effectiveTemplates.find((t) => t.id === selectedTemplateId)?.preview_url || effectiveTemplates.find((t) => t.id === selectedTemplateId)?.preview}
+                            alt={effectiveTemplates.find((t) => t.id === selectedTemplateId)?.title}
+                          />
+                        </>
+                      )}
                       <span className="tile-label">{lang === "uk" ? "Шаблон" : "Template"}</span>
                     </div>
 
@@ -3879,7 +4231,7 @@ export default function Home() {
           <div className="templatesSection">
             <h2 className="templatesTitle">{lang === "uk" ? "Шаблони" : "Templates"}</h2>
             <div className="templatesRow">
-              {templates?.map((tpl) => (
+              {effectiveTemplates?.map((tpl) => (
                 <button
                   key={tpl.id}
                   type="button"
@@ -3889,14 +4241,28 @@ export default function Home() {
                       setSelectedTemplateId(null);
                       setTemplatePrompt(null);
                     } else {
-                      setSelectedTemplateId(tpl.id);
-                      setTemplatePrompt(tpl.prompt);
+                      openTemplate(tpl.id);
                     }
                   }}
                 >
                   <div className="templatePreviewWrap">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={tpl.preview_url} alt={tpl.title} />
+                    {tpl.previewVideo ? (
+                      <video
+                        src={tpl.previewVideo}
+                        muted
+                        loop
+                        autoPlay
+                        playsInline
+                        preload="metadata"
+                        poster={tpl.preview_url || tpl.preview}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                    ) : (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={tpl.preview_url || tpl.preview} alt={tpl.title} />
+                      </>
+                    )}
                   </div>
                   <div className="templateLabel">{tpl.title}</div>
                 </button>
