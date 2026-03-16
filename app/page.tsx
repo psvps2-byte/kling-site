@@ -1045,7 +1045,7 @@ export default function Home() {
   // ✅ ЦІНИ
   const currentCost = useMemo(() => {
     if (mediaTab === "photo") {
-      return 3;
+      return 2;
     }
 
     if (videoMode === "i2v") {

@@ -27,8 +27,22 @@ const PACKAGES = {
 
 type PackId = keyof typeof PACKAGES;
 
+const PHOTO_COST_POINTS = 2;
+const VIDEO_5S_STANDARD_COST_POINTS = 8;
+
 function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
+}
+
+function getPackValueText(points: number, lang: Lang) {
+  const photos = Math.floor(points / PHOTO_COST_POINTS);
+  const videos = Math.floor(points / VIDEO_5S_STANDARD_COST_POINTS);
+
+  if (lang === "uk") {
+    return `Згенеруєш до ${photos} фото або до ${videos} відео`;
+  }
+
+  return `Up to ${photos} photos or ${videos} videos`;
 }
 
 export default function AccountPage() {
@@ -63,6 +77,11 @@ export default function AccountPage() {
     if (!selectedPack) return null;
     return PACKAGES[selectedPack];
   }, [selectedPack]);
+
+  const selectedPackValueText = useMemo(() => {
+    if (!selectedPackData) return "";
+    return getPackValueText(selectedPackData.points, lang);
+  }, [selectedPackData, lang]);
 
   // close on ESC
   useEffect(() => {
@@ -254,6 +273,7 @@ export default function AccountPage() {
             const note = (p as any)?.note as string | undefined;
             const badgeKey = (p as any)?.badgeKey as string | undefined;
             const isFeatured = packId === "plus";
+            const packValueText = getPackValueText(p.points, lang);
 
             const delayMs = clamp(90 + idx * 75, 0, 520);
 
@@ -279,6 +299,8 @@ export default function AccountPage() {
                   <div className="acc-packPrice">${p.priceUsd}</div>
                   <div className="acc-packPoints">{p.points} {dict.pointsWord}</div>
                 </div>
+
+                <div className="acc-packValue">{packValueText}</div>
 
                 <div className="acc-packCta">{dict.buy}</div>
               </button>
@@ -344,6 +366,8 @@ export default function AccountPage() {
                   −10% за промокодом
                 </div>
               )}
+
+              <div className="acc-sheetValue">{selectedPackValueText}</div>
 
               <div style={{ marginTop: 12 }}>
                 <input
@@ -652,6 +676,16 @@ export default function AccountPage() {
           font-weight: 800;
         }
 
+        .acc-packValue {
+          position: relative;
+          z-index: 1;
+          margin-top: 10px;
+          min-height: 40px;
+          font-size: 14px;
+          line-height: 1.4;
+          color: rgba(255, 255, 255, 0.72);
+        }
+
         .acc-packCta {
           position: relative;
           z-index: 1;
@@ -825,6 +859,17 @@ export default function AccountPage() {
           font-size: 14px;
           color: rgba(255, 255, 255, 0.78);
           font-weight: 900;
+        }
+
+        .acc-sheetValue {
+          margin-top: 12px;
+          padding: 10px 12px;
+          border-radius: 14px;
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.04);
+          font-size: 14px;
+          line-height: 1.4;
+          color: rgba(255, 255, 255, 0.8);
         }
 
         .acc-actions {
