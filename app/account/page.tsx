@@ -34,15 +34,25 @@ function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
 }
 
-function getPackValueText(points: number, lang: Lang) {
+function getPackValueInfo(points: number, lang: Lang) {
   const photos = Math.floor(points / PHOTO_COST_POINTS);
   const videos = Math.floor(points / VIDEO_5S_STANDARD_COST_POINTS);
 
   if (lang === "uk") {
-    return `Згенеруєш до ${photos} фото або до ${videos} відео`;
+    return {
+      title: "Генерацій:",
+      photos: `ФОТО до ${photos}`,
+      or: "або",
+      videos: `ВІДЕО до ${videos}`,
+    };
   }
 
-  return `Up to ${photos} photos or ${videos} videos`;
+  return {
+    title: "Generations:",
+    photos: `PHOTOS up to ${photos}`,
+    or: "or",
+    videos: `VIDEOS up to ${videos}`,
+  };
 }
 
 export default function AccountPage() {
@@ -79,8 +89,8 @@ export default function AccountPage() {
   }, [selectedPack]);
 
   const selectedPackValueText = useMemo(() => {
-    if (!selectedPackData) return "";
-    return getPackValueText(selectedPackData.points, lang);
+    if (!selectedPackData) return null;
+    return getPackValueInfo(selectedPackData.points, lang);
   }, [selectedPackData, lang]);
 
   // close on ESC
@@ -273,7 +283,7 @@ export default function AccountPage() {
             const note = (p as any)?.note as string | undefined;
             const badgeKey = (p as any)?.badgeKey as string | undefined;
             const isFeatured = packId === "plus";
-            const packValueText = getPackValueText(p.points, lang);
+            const packValueText = getPackValueInfo(p.points, lang);
 
             const delayMs = clamp(90 + idx * 75, 0, 520);
 
@@ -300,7 +310,12 @@ export default function AccountPage() {
                   <div className="acc-packPoints">{p.points} {dict.pointsWord}</div>
                 </div>
 
-                <div className="acc-packValue">{packValueText}</div>
+                <div className="acc-packValue">
+                  <div>{packValueText.title}</div>
+                  <div>{packValueText.photos}</div>
+                  <div>{packValueText.or}</div>
+                  <div>{packValueText.videos}</div>
+                </div>
 
                 <div className="acc-packCta">{dict.buy}</div>
               </button>
@@ -367,7 +382,14 @@ export default function AccountPage() {
                 </div>
               )}
 
-              <div className="acc-sheetValue">{selectedPackValueText}</div>
+              {selectedPackValueText && (
+                <div className="acc-sheetValue">
+                  <div>{selectedPackValueText.title}</div>
+                  <div>{selectedPackValueText.photos}</div>
+                  <div>{selectedPackValueText.or}</div>
+                  <div>{selectedPackValueText.videos}</div>
+                </div>
+              )}
 
               <div style={{ marginTop: 12 }}>
                 <input
@@ -680,10 +702,18 @@ export default function AccountPage() {
           position: relative;
           z-index: 1;
           margin-top: 10px;
-          min-height: 40px;
+          min-height: 88px;
           font-size: 14px;
-          line-height: 1.4;
-          color: rgba(255, 255, 255, 0.72);
+          line-height: 1.2;
+          color: rgba(255, 255, 255, 0.82);
+          font-weight: 800;
+        }
+
+        .acc-packValue > div:first-child {
+          margin-bottom: 4px;
+          font-size: 13px;
+          color: rgba(255, 255, 255, 0.66);
+          font-weight: 700;
         }
 
         .acc-packCta {
@@ -867,9 +897,17 @@ export default function AccountPage() {
           border-radius: 14px;
           border: 1px solid rgba(255, 255, 255, 0.1);
           background: rgba(255, 255, 255, 0.04);
-          font-size: 14px;
-          line-height: 1.4;
-          color: rgba(255, 255, 255, 0.8);
+          font-size: 15px;
+          line-height: 1.2;
+          color: rgba(255, 255, 255, 0.86);
+          font-weight: 800;
+        }
+
+        .acc-sheetValue > div:first-child {
+          margin-bottom: 4px;
+          font-size: 13px;
+          color: rgba(255, 255, 255, 0.66);
+          font-weight: 700;
         }
 
         .acc-actions {
