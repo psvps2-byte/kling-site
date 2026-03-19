@@ -210,22 +210,6 @@ async function computeVideoMeta(input: File | string): Promise<VideoMeta> {
   }
 }
 
-function validateKlingReferenceVideo(meta: VideoMeta, lang: Lang): string | null {
-  // If metadata cannot be read (e.g. remote URL without CORS), do not block request.
-  if (!meta.width || !meta.height) return null;
-  if (meta.width < 720 || meta.width > 2160 || meta.height < 720 || meta.height > 2160) {
-    return lang === "uk"
-      ? `Розмір відео ${meta.width}x${meta.height} не підтримується. Для Kling потрібно 720-2160 px по обох сторонах.`
-      : `Video size ${meta.width}x${meta.height} is not supported. Kling requires 720-2160 px for both sides.`;
-  }
-  if (meta.duration > 0 && (meta.duration < 3 || meta.duration > 30)) {
-    return lang === "uk"
-      ? `Тривалість ${meta.duration}с не підтримується. Для reference video потрібно 3-30с.`
-      : `Duration ${meta.duration}s is not supported. Reference video must be 3-30s.`;
-  }
-  return null;
-}
-
 // ✅ Server-side conversion to JPEG using /api/convert-image
 async function serverConvertToJpeg(file: File): Promise<File> {
   console.log(`[serverConvertToJpeg] Converting via server: ${file.name}`);
@@ -584,7 +568,6 @@ export default function Home() {
         setMotionUrl(url);
         setVMotionVideo(null);
         computeVideoMeta(url).then((meta) => {
-          setRefVideoMeta(meta);
           setRefVideoSeconds(meta.duration);
         });
         break;
@@ -596,7 +579,6 @@ export default function Home() {
         setEditVideoUrl(url);
         setVEditVideo(null);
         computeVideoMeta(url).then((meta) => {
-          setRefVideoMeta(meta);
           setRefVideoSeconds(meta.duration);
         });
         break;
@@ -740,7 +722,6 @@ export default function Home() {
     useState<CharacterOrientation>("image");
   const [keepOriginalSound, setKeepOriginalSound] = useState(true);
   const [refVideoSeconds, setRefVideoSeconds] = useState<number>(0);
-  const [refVideoMeta, setRefVideoMeta] = useState<VideoMeta>({ duration: 0, width: 0, height: 0 });
 
   const acceptVid = "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov";
   const vStartFilePreview = useMemo(
@@ -839,7 +820,6 @@ export default function Home() {
       setVEditRefImg(null);
       setEditRefUrl("");
       setRefVideoSeconds(0);
-      setRefVideoMeta({ duration: 0, width: 0, height: 0 });
     } else if (videoMode === "motion") {
       setVStartImg(null);
       setVEndImg(null);
@@ -851,7 +831,6 @@ export default function Home() {
       setVEditRefImg(null);
       setEditRefUrl("");
       setRefVideoSeconds(0);
-      setRefVideoMeta({ duration: 0, width: 0, height: 0 });
     } else {
       setVStartImg(null);
       setVEndImg(null);
@@ -862,7 +841,6 @@ export default function Home() {
       setVCharacterImg(null);
       setCharacterUrl("");
       setRefVideoSeconds(0);
-      setRefVideoMeta({ duration: 0, width: 0, height: 0 });
     }
   }, [videoMode]);
 
@@ -1391,11 +1369,6 @@ export default function Home() {
           throw new Error(
             lang === "uk" ? "Потрібне відео з рухами" : "Motion video is required"
           );
-
-        const motionVideoErr = validateKlingReferenceVideo(refVideoMeta, lang);
-        if (motionVideoErr) {
-          throw new Error(motionVideoErr);
-        }
 
         const motionUrlFinal = vMotionVideo
           ? (await uploadToR2AndGetPublicUrl(vMotionVideo)).url
@@ -3819,7 +3792,6 @@ export default function Home() {
                                 setVMotionVideo(null);
                                 setMotionPreviewUrl("");
                                 setRefVideoSeconds(0);
-                                setRefVideoMeta({ duration: 0, width: 0, height: 0 });
                                 setMotionUrl("");
                               }}
                             >
@@ -3846,16 +3818,13 @@ export default function Home() {
                         setVMotionVideo(f);
                         if (!f) {
                           setRefVideoSeconds(0);
-                          setRefVideoMeta({ duration: 0, width: 0, height: 0 });
                           return;
                         }
                         try {
                           const meta = await computeVideoMeta(f);
-                          setRefVideoMeta(meta);
                           setRefVideoSeconds(meta.duration);
                         } catch {
                           setRefVideoSeconds(0);
-                          setRefVideoMeta({ duration: 0, width: 0, height: 0 });
                         }
                       }}
                     />
@@ -3951,7 +3920,6 @@ export default function Home() {
                                 setEditVideoUrl("");
                                 setEditVideoPreviewUrl("");
                                 setRefVideoSeconds(0);
-                                setRefVideoMeta({ duration: 0, width: 0, height: 0 });
                               }}
                             >
                               ✕
@@ -4011,16 +3979,13 @@ export default function Home() {
                         setVEditVideo(f);
                         if (!f) {
                           setRefVideoSeconds(0);
-                          setRefVideoMeta({ duration: 0, width: 0, height: 0 });
                           return;
                         }
                         try {
                           const meta = await computeVideoMeta(f);
-                          setRefVideoMeta(meta);
                           setRefVideoSeconds(meta.duration);
                         } catch {
                           setRefVideoSeconds(0);
-                          setRefVideoMeta({ duration: 0, width: 0, height: 0 });
                         }
                       }}
                     />
