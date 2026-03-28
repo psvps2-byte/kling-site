@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import { getReferralDiscountInfo, REFERRAL_DISCOUNT_RATE } from "@/lib/referrals";
 
 // WayForPay
 // Дуже важливо: merchantDomainName має бути БЕЗ https://
@@ -80,7 +81,7 @@ export async function POST(req: NextRequest) {
     // 4) get user_id
     const { data: userRow, error: userErr } = await supabase
       .from("users")
-      .select("id")
+      .select("id,referred_by")
       .eq("email", email)
       .single();
 
@@ -90,10 +91,14 @@ export async function POST(req: NextRequest) {
 
     const user_id = userRow.id;
 
+    const referralDiscountInfo = await getReferralDiscountInfo(supabase, user_id, userRow.referred_by);
+
     // 5) amounts
     const amountUAH = round2(packData.priceUsd * USD_TO_UAH_RATE);
-    const discount = promoRow?.discount ? Number(promoRow.discount) : 0;
-    const amountFinalUAH = round2(amountUAH * (1 - discount));
+    const promoDiscount = promoRow?.discount ? Number(promoRow.discount) : 0;
+    const referralDiscount = referralDiscountInfo.eligible ? REFERRAL_DISCOUNT_RATE : 0;
+    const totalDiscount = Math.min(0.95, promoDiscount + referralDiscount);
+    const amountFinalUAH = round2(amountUAH * (1 - totalDiscount));
     const currency = "UAH";
 
     // 6) create payment row (PENDING)
@@ -113,6 +118,9 @@ export async function POST(req: NextRequest) {
         points: packData.points,
         status: "PENDING",
         promo_code: promo || null,
+        referral_discount_percent: referralDiscount,
+        referral_code_used: referralDiscount > 0 ? "AUTO_REFERRAL" : null,
+        referrer_user_id: referralDiscountInfo.referrerUserId,
       })
       .select("id")
       .single();
@@ -155,9 +163,11 @@ export async function POST(req: NextRequest) {
       returnUrl: `${DOMAIN}/api/payments/return`,
       serviceUrl: `${DOMAIN}/api/payments/callback`,
       paymentId: payRow.id,
+      discountPercent: totalDiscount,
+      referralDiscountPercent: referralDiscount,
     });
-  } catch (e: any) {
-    console.error("payments/create error:", e?.message || e);
+  } catch (error: unknown) {
+    console.error("payments/create error:", error instanceof Error ? error.message : error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

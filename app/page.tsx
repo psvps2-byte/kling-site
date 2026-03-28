@@ -599,6 +599,23 @@ export default function Home() {
   const [points, setPoints] = useState<number>(0);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const ref = (params.get("ref") || "").trim().toLowerCase();
+    if (!ref) return;
+
+    fetch("/api/referrals/visit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code: ref,
+        landingPath: `${window.location.pathname}${window.location.search}`,
+      }),
+    }).catch(() => null);
+  }, []);
+
+  useEffect(() => {
     if (!session) {
       setPoints(0);
       return;

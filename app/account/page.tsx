@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
 import { getLang, setLang, t, type Lang } from "../i18n";
@@ -10,10 +11,42 @@ type MeResponse =
   | {
       authenticated: true;
       user: {
+        id?: string;
         email: string;
         name: string | null;
         avatar_url: string | null;
         points: number;
+        referral?: {
+          code: string;
+          link: string;
+          stats: {
+            clicks: number;
+            signups: number;
+            purchases: number;
+          };
+          rewardPoints: number;
+          rewardUsd: number;
+          availableWithdrawalPoints: number;
+          availableWithdrawalUsd: number;
+          minWithdrawalPoints: number;
+          rewardRateText: string;
+          discount: {
+            eligible: boolean;
+            usesLeft: number;
+            reservedUses: number;
+            paidUses: number;
+            percent: number;
+          };
+          withdrawals: Array<{
+            id: string;
+            requestedPoints: number;
+            amountUsd: number;
+            cardMasked: string;
+            status: string;
+            createdAt: string;
+            updatedAt: string;
+          }>;
+        };
       };
     };
 
@@ -26,12 +59,24 @@ const PACKAGES = {
 } as const;
 
 type PackId = keyof typeof PACKAGES;
+type PackageMeta = (typeof PACKAGES)[PackId] & { note?: string; badgeKey?: string };
 
 const PHOTO_COST_POINTS = 2;
 const VIDEO_5S_STANDARD_COST_POINTS = 8;
 
 function clamp(n: number, a: number, b: number) {
   return Math.max(a, Math.min(b, n));
+}
+
+function formatDate(value: string, lang: Lang) {
+  try {
+    return new Intl.DateTimeFormat(lang === "uk" ? "uk-UA" : "en-US", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(value));
+  } catch {
+    return value;
+  }
 }
 
 function getPackValueInfo(points: number, lang: Lang) {
@@ -69,6 +114,9 @@ export default function AccountPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [paying, setPaying] = useState(false);
   const [promo, setPromo] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
+  const [withdrawMsg, setWithdrawMsg] = useState("");
 
   useEffect(() => {
     setLangState(getLang());
@@ -82,6 +130,7 @@ export default function AccountPage() {
   }, []);
 
   const u = data && data.authenticated ? data.user : null;
+  const referral = u?.referral ?? null;
 
   const selectedPackData = useMemo(() => {
     if (!selectedPack) return null;
@@ -161,6 +210,59 @@ export default function AccountPage() {
     } catch {
       alert(dict.networkError);
       setPaying(false);
+    }
+  }
+
+  async function copyReferralLink() {
+    if (!referral?.link) return;
+    try {
+      await navigator.clipboard.writeText(referral.link);
+      setWithdrawMsg(lang === "uk" ? "Реферальне посилання скопійовано." : "Referral link copied.");
+    } catch {
+      setWithdrawMsg(lang === "uk" ? "Не вдалося скопіювати посилання." : "Failed to copy referral link.");
+    }
+  }
+
+  async function submitWithdrawal() {
+    if (!cardNumber.trim()) {
+      setWithdrawMsg(lang === "uk" ? "Вкажи номер картки." : "Enter the card number.");
+      return;
+    }
+
+    setWithdrawLoading(true);
+    setWithdrawMsg("");
+
+    try {
+      const res = await fetch("/api/referrals/withdraw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cardNumber }),
+      });
+      const payload = await res.json();
+
+      if (!res.ok) {
+        setWithdrawMsg(payload?.error || (lang === "uk" ? "Не вдалося створити заявку." : "Failed to create request."));
+        return;
+      }
+
+      setCardNumber("");
+      setWithdrawMsg(lang === "uk" ? "Заявку на вивід створено." : "Withdrawal request created.");
+
+      setData((prev) => {
+        if (!prev || prev.authenticated === false) return prev;
+        return {
+          ...prev,
+          user: {
+            ...prev.user,
+            points: Math.max(0, prev.user.points - Number(payload?.request?.requestedPoints || 0)),
+            referral: payload?.overview || prev.user.referral,
+          },
+        };
+      });
+    } catch {
+      setWithdrawMsg(lang === "uk" ? "Помилка мережі." : "Network error.");
+    } finally {
+      setWithdrawLoading(false);
     }
   }
 
@@ -271,17 +373,142 @@ export default function AccountPage() {
           </div>
         </div>
 
+        {referral ? (
+          <div className="acc-refGrid">
+            <section className="acc-card acc-appear2">
+              <div className="acc-cardTop">
+                <h2 className="acc-title">{lang === "uk" ? "Реферальна програма" : "Referral program"}</h2>
+                <div className="acc-chip">{referral.code}</div>
+              </div>
+              <div className="acc-subtitle">
+                {lang === "uk"
+                  ? "Запрошений користувач отримує -10% на перші 3 покупки пакетів, а ти отримуєш 50 балів за кожну оплачену покупку."
+                  : "Invited users get 10% off their first 3 point package purchases, and you get 50 points for every paid order."}
+              </div>
+              <div className="acc-linkBox">{referral.link}</div>
+              <div className="acc-actions" style={{ marginTop: 14 }}>
+                <button type="button" className="ios-btn ios-btn--primary" onClick={copyReferralLink}>
+                  {lang === "uk" ? "Скопіювати посилання" : "Copy link"}
+                </button>
+                <div className="acc-muted">
+                  {lang === "uk"
+                    ? `Курс виводу: ${referral.rewardRateText}. Мінімум ${referral.minWithdrawalPoints} балів.`
+                    : `Payout rate: ${referral.rewardRateText}. Minimum ${referral.minWithdrawalPoints} points.`}
+                </div>
+              </div>
+            </section>
+
+            <section className="acc-card acc-appear3">
+              <div className="acc-cardTop">
+                <h2 className="acc-title">{lang === "uk" ? "Статистика" : "Statistics"}</h2>
+                {referral.discount.usesLeft > 0 ? (
+                  <div className="acc-chip acc-chip--accent">
+                    {lang === "uk"
+                      ? `Для тебе ще ${referral.discount.usesLeft} покупок зі знижкою`
+                      : `${referral.discount.usesLeft} discounted purchases left`}
+                  </div>
+                ) : null}
+              </div>
+              <div className="acc-stats">
+                <div className="acc-stat">
+                  <span className="acc-statNum">{referral.stats.clicks}</span>
+                  <span className="acc-statLabel">{lang === "uk" ? "Переходи" : "Clicks"}</span>
+                </div>
+                <div className="acc-stat">
+                  <span className="acc-statNum">{referral.stats.signups}</span>
+                  <span className="acc-statLabel">{lang === "uk" ? "Авторизації" : "Sign-ins"}</span>
+                </div>
+                <div className="acc-stat">
+                  <span className="acc-statNum">{referral.stats.purchases}</span>
+                  <span className="acc-statLabel">{lang === "uk" ? "Покупки" : "Purchases"}</span>
+                </div>
+              </div>
+              <div className="acc-payoutSummary">
+                <div>
+                  <div className="acc-muted">{lang === "uk" ? "Зароблено" : "Earned"}</div>
+                  <div className="acc-money">{referral.rewardPoints} {dict.pointsWord} / ${referral.rewardUsd.toFixed(2)}</div>
+                </div>
+                <div>
+                  <div className="acc-muted">{lang === "uk" ? "Доступно до виводу" : "Available for payout"}</div>
+                  <div className="acc-money">{referral.availableWithdrawalPoints} {dict.pointsWord} / ${referral.availableWithdrawalUsd.toFixed(2)}</div>
+                </div>
+              </div>
+            </section>
+          </div>
+        ) : null}
+
+        {referral ? (
+          <section className="acc-card acc-appear3" style={{ marginTop: 18 }}>
+            <div className="acc-cardTop">
+              <h2 className="acc-title">{lang === "uk" ? "Вивід коштів" : "Withdraw funds"}</h2>
+              <div className="acc-chip">
+                {lang === "uk" ? `Мінімум ${referral.minWithdrawalPoints} балів` : `Min ${referral.minWithdrawalPoints} points`}
+              </div>
+            </div>
+            <div className="acc-subtitle">
+              {lang === "uk"
+                ? "Коли накопичиш мінімум 300 реферальних балів, можеш створити заявку на вивід. Після створення заявки бали резервуються."
+                : "Once you collect at least 300 referral points, you can create a payout request. Reserved points are locked while the request is in progress."}
+            </div>
+            <div className="acc-withdrawRow">
+              <input
+                value={cardNumber}
+                onChange={(e) => setCardNumber(e.target.value)}
+                placeholder={lang === "uk" ? "Номер банківської картки" : "Bank card number"}
+                className="acc-input"
+              />
+              <button
+                type="button"
+                className="ios-btn ios-btn--primary"
+                onClick={submitWithdrawal}
+                disabled={withdrawLoading || referral.availableWithdrawalPoints < referral.minWithdrawalPoints}
+              >
+                {withdrawLoading ? (lang === "uk" ? "Створюємо..." : "Creating...") : (lang === "uk" ? "Вивести кошти" : "Request payout")}
+              </button>
+            </div>
+            {withdrawMsg ? <div className="acc-hint">{withdrawMsg}</div> : null}
+
+            <div className="acc-withdrawList">
+              {referral.withdrawals.length === 0 ? (
+                <div className="acc-empty">{lang === "uk" ? "Заявок ще немає." : "No payout requests yet."}</div>
+              ) : (
+                referral.withdrawals.map((item) => (
+                  <div key={item.id} className="acc-withdrawItem">
+                    <div>
+                      <div className="acc-withdrawTitle">
+                        {item.requestedPoints} {dict.pointsWord} / ${item.amountUsd.toFixed(2)}
+                      </div>
+                      <div className="acc-muted">{item.cardMasked}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div className={`acc-chip acc-chip--${item.status.toLowerCase()}`}>{item.status}</div>
+                      <div className="acc-muted">{formatDate(item.createdAt, lang)}</div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        ) : null}
+
         {/* Section */}
         <div className="acc-section acc-appear2">
           <h2 className="acc-title">{dict.buyPoints}</h2>
+          {referral?.discount.usesLeft ? (
+            <div className="acc-subtitle">
+              {lang === "uk"
+                ? `Реферальна знижка -${referral.discount.percent}% доступна ще на ${referral.discount.usesLeft} покупки.`
+                : `Referral discount -${referral.discount.percent}% is available for ${referral.discount.usesLeft} more purchases.`}
+            </div>
+          ) : null}
         </div>
 
         {/* Packages */}
         <div className="acc-grid">
           {(["starter", "plus", "pro", "max", "ultra"] as const).map((packId, idx) => {
-            const p = PACKAGES[packId];
-            const note = (p as any)?.note as string | undefined;
-            const badgeKey = (p as any)?.badgeKey as string | undefined;
+            const p = PACKAGES[packId] as PackageMeta;
+            const note = p.note;
+            const badgeKey = p.badgeKey;
             const isFeatured = packId === "plus";
             const packValueText = getPackValueInfo(p.points, lang);
 
@@ -292,7 +519,7 @@ export default function AccountPage() {
                 key={packId}
                 type="button"
                 className={`acc-pack acc-stagger ${isFeatured ? "featured" : ""}`}
-                style={{ ["--d" as any]: `${delayMs}ms` }}
+                style={{ ["--d" as const]: `${delayMs}ms` } as CSSProperties}
                 onClick={() => {
                   setSelectedPack(packId);
                   setSheetOpen(true);
@@ -353,9 +580,9 @@ export default function AccountPage() {
             <div className="acc-sheetCard">
               <div className="acc-row">
                 <div className="acc-sheetPack">{selectedPackData.name}</div>
-                {"note" in (selectedPackData as any) ? (
+                {"note" in (selectedPackData as PackageMeta) ? (
                   <div className="acc-note" style={{ marginLeft: "auto" }}>
-                    {(selectedPackData as any).note}
+                    {(selectedPackData as PackageMeta).note}
                   </div>
                 ) : (
                   <div />
@@ -365,9 +592,15 @@ export default function AccountPage() {
               <div className="acc-row" style={{ marginTop: 10 }}>
                 <div className="acc-sheetPrice">
                   ${selectedPackData.priceUsd}
-                  {promo.trim().toUpperCase() === "TEST5" && (
+                  {(promo.trim().toUpperCase() === "TEST5" || referral?.discount.usesLeft) && (
                     <span style={{ marginLeft: 10, fontSize: 18, opacity: 0.8 }}>
-                      → ${(selectedPackData.priceUsd * 0.9).toFixed(2)}
+                      → $
+                      {(
+                        selectedPackData.priceUsd *
+                        (1 -
+                          (promo.trim().toUpperCase() === "TEST5" ? 0.1 : 0) -
+                          (referral?.discount.usesLeft ? 0.1 : 0))
+                      ).toFixed(2)}
                     </span>
                   )}
                 </div>
@@ -376,9 +609,15 @@ export default function AccountPage() {
                 </div>
               </div>
 
-              {promo.trim().toUpperCase() === "TEST5" && (
+              {(promo.trim().toUpperCase() === "TEST5" || referral?.discount.usesLeft) && (
                 <div style={{ marginTop: 4, fontSize: 13, color: "#9fd3ff" }}>
-                  −10% за промокодом
+                  {lang === "uk"
+                    ? `Застосуємо знижку: ${promo.trim().toUpperCase() === "TEST5" ? "промокод -10%" : ""}${
+                        promo.trim().toUpperCase() === "TEST5" && referral?.discount.usesLeft ? " + " : ""
+                      }${referral?.discount.usesLeft ? "реферал -10%" : ""}`
+                    : `Discount applies: ${promo.trim().toUpperCase() === "TEST5" ? "promo -10%" : ""}${
+                        promo.trim().toUpperCase() === "TEST5" && referral?.discount.usesLeft ? " + " : ""
+                      }${referral?.discount.usesLeft ? "referral -10%" : ""}`}
                 </div>
               )}
 
@@ -546,6 +785,149 @@ export default function AccountPage() {
         .acc-section {
           margin-top: 18px;
         }
+        .acc-refGrid {
+          margin-top: 18px;
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 14px;
+        }
+        .acc-card {
+          border-radius: 22px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(255, 255, 255, 0.04);
+          box-shadow: 0 22px 70px rgba(0, 0, 0, 0.32);
+          backdrop-filter: blur(18px) saturate(140%);
+          -webkit-backdrop-filter: blur(18px) saturate(140%);
+          padding: 16px;
+        }
+        .acc-cardTop {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          gap: 10px;
+        }
+        .acc-chip {
+          border-radius: 999px;
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          background: rgba(255, 255, 255, 0.08);
+          padding: 7px 10px;
+          font-size: 12px;
+          font-weight: 800;
+          color: rgba(255, 255, 255, 0.92);
+        }
+        .acc-chip--accent {
+          border-color: rgba(10, 132, 255, 0.45);
+          background: rgba(10, 132, 255, 0.18);
+        }
+        .acc-chip--pending {
+          background: rgba(255, 196, 61, 0.15);
+          border-color: rgba(255, 196, 61, 0.4);
+        }
+        .acc-chip--processing {
+          background: rgba(10, 132, 255, 0.18);
+          border-color: rgba(10, 132, 255, 0.4);
+        }
+        .acc-chip--paid {
+          background: rgba(52, 199, 89, 0.18);
+          border-color: rgba(52, 199, 89, 0.4);
+        }
+        .acc-chip--rejected {
+          background: rgba(255, 69, 58, 0.18);
+          border-color: rgba(255, 69, 58, 0.4);
+        }
+        .acc-linkBox {
+          margin-top: 14px;
+          padding: 12px 14px;
+          border-radius: 14px;
+          background: rgba(0, 0, 0, 0.22);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          font-size: 14px;
+          line-height: 1.45;
+          color: rgba(255, 255, 255, 0.85);
+          word-break: break-all;
+        }
+        .acc-muted {
+          font-size: 13px;
+          color: rgba(255, 255, 255, 0.7);
+          line-height: 1.4;
+        }
+        .acc-stats {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 12px;
+          margin-top: 14px;
+        }
+        .acc-stat {
+          border-radius: 16px;
+          padding: 14px 12px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .acc-statNum {
+          display: block;
+          font-size: 24px;
+          font-weight: 900;
+          color: rgba(255, 255, 255, 0.95);
+        }
+        .acc-statLabel {
+          display: block;
+          margin-top: 4px;
+          font-size: 13px;
+          color: rgba(255, 255, 255, 0.72);
+        }
+        .acc-payoutSummary {
+          margin-top: 14px;
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        .acc-money {
+          margin-top: 4px;
+          font-size: 18px;
+          font-weight: 850;
+          color: rgba(255, 255, 255, 0.94);
+        }
+        .acc-withdrawRow {
+          margin-top: 14px;
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        .acc-input {
+          width: 100%;
+          padding: 12px 14px;
+          border-radius: 14px;
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          background: rgba(0, 0, 0, 0.22);
+          color: white;
+          outline: none;
+          font-size: 15px;
+        }
+        .acc-withdrawList {
+          margin-top: 16px;
+          display: grid;
+          gap: 10px;
+        }
+        .acc-withdrawItem {
+          display: flex;
+          justify-content: space-between;
+          gap: 12px;
+          padding: 12px 14px;
+          border-radius: 16px;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(255, 255, 255, 0.04);
+        }
+        .acc-withdrawTitle {
+          font-size: 15px;
+          font-weight: 800;
+          color: rgba(255, 255, 255, 0.92);
+        }
+        .acc-empty {
+          border-radius: 16px;
+          padding: 14px;
+          background: rgba(255, 255, 255, 0.03);
+          color: rgba(255, 255, 255, 0.72);
+        }
         .acc-title {
           margin: 0;
           font-size: 22px;
@@ -571,6 +953,9 @@ export default function AccountPage() {
         @media (min-width: 900px) {
           .acc-page {
             padding: 24px;
+          }
+          .acc-refGrid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
           }
           .acc-grid {
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -789,6 +1174,12 @@ export default function AccountPage() {
             filter: none !important;
           }
           .acc-pack { transition: none !important; }
+        }
+
+        @media (max-width: 640px) {
+          .acc-stats {
+            grid-template-columns: 1fr;
+          }
         }
 
         /* Sheet */

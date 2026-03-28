@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { REFERRAL_REWARD_POINTS } from "@/lib/referrals";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,7 +28,7 @@ async function readPayload(req: NextRequest) {
   if (ct.includes("multipart/form-data")) {
     try {
       const fd = await req.formData();
-      const obj: any = {};
+      const obj: Record<string, string> = {};
       fd.forEach((v, k) => (obj[k] = typeof v === "string" ? v : "[file]"));
 
       if (obj.response) {
@@ -56,7 +57,7 @@ async function readPayload(req: NextRequest) {
     }
 
     const params = new URLSearchParams(text);
-    const obj: any = {};
+    const obj: Record<string, string> = {};
     for (const [k, v] of params.entries()) obj[k] = v;
 
     // якщо це 1 ключ який виглядає як JSON — теж парсимо
@@ -84,7 +85,8 @@ async function readPayload(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const supabase = getAdminSupabase();
-  let data: any = await readPayload(req);
+  let data: unknown = await readPayload(req);
+  let payload: Record<string, unknown> = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
 
   // ✅ якщо раптом data все ще рядок — пробуємо JSON.parse
   if (typeof data === "string") {
@@ -92,28 +94,29 @@ export async function POST(req: NextRequest) {
     if (t.startsWith("{") && t.endsWith("}")) {
       try {
         data = JSON.parse(t);
+        payload = typeof data === "object" && data !== null ? (data as Record<string, unknown>) : {};
       } catch {}
     }
   }
 
   console.log("WFP_CALLBACK_HIT", {
     ct: req.headers.get("content-type"),
-    keys: Object.keys(data || {}),
-    sample: data,
+    keys: Object.keys(payload),
+    sample: payload,
   });
 
-  const orderReference = String(data?.orderReference || "").trim();
-  const transactionStatus = String(data?.transactionStatus || "").trim();
+  const orderReference = String(payload.orderReference || "").trim();
+  const transactionStatus = String(payload.transactionStatus || "").trim();
 
   if (!orderReference) {
-    console.log("WFP_CALLBACK_NO_ORDERREFERENCE", { data });
+    console.log("WFP_CALLBACK_NO_ORDERREFERENCE", { data: payload });
     return new NextResponse("OK", { status: 200 });
   }
 
   // ✅ у тебе в БД колонка order_id
   const { data: payRow, error: payErr } = await supabase
     .from("payments")
-    .select("id, user_id, points, status")
+    .select("id, user_id, points, status, referrer_user_id, referral_discount_percent, referral_reward_points_awarded")
     .eq("order_id", orderReference)
     .single();
 
@@ -150,6 +153,38 @@ export async function POST(req: NextRequest) {
   const add = Number(payRow.points || 0);
 
   await supabase.from("users").update({ points: current + add }).eq("id", payRow.user_id);
+
+  if (Number(payRow.referral_discount_percent || 0) > 0 && payRow.referrer_user_id && payRow.referral_reward_points_awarded !== true) {
+    const { data: referrerRow } = await supabase
+      .from("users")
+      .select("points")
+      .eq("id", payRow.referrer_user_id)
+      .single();
+
+    const referrerCurrent = Number(referrerRow?.points || 0);
+    await supabase
+      .from("users")
+      .update({ points: referrerCurrent + REFERRAL_REWARD_POINTS })
+      .eq("id", payRow.referrer_user_id);
+
+    await supabase
+      .from("payments")
+      .update({
+        referral_reward_points_awarded: true,
+        referral_reward_points: REFERRAL_REWARD_POINTS,
+      })
+      .eq("id", payRow.id);
+
+    await supabase
+      .from("referral_visits")
+      .update({
+        purchase_payment_id: payRow.id,
+        purchase_at: new Date().toISOString(),
+      })
+      .eq("signed_up_user_id", payRow.user_id)
+      .eq("referrer_user_id", payRow.referrer_user_id)
+      .is("purchase_payment_id", null);
+  }
 
   console.log("WFP_MARK_PAID_AND_ADD_POINTS", { orderReference, add });
 
