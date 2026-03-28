@@ -131,6 +131,11 @@ function extractTaskId(data: any): string | null {
   return typeof tid === "string" && tid.trim() ? tid : null;
 }
 
+function extractGenerationId(data: any): string | null {
+  const gid = data?.generation_id;
+  return typeof gid === "string" && gid.trim() ? gid : null;
+}
+
 function extractVideoUrlFromTask(data: any): string | null {
   const url = data?.data?.task_result?.videos?.[0]?.url;
   return typeof url === "string" && url.trim() ? url : null;
@@ -934,8 +939,9 @@ export default function Home() {
   async function pollVideoTask(opts: {
     kind: "image2video" | "motion-control" | "omni-video";
     taskId: string;
+    pendingId: string;
   }) {
-    const { kind, taskId } = opts;
+    const { kind, taskId, pendingId } = opts;
     const endpoint =
       kind === "image2video"
         ? `/api/kling/image2video/${taskId}`
@@ -988,21 +994,21 @@ export default function Home() {
           }),
         });
 
-        clearPendingGeneration(taskId);
+        clearPendingGeneration(pendingId);
         window.open(imp.publicUrl || vurl, "_blank", "noopener,noreferrer");
         return;
       }
 
       if (status === "failed") {
         const msg = data?.data?.task_status_msg || data?.message || "Task failed";
-        clearPendingGeneration(taskId);
+        clearPendingGeneration(pendingId);
         throw new Error(String(msg));
       }
 
       await new Promise((r) => setTimeout(r, intervalMs));
     }
 
-    clearPendingGeneration(taskId);
+    clearPendingGeneration(pendingId);
     throw new Error(lang === "uk" ? "Час очікування задачі вичерпано" : "Task timeout");
   }
 
@@ -1280,17 +1286,21 @@ export default function Home() {
             throw new Error(reqId ? `${msg} (request_id: ${reqId})` : msg);
           }
 
+          const generationId = extractGenerationId(data);
+          if (!generationId)
+            throw new Error(lang === "uk" ? "Нема generation_id у відповіді" : "Missing generation_id");
+
           const taskId = extractTaskId(data);
           if (!taskId)
             throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
 
           if (pendingIdForCleanup) {
-            replacePendingGenerationId(pendingIdForCleanup, taskId, "video", prompt.trim());
+            replacePendingGenerationId(pendingIdForCleanup, generationId, "video", prompt.trim());
           } else {
-            markPendingGeneration(taskId, "video", prompt.trim());
+            markPendingGeneration(generationId, "video", prompt.trim());
           }
-          pendingIdForCleanup = taskId;
-          await pollVideoTask({ kind: "image2video", taskId });
+          pendingIdForCleanup = generationId;
+          await pollVideoTask({ kind: "image2video", taskId, pendingId: generationId });
           return;
         }
 
@@ -1347,17 +1357,21 @@ export default function Home() {
             throw new Error(reqId ? `${msg} (request_id: ${reqId})` : msg);
           }
 
+          const generationId = extractGenerationId(data);
+          if (!generationId)
+            throw new Error(lang === "uk" ? "Нема generation_id у відповіді" : "Missing generation_id");
+
           const taskId = extractTaskId(data);
           if (!taskId)
             throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
 
           if (pendingIdForCleanup) {
-            replacePendingGenerationId(pendingIdForCleanup, taskId, "video", prompt.trim());
+            replacePendingGenerationId(pendingIdForCleanup, generationId, "video", prompt.trim());
           } else {
-            markPendingGeneration(taskId, "video", prompt.trim());
+            markPendingGeneration(generationId, "video", prompt.trim());
           }
-          pendingIdForCleanup = taskId;
-          await pollVideoTask({ kind: "omni-video", taskId });
+          pendingIdForCleanup = generationId;
+          await pollVideoTask({ kind: "omni-video", taskId, pendingId: generationId });
           return;
         }
 
@@ -1408,17 +1422,21 @@ export default function Home() {
           throw new Error(reqId ? `${msg} (request_id: ${reqId})` : msg);
         }
 
+        const generationId = extractGenerationId(data);
+        if (!generationId)
+          throw new Error(lang === "uk" ? "Нема generation_id у відповіді" : "Missing generation_id");
+
         const taskId = extractTaskId(data);
         if (!taskId)
           throw new Error(lang === "uk" ? "Нема task_id у відповіді" : "Missing task_id");
 
         if (pendingIdForCleanup) {
-          replacePendingGenerationId(pendingIdForCleanup, taskId, "video", prompt.trim());
+          replacePendingGenerationId(pendingIdForCleanup, generationId, "video", prompt.trim());
         } else {
-          markPendingGeneration(taskId, "video", prompt.trim());
+          markPendingGeneration(generationId, "video", prompt.trim());
         }
-        pendingIdForCleanup = taskId;
-        await pollVideoTask({ kind: "motion-control", taskId });
+        pendingIdForCleanup = generationId;
+        await pollVideoTask({ kind: "motion-control", taskId, pendingId: generationId });
         return;
       }
 

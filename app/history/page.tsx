@@ -2,7 +2,6 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { getLang, setLang, t, type Lang } from "../i18n";
-import { useRouter } from "next/navigation";
 
 type Entry = {
   id: string;
@@ -74,6 +73,11 @@ function isVideoUrl(url: string) {
   return !!url.match(/\.(mp4|webm|mov|mkv)(\?|$)/i);
 }
 
+function inferPendingKind(kind?: string): "photo" | "video" {
+  const upper = String(kind || "").toUpperCase();
+  return upper.includes("VIDEO") || upper.includes("I2V") ? "video" : "photo";
+}
+
 // додає або замінює параметр у URL
 function withParam(url: string, key: string, value: string) {
   try {
@@ -97,245 +101,13 @@ function withoutW(url: string) {
   }
 }
 
-// ✅ VideoPosterTile component - generates poster from first frame
-function VideoPosterTile({
-  url,
-  prompt,
-  onAspect,
-}: {
-  url: string;
-  prompt?: string;
-  onAspect?: (ratio: number) => void;
-}) {
-  const [posterDataUrl, setPosterDataUrl] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let mounted = true;
-    const video = document.createElement("video");
-    video.crossOrigin = "anonymous";
-    video.muted = true;
-    video.playsInline = true;
-    video.preload = "metadata";
-    video.src = url;
-
-    const timeout = setTimeout(() => {
-      cleanup();
-      if (mounted) setFailed(true);
-    }, 5000);
-
-    function cleanup() {
-      clearTimeout(timeout);
-      video.removeEventListener("loadedmetadata", onLoadedMetadata);
-      video.removeEventListener("loadeddata", onLoadedData);
-      video.removeEventListener("seeked", onSeeked);
-      video.removeEventListener("error", onError);
-      video.src = "";
-    }
-
-    function onLoadedMetadata() {
-      try {
-        video.currentTime = 0.05;
-      } catch (e) {
-        cleanup();
-        if (mounted) setFailed(true);
-      }
-    }
-
-    function onLoadedData() {
-      // Якщо metadata не спрацював, пробуємо тут
-      if (video.currentTime === 0) {
-        try {
-          video.currentTime = 0.05;
-        } catch (e) {
-          cleanup();
-          if (mounted) setFailed(true);
-        }
-      }
-    }
-
-    function onSeeked() {
-      if (!mounted) return;
-      try {
-        const vw = video.videoWidth || 640;
-        const vh = video.videoHeight || 360;
-        const ratio = vw / vh;
-        if (Number.isFinite(ratio) && ratio > 0) onAspect?.(ratio);
-
-        const canvas = document.createElement("canvas");
-        const maxSide = 600;
-        if (vw >= vh) {
-          canvas.width = maxSide;
-          canvas.height = Math.max(1, Math.round((vh / vw) * maxSide));
-        } else {
-          canvas.height = maxSide;
-          canvas.width = Math.max(1, Math.round((vw / vh) * maxSide));
-        }
-        
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          cleanup();
-          setFailed(true);
-          return;
-        }
-        
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-        cleanup();
-        setPosterDataUrl(dataUrl);
-      } catch (e) {
-        cleanup();
-        setFailed(true);
-      }
-    }
-
-    function onError() {
-      cleanup();
-      if (mounted) setFailed(true);
-    }
-
-    video.addEventListener("loadedmetadata", onLoadedMetadata);
-    video.addEventListener("loadeddata", onLoadedData);
-    video.addEventListener("seeked", onSeeked);
-    video.addEventListener("error", onError);
-
-    return () => {
-      mounted = false;
-      cleanup();
-    };
-  }, [url, onAspect]);
-
-  if (failed) {
-    // Fallback: neutral gradient with play icon
-    return (
-      <>
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: "linear-gradient(135deg, rgba(80,80,100,0.85) 0%, rgba(100,100,120,0.85) 100%)",
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            pointerEvents: "none",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 64,
-              color: "rgba(255, 255, 255, 0.95)",
-              lineHeight: 1,
-              textShadow: "0 2px 12px rgba(0, 0, 0, 0.6)",
-            }}
-          >
-            ▶
-          </div>
-        </div>
-        <div
-          style={{
-            position: "absolute",
-            bottom: 12,
-            left: 12,
-            background: "rgba(0, 0, 0, 0.8)",
-            color: "white",
-            fontSize: 12,
-            padding: "6px 10px",
-            borderRadius: 8,
-            fontWeight: 600,
-            pointerEvents: "none",
-          }}
-        >
-          Video
-        </div>
-      </>
-    );
-  }
-
-  if (!posterDataUrl) {
-    // Loading state
-    return (
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: "linear-gradient(135deg, rgba(80,80,100,0.85) 0%, rgba(100,100,120,0.85) 100%)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>Loading...</div>
-      </div>
-    );
-  }
-
-  // Success: show poster image with play icon overlay
-  return (
-    <>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={posterDataUrl}
-        alt={prompt || "Video"}
-        style={{
-          position: "absolute",
-          inset: 0,
-          width: "100%",
-          height: "100%",
-          objectFit: "contain",
-          objectPosition: "center",
-          background: "#000",
-        }}
-      />
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          pointerEvents: "none",
-        }}
-      >
-        <div
-          style={{
-            fontSize: 64,
-            color: "rgba(255, 255, 255, 0.95)",
-            lineHeight: 1,
-            textShadow: "0 2px 12px rgba(0, 0, 0, 0.6)",
-          }}
-        >
-          ▶
-        </div>
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          bottom: 12,
-          left: 12,
-          background: "rgba(0, 0, 0, 0.8)",
-          color: "white",
-          fontSize: 12,
-          padding: "6px 10px",
-          borderRadius: 8,
-          fontWeight: 600,
-          pointerEvents: "none",
-        }}
-      >
-        Video
-      </div>
-    </>
-  );
+function videoPreviewUrl(url: string) {
+  if (!url) return url;
+  const [base] = url.split("#");
+  return `${base}#t=0.1`;
 }
 
 export default function HistoryPage() {
-  const router = useRouter();
-
   const [items, setItems] = useState<Entry[]>([]);
   const [selected, setSelected] = useState<DisplayItem | null>(null);
 
@@ -353,7 +125,6 @@ export default function HistoryPage() {
 
   // ✅ Показуємо по 20 (кнопка “Ще”)
   const [visibleCount, setVisibleCount] = useState(20);
-  const [mediaAspect, setMediaAspect] = useState<Record<string, number>>({});
 
   const mountedRef = useRef(true);
 
@@ -387,7 +158,6 @@ export default function HistoryPage() {
       mountedRef.current = false;
       window.removeEventListener("focus", onFocus);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -444,7 +214,6 @@ export default function HistoryPage() {
       alive = false;
       if (timer) clearTimeout(timer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);
 
   // update lang when storage changes
@@ -463,15 +232,18 @@ export default function HistoryPage() {
   const expandedAll = useMemo<DisplayItem[]>(() => {
     const out: DisplayItem[] = [];
     const existingEntryIds = new Set<string>();
+    const serverPendingSignatures = new Set<string>();
     for (const entry of items) {
       existingEntryIds.add(entry.id);
       const urls = Array.isArray(entry.urls) ? entry.urls : [];
+      const pendingKind = inferPendingKind(entry.kind);
+      const prompt = String(entry.prompt || "").trim();
       urls.forEach((url, idx) => {
         out.push({
           uid: `${entry.id}__${idx}`,
           entryId: entry.id,
           createdAt: entry.createdAt,
-          prompt: entry.prompt,
+          prompt,
           status: entry.status,
           url,
           urlIndex: idx,
@@ -481,29 +253,33 @@ export default function HistoryPage() {
 
       // якщо ще в процесі (urls пусті) — покажемо 1 “порожню” плитку
       if (!urls.length) {
+        serverPendingSignatures.add(
+          `${pendingKind}|${prompt.toLowerCase()}|${Math.floor(Number(entry.createdAt || 0) / 10000)}`
+        );
         out.push({
           uid: `${entry.id}__pending`,
           entryId: entry.id,
           createdAt: entry.createdAt,
-          prompt: entry.prompt,
+          prompt,
           url: "",
           urlIndex: 0,
           r2Key: undefined,
           status: entry.status,
-          pendingKind: String(entry?.kind || "").toUpperCase().includes("VIDEO") || String(entry?.kind || "").toUpperCase().includes("I2V")
-            ? "video"
-            : "photo",
+          pendingKind,
         });
       }
     }
 
     for (const pending of pendingLocal) {
       if (!pending?.id || existingEntryIds.has(pending.id)) continue;
+      const prompt = String(pending.prompt || "").trim();
+      const signature = `${pending.kind}|${prompt.toLowerCase()}|${Math.floor(Number(pending.createdAt || 0) / 10000)}`;
+      if (serverPendingSignatures.has(signature)) continue;
       out.push({
         uid: `${pending.id}__pending_local`,
         entryId: pending.id,
         createdAt: Number(pending.createdAt) || Date.now(),
-        prompt: pending.prompt || "",
+        prompt,
         url: "",
         urlIndex: 0,
         r2Key: undefined,
@@ -541,7 +317,6 @@ export default function HistoryPage() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items]);
 
   // ✅ фільтри/пошук/сортування вже над “розгорнутими” елементами
@@ -721,7 +496,7 @@ export default function HistoryPage() {
         .preview-tile {
           position: relative;
           width: 100%;
-          aspect-ratio: 1 / 1; /* ✅ квадрат */
+          aspect-ratio: 1 / 1;
           border-radius: 18px;
           overflow: hidden;
           border: 1px solid rgba(255, 255, 255, 0.12);
@@ -730,16 +505,8 @@ export default function HistoryPage() {
           -webkit-backdrop-filter: blur(14px) saturate(140%);
           cursor: pointer;
           box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
-        }
-
-        .preview-bg {
-          position: absolute;
-          inset: 0;
-          transform: scale(1.08);
-          filter: blur(18px);
-          opacity: 0.45;
-          background-size: cover;
-          background-position: center;
+          content-visibility: auto;
+          contain-intrinsic-size: 360px 640px;
         }
 
         .preview-glass {
@@ -753,8 +520,9 @@ export default function HistoryPage() {
           inset: 0;
           width: 100%;
           height: 100%;
-          object-fit: contain; /* ✅ повністю вміщається */
+          object-fit: contain;
           object-position: center;
+          background: rgba(10, 12, 20, 0.65);
         }
 
       `}</style>
@@ -861,8 +629,6 @@ export default function HistoryPage() {
             {visibleItems.map((it) => {
               const url = it.url;
               const isVid = url ? isVideoUrl(url) : false;
-              const ratio = url ? mediaAspect[url] : undefined;
-              const tileAspect = ratio && ratio > 0 ? ratio : isVid ? 9 / 16 : 1;
               const busy = deletingUid === it.uid;
 
               // статус: якщо url пустий — “processing”
@@ -885,7 +651,7 @@ export default function HistoryPage() {
                     opacity: busy ? 0.6 : 1,
                     pointerEvents: busy ? "none" : "auto",
                     cursor: url ? "pointer" : "default",
-                    aspectRatio: String(tileAspect),
+                    aspectRatio: isVid ? "9 / 16" : "1 / 1",
                   }}
                   onClick={() => openModal(it)}
                   title={it.prompt ?? ""}
@@ -893,46 +659,63 @@ export default function HistoryPage() {
 
                   {url ? (
                     isVid ? (
-                      // Video preview with VideoPosterTile component (no blur background)
-                      <VideoPosterTile
-                        url={url}
-                        prompt={it.prompt}
-                        onAspect={(next) => {
-                          if (!Number.isFinite(next) || next <= 0) return;
-                          setMediaAspect((prev) => {
-                            if (prev[url] === next) return prev;
-                            return { ...prev, [url]: next };
-                          });
-                        }}
-                      />
-                    ) : (
-                      // Image with blur background
                       <>
-                        <div
-                          className="preview-bg"
-                          style={{
-                            backgroundImage: `url("${thumbUrl(url)}")`,
-                          }}
+                        <video
+                          className="preview-img"
+                          src={videoPreviewUrl(url)}
+                          muted
+                          playsInline
+                          preload="metadata"
+                          controls={false}
+                          disablePictureInPicture
                         />
                         <div className="preview-glass" />
+                        <div
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            pointerEvents: "none",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 64,
+                              color: "rgba(255, 255, 255, 0.95)",
+                              lineHeight: 1,
+                              textShadow: "0 2px 12px rgba(0, 0, 0, 0.6)",
+                            }}
+                          >
+                            ▶
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            position: "absolute",
+                            bottom: 12,
+                            left: 12,
+                            background: "rgba(0, 0, 0, 0.8)",
+                            color: "white",
+                            fontSize: 12,
+                            padding: "6px 10px",
+                            borderRadius: 8,
+                            fontWeight: 600,
+                            pointerEvents: "none",
+                          }}
+                        >
+                          Video
+                        </div>
+                      </>
+                    ) : (
+                      <>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           className="preview-img"
                           src={thumbUrl(url)}
                           alt={it.prompt || dict.noPreview}
                           loading="lazy"
-                          onLoad={(e) => {
-                            const img = e.currentTarget;
-                            const w = img.naturalWidth || 0;
-                            const h = img.naturalHeight || 0;
-                            if (!url || !w || !h) return;
-                            const next = w / h;
-                            if (!Number.isFinite(next) || next <= 0) return;
-                            setMediaAspect((prev) => {
-                              if (prev[url] === next) return prev;
-                              return { ...prev, [url]: next };
-                            });
-                          }}
                         />
                       </>
                     )
