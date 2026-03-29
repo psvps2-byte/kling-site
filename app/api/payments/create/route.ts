@@ -13,7 +13,7 @@ const MERCHANT_DOMAIN = (process.env.WFP_MERCHANT_DOMAIN || "www.vilna.pro").tri
 const DOMAIN = "https://www.vilna.pro";
 
 // Фіксований курс (як ти сказав)
-const USD_TO_UAH_RATE = 43.5;
+const USD_TO_UAH_RATE = 44.5;
 
 // Пакети у USD (на сайті показуємо $)
 const PACKS_USD: Record<string, { priceUsd: number; points: number; title: string }> = {
