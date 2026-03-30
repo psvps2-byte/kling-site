@@ -107,6 +107,11 @@ function videoPreviewUrl(url: string) {
   return `${base}#t=0.1`;
 }
 
+function mediaProxyUrl(url: string) {
+  if (!url) return url;
+  return `/api/media/stream?url=${encodeURIComponent(url)}`;
+}
+
 export default function HistoryPage() {
   const [items, setItems] = useState<Entry[]>([]);
   const [selected, setSelected] = useState<DisplayItem | null>(null);
@@ -470,6 +475,7 @@ export default function HistoryPage() {
 
   const modalUrl = selected?.url ? withoutW(selected.url) : "";
   const modalIsVideo = modalUrl ? isVideoUrl(modalUrl) : false;
+  const modalVideoUrl = modalIsVideo ? mediaProxyUrl(modalUrl) : "";
 
   // ✅ URL превʼю: просимо маленьке через ?w=600
   function thumbUrl(url: string) {
@@ -662,7 +668,7 @@ export default function HistoryPage() {
                       <>
                         <video
                           className="preview-img"
-                          src={videoPreviewUrl(url)}
+                          src={mediaProxyUrl(videoPreviewUrl(url))}
                           muted
                           playsInline
                           preload="metadata"
@@ -805,7 +811,13 @@ export default function HistoryPage() {
 
             <div style={{ padding: 18, paddingTop: 64, display: "flex", alignItems: "center", justifyContent: "center" }}>
               {modalIsVideo ? (
-                <video src={modalUrl} controls style={{ maxWidth: "100%", maxHeight: "78vh", borderRadius: 18 }} />
+                <video
+                  src={modalVideoUrl}
+                  controls
+                  playsInline
+                  preload="metadata"
+                  style={{ maxWidth: "100%", maxHeight: "78vh", borderRadius: 18 }}
+                />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
