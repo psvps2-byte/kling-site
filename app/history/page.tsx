@@ -668,7 +668,7 @@ export default function HistoryPage() {
                       <>
                         <video
                           className="preview-img"
-                          src={mediaProxyUrl(videoPreviewUrl(url))}
+                          src={videoPreviewUrl(url)}
                           muted
                           playsInline
                           preload="metadata"
