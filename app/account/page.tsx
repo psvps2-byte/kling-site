@@ -373,6 +373,65 @@ export default function AccountPage() {
           </div>
         </div>
 
+        {/* Section */}
+        <div className="acc-section acc-appear2">
+          <h2 className="acc-title">{dict.buyPoints}</h2>
+          {referral?.discount.usesLeft ? (
+            <div className="acc-subtitle">
+              {lang === "uk"
+                ? `Реферальна знижка -${referral.discount.percent}% доступна ще на ${referral.discount.usesLeft} пакети балів.`
+                : `Referral discount -${referral.discount.percent}% is available for ${referral.discount.usesLeft} more point packages.`}
+            </div>
+          ) : null}
+        </div>
+
+        {/* Packages */}
+        <div className="acc-grid">
+          {(["starter", "plus", "pro", "max", "ultra"] as const).map((packId, idx) => {
+            const p = PACKAGES[packId] as PackageMeta;
+            const note = p.note;
+            const badgeKey = p.badgeKey;
+            const isFeatured = packId === "plus";
+            const packValueText = getPackValueInfo(p.points, lang);
+
+            const delayMs = clamp(90 + idx * 75, 0, 520);
+
+            return (
+              <button
+                key={packId}
+                type="button"
+                className={`acc-pack acc-stagger ${isFeatured ? "featured" : ""}`}
+                style={{ ["--d" as const]: `${delayMs}ms` } as CSSProperties}
+                onClick={() => {
+                  setSelectedPack(packId);
+                  setSheetOpen(true);
+                }}
+              >
+                <div className="acc-packTop">
+                  <div className="acc-packName">{p.name}</div>
+
+                  {badgeKey ? <div className="acc-badge">{dict[badgeKey] ?? ""}</div> : null}
+                  {note ? <div className="acc-note">{note}</div> : <div />}
+                </div>
+
+                <div className="acc-packMid">
+                  <div className="acc-packPrice">${p.priceUsd}</div>
+                  <div className="acc-packPoints">{p.points} {dict.pointsWord}</div>
+                </div>
+
+                <div className="acc-packValue">
+                  <div>{packValueText.title}</div>
+                  <div>{packValueText.photos}</div>
+                  <div>{packValueText.or}</div>
+                  <div>{packValueText.videos}</div>
+                </div>
+
+                <div className="acc-packCta">{dict.buy}</div>
+              </button>
+            );
+          })}
+        </div>
+
         {referral ? (
           <div className="acc-refGrid">
             <section className="acc-card acc-appear2">
@@ -382,8 +441,8 @@ export default function AccountPage() {
               </div>
               <div className="acc-subtitle">
                 {lang === "uk"
-                  ? "Запрошений користувач отримує -10% на перші 3 покупки пакетів, а ти отримуєш 50 балів за кожну оплачену покупку."
-                  : "Invited users get 10% off their first 3 point package purchases, and you get 50 points for every paid order."}
+                  ? "Запрошений користувач отримує -10% на перші 2 пакети балів, а ти отримуєш 50 балів за кожну оплачену покупку."
+                  : "Invited users get 10% off their first 2 point packages, and you get 50 points for every paid order."}
               </div>
               <div className="acc-linkBox">{referral.link}</div>
               <div className="acc-actions" style={{ marginTop: 14 }}>
@@ -404,8 +463,8 @@ export default function AccountPage() {
                 {referral.discount.usesLeft > 0 ? (
                   <div className="acc-chip acc-chip--accent">
                     {lang === "uk"
-                      ? `Для тебе ще ${referral.discount.usesLeft} покупок зі знижкою`
-                      : `${referral.discount.usesLeft} discounted purchases left`}
+                      ? `Для тебе ще ${referral.discount.usesLeft} пакети зі знижкою`
+                      : `${referral.discount.usesLeft} discounted packages left`}
                   </div>
                 ) : null}
               </div>
@@ -490,65 +549,6 @@ export default function AccountPage() {
             </div>
           </section>
         ) : null}
-
-        {/* Section */}
-        <div className="acc-section acc-appear2">
-          <h2 className="acc-title">{dict.buyPoints}</h2>
-          {referral?.discount.usesLeft ? (
-            <div className="acc-subtitle">
-              {lang === "uk"
-                ? `Реферальна знижка -${referral.discount.percent}% доступна ще на ${referral.discount.usesLeft} покупки.`
-                : `Referral discount -${referral.discount.percent}% is available for ${referral.discount.usesLeft} more purchases.`}
-            </div>
-          ) : null}
-        </div>
-
-        {/* Packages */}
-        <div className="acc-grid">
-          {(["starter", "plus", "pro", "max", "ultra"] as const).map((packId, idx) => {
-            const p = PACKAGES[packId] as PackageMeta;
-            const note = p.note;
-            const badgeKey = p.badgeKey;
-            const isFeatured = packId === "plus";
-            const packValueText = getPackValueInfo(p.points, lang);
-
-            const delayMs = clamp(90 + idx * 75, 0, 520);
-
-            return (
-              <button
-                key={packId}
-                type="button"
-                className={`acc-pack acc-stagger ${isFeatured ? "featured" : ""}`}
-                style={{ ["--d" as const]: `${delayMs}ms` } as CSSProperties}
-                onClick={() => {
-                  setSelectedPack(packId);
-                  setSheetOpen(true);
-                }}
-              >
-                <div className="acc-packTop">
-                  <div className="acc-packName">{p.name}</div>
-
-                  {badgeKey ? <div className="acc-badge">{dict[badgeKey] ?? ""}</div> : null}
-                  {note ? <div className="acc-note">{note}</div> : <div />}
-                </div>
-
-                <div className="acc-packMid">
-                  <div className="acc-packPrice">${p.priceUsd}</div>
-                  <div className="acc-packPoints">{p.points} {dict.pointsWord}</div>
-                </div>
-
-                <div className="acc-packValue">
-                  <div>{packValueText.title}</div>
-                  <div>{packValueText.photos}</div>
-                  <div>{packValueText.or}</div>
-                  <div>{packValueText.videos}</div>
-                </div>
-
-                <div className="acc-packCta">{dict.buy}</div>
-              </button>
-            );
-          })}
-        </div>
 
       </div>
 
