@@ -5,7 +5,7 @@
   "historyTitle": "Історія",
   "searchPrompt": "Пошук по prompt...",
   "filterAll": "Всі",
-  "filterImages": "Зображення",
+  "filterImages": "Фото",
   "filterVideos": "Відео",
   "sortNewest": "Новіші",
   "sortOldest": "Старіші",
@@ -16,7 +16,7 @@
   ,"home": "На головну"
     ,"done":"Готово",
     "processing":"Обробляється",
-    "image":"Зображення",
+    "image":"Фото",
     "video":"Відео",
     "noPreview":"Немає превʼю",
     "emptyMessage":"Порожньо. Спочатку згенеруй щось або змініть фільтри.",
