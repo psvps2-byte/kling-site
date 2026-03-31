@@ -800,6 +800,7 @@ export default function HistoryPage() {
             alignItems: "center",
             justifyContent: "center",
             padding: 18,
+            overflowY: "auto",
           }}
         >
           <div
@@ -807,13 +808,16 @@ export default function HistoryPage() {
             style={{
               width: "min(1100px, 100%)",
               borderRadius: 24,
-              overflow: "hidden",
+              overflow: "auto",
               border: "1px solid rgba(255,255,255,0.14)",
               background: "rgba(255,255,255,0.08)",
               backdropFilter: "blur(18px) saturate(140%)",
               WebkitBackdropFilter: "blur(18px) saturate(140%)",
               boxShadow: "0 22px 60px rgba(0,0,0,0.45)",
               position: "relative",
+              maxHeight: "calc(100dvh - 36px)",
+              display: "flex",
+              flexDirection: "column",
             }}
           >
             <div
@@ -834,27 +838,50 @@ export default function HistoryPage() {
               </button>
             </div>
 
-            <div style={{ padding: 18, paddingTop: 64, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div
+              style={{
+                padding: 18,
+                paddingTop: 64,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flex: 1,
+                minHeight: 0,
+              }}
+            >
               {modalIsVideo ? (
                 <video
                   src={modalVideoUrl}
                   controls
                   playsInline
                   preload="metadata"
-                  style={{ maxWidth: "100%", maxHeight: "78vh", borderRadius: 18 }}
+                  style={{ maxWidth: "100%", maxHeight: "min(78vh, 100%)", borderRadius: 18 }}
                 />
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={modalUrl}
                   alt={selected.prompt || "preview"}
-                  style={{ maxWidth: "100%", maxHeight: "78vh", borderRadius: 18 }}
+                  style={{ maxWidth: "100%", maxHeight: "min(78vh, 100%)", borderRadius: 18 }}
                 />
               )}
             </div>
 
             {/* ✅ кнопки тільки в модалці */}
-            <div style={{ padding: 16, display: "flex", justifyContent: "flex-end", gap: 8, flexWrap: "wrap" }}>
+            <div
+              style={{
+                padding: 16,
+                paddingBottom: "calc(16px + env(safe-area-inset-bottom, 0px))",
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 8,
+                flexWrap: "wrap",
+                background: "rgba(24, 24, 28, 0.72)",
+                borderTop: "1px solid rgba(255,255,255,0.08)",
+                position: "sticky",
+                bottom: 0,
+              }}
+            >
               <button type="button" className="ios-btn ios-btn--ghost" onClick={() => downloadFile(modalUrl)}>
                 {dict.download ?? "Скачати"}
               </button>
