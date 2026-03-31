@@ -132,6 +132,7 @@ export default function HistoryPage() {
   const [visibleCount, setVisibleCount] = useState(20);
 
   const mountedRef = useRef(true);
+  const lockedScrollYRef = useRef(0);
 
   async function loadHistory() {
     try {
@@ -183,6 +184,34 @@ export default function HistoryPage() {
     const timer = setInterval(() => setNowTs(Date.now()), 1000);
     return () => clearInterval(timer);
   }, [pendingLocal.length]);
+
+  useEffect(() => {
+    if (!selected) return;
+
+    const { body, documentElement } = document;
+    const prevBodyOverflow = body.style.overflow;
+    const prevBodyPosition = body.style.position;
+    const prevBodyTop = body.style.top;
+    const prevBodyWidth = body.style.width;
+    const prevHtmlOverflow = documentElement.style.overflow;
+
+    lockedScrollYRef.current = window.scrollY;
+
+    documentElement.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    body.style.position = "fixed";
+    body.style.top = `-${lockedScrollYRef.current}px`;
+    body.style.width = "100%";
+
+    return () => {
+      documentElement.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+      body.style.position = prevBodyPosition;
+      body.style.top = prevBodyTop;
+      body.style.width = prevBodyWidth;
+      window.scrollTo(0, lockedScrollYRef.current);
+    };
+  }, [selected]);
 
   // ✅ Скидаємо “показати ще”, коли змінився пошук/фільтр/сорт
   useEffect(() => {
@@ -523,6 +552,10 @@ export default function HistoryPage() {
           background: rgba(10, 12, 20, 0.65);
         }
 
+        .preview-img--photo {
+          object-fit: cover;
+        }
+
       `}</style>
 
       {/* top bar */}
@@ -649,7 +682,7 @@ export default function HistoryPage() {
                     opacity: busy ? 0.6 : 1,
                     pointerEvents: busy ? "none" : "auto",
                     cursor: url ? "pointer" : "default",
-                    aspectRatio: isVid ? "9 / 16" : "1 / 1",
+                    aspectRatio: "9 / 16",
                   }}
                   onClick={() => openModal(it)}
                   title={it.prompt ?? ""}
@@ -710,7 +743,7 @@ export default function HistoryPage() {
                       <>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          className="preview-img"
+                          className="preview-img preview-img--photo"
                           src={thumbUrl(url)}
                           alt={it.prompt || dict.noPreview}
                           loading="lazy"
