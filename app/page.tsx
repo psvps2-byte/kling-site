@@ -32,6 +32,8 @@ type PendingGeneration = {
   prompt: string;
 };
 
+const ASPECT_OPTIONS = ["1:1", "16:9", "9:16"] as const;
+
 const PENDING_GENERATIONS_KEY = "vilna_pending_generations_v1";
 const PENDING_TTL_MS = 60 * 60 * 1000;
 
@@ -724,6 +726,7 @@ export default function Home() {
 
   const qualityRef = useRef<HTMLDivElement | null>(null);
   const durationRef = useRef<HTMLDivElement | null>(null);
+  const hadI2vStartRef = useRef(false);
 
   const [vStartImg, setVStartImg] = useState<File | null>(null);
   const [vEndImg, setVEndImg] = useState<File | null>(null);
@@ -828,6 +831,16 @@ export default function Home() {
       setVEndUrl("");
     }
   }, [vStartImg, vStartUrl]);
+
+  useEffect(() => {
+    const hasStartImage = Boolean(vStartImg || vStartUrl);
+
+    if (videoMode === "i2v" && hasStartImage && !hadI2vStartRef.current) {
+      setVideoQuality("pro");
+    }
+
+    hadI2vStartRef.current = hasStartImage;
+  }, [videoMode, vStartImg, vStartUrl]);
 
   useEffect(() => {
     setError(null);
@@ -1280,6 +1293,7 @@ export default function Home() {
             mode: videoQuality === "pro" ? "pro" : "std",
             duration: String(videoDuration),
             image: imageB64,
+            aspect_ratio: aspect,
           };
 
           if (imageTailB64 && videoQuality === "pro") body.image_tail = imageTailB64;
@@ -3127,7 +3141,7 @@ export default function Home() {
                               onTouchStart={(e) => e.stopPropagation()}
                             >
                               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                {(["1:1", "16:9", "9:16"] as const).map((r) => (
+                                {ASPECT_OPTIONS.map((r) => (
                                   <button
                                     key={r}
                                     type="button"
@@ -3478,7 +3492,7 @@ export default function Home() {
                               onTouchStart={(e) => e.stopPropagation()}
                             >
                               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                {(["1:1", "16:9", "9:16"] as const).map((r) => (
+                                {ASPECT_OPTIONS.map((r) => (
                                   <button
                                     key={r}
                                     type="button"
