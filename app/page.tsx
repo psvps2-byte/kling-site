@@ -678,6 +678,7 @@ export default function Home() {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
         setFormatOpen(false);
+        setVideoFormatOpen(false);
         setModelOpen(false);
         setQtyOpen(false);
       }
@@ -685,11 +686,18 @@ export default function Home() {
 
     function onOutside(e: MouseEvent | TouchEvent) {
       const el = inlineSelectorsRef.current;
-      if (!el) return;
-      if (e.target instanceof Node && !el.contains(e.target)) {
+      const videoFormatEl = videoFormatRef.current;
+      const target = e.target;
+      const outsideInline = !el || !(target instanceof Node) || !el.contains(target);
+      const outsideVideoFormat = !videoFormatEl || !(target instanceof Node) || !videoFormatEl.contains(target);
+
+      if (outsideInline) {
         setFormatOpen(false);
         setModelOpen(false);
         setQtyOpen(false);
+      }
+      if (outsideVideoFormat) {
+        setVideoFormatOpen(false);
       }
     }
 
@@ -721,9 +729,11 @@ export default function Home() {
   const [videoMode, setVideoMode] = useState<VideoMode>("i2v");
   const [videoQuality, setVideoQuality] = useState<VideoQuality>("standard");
   const [videoDuration, setVideoDuration] = useState<VideoDuration>(5);
+  const [videoFormatOpen, setVideoFormatOpen] = useState(false);
   const [qualityOpen, setQualityOpen] = useState(false);
   const [durationOpen, setDurationOpen] = useState(false);
 
+  const videoFormatRef = useRef<HTMLDivElement | null>(null);
   const qualityRef = useRef<HTMLDivElement | null>(null);
   const durationRef = useRef<HTMLDivElement | null>(null);
   const hadI2vStartRef = useRef(false);
@@ -4067,22 +4077,49 @@ export default function Home() {
 
               <div className="vRow">
                 {videoMode === "i2v" && (
-                  <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                  <div ref={videoFormatRef} style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
                     <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>
                       {lang === "uk" ? "Формат" : "Format"}
                     </div>
-                    <select
-                      className="vSelect"
-                      value={aspect}
-                      onChange={(e) => setAspect(e.target.value as Aspect)}
-                      aria-label={lang === "uk" ? "Вибір формату відео" : "Choose video format"}
-                    >
-                      {ASPECT_OPTIONS.map((r) => (
-                        <option key={r} value={r}>
-                          {r}
-                        </option>
-                      ))}
-                    </select>
+                    <div style={{ position: "relative" }}>
+                      <button
+                        type="button"
+                        className="vPill selectTrigger miniSelectTrigger"
+                        onClick={() => {
+                          setVideoFormatOpen((v) => !v);
+                          setQualityOpen(false);
+                          setDurationOpen(false);
+                        }}
+                        aria-haspopup="menu"
+                        aria-expanded={videoFormatOpen}
+                      >
+                        <span style={{ opacity: 0.95 }}>{aspect}</span>
+                        <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>▾</span>
+                      </button>
+
+                      {videoFormatOpen && (
+                        <div className="smallDropdown miniDropdown" role="menu" onMouseDown={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            {ASPECT_OPTIONS.map((r) => (
+                              <button
+                                key={r}
+                                type="button"
+                                className={aspect === r ? "formatOption active numMono" : "formatOption numMono"}
+                                onClick={() => {
+                                  setAspect(r);
+                                  setVideoFormatOpen(false);
+                                }}
+                              >
+                                <span style={{ display: "inline-flex", justifyContent: "space-between", width: "100%" }}>
+                                  <span>{r}</span>
+                                  {aspect === r && <span>✓</span>}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
 
