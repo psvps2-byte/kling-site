@@ -397,22 +397,14 @@ export default function HistoryPage() {
         type: blob.type || (isVid ? "video/mp4" : "image/png"),
       });
 
-      const navAny = navigator as any;
-      if (navAny?.canShare?.({ files: [file] }) && navAny?.share) {
-        await navAny.share({
-          files: [file],
-          title: "VILNA",
-        });
-        return;
-      }
-
       const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
+      const objectUrl = URL.createObjectURL(file);
+      a.href = objectUrl;
       a.download = name;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      URL.revokeObjectURL(a.href);
+      URL.revokeObjectURL(objectUrl);
     } catch {
       window.open(url, "_blank");
     }
