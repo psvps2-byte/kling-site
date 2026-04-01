@@ -15,6 +15,8 @@ export async function POST(req: NextRequest) {
 
     const title = String(formData.get('title') || '').trim();
     const prompt = String(formData.get('prompt') || '').trim();
+    const preferred_aspect = String(formData.get('preferred_aspect') || '9:16').trim() || '9:16';
+    const preferred_model = String(formData.get('preferred_model') || 'nano-banana').trim() || 'nano-banana';
     const sort_order = Number(formData.get('sort_order') || 0);
     const is_active = formData.get('is_active') === 'true';
     const file = formData.get('file') as File | null;
@@ -55,6 +57,8 @@ export async function POST(req: NextRequest) {
         title,
         prompt,
         preview_url: publicData.publicUrl,
+        preferred_aspect,
+        preferred_model,
         sort_order,
         is_active,
       });

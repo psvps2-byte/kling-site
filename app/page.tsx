@@ -350,7 +350,22 @@ export default function Home() {
         .eq("is_active", true)
         .order("sort_order");
 
-      if (data) setTemplates(data);
+      if (data) {
+        setTemplates(
+          data.map((tpl: any) => ({
+            ...tpl,
+            preferredAspect: tpl.preferredAspect || tpl.preferred_aspect || "9:16",
+            preferredModel: tpl.preferredModel || tpl.preferred_model || "nano-banana",
+            previewVideo: tpl.previewVideo || tpl.preview_video || null,
+            hidePhotoSettings:
+              typeof tpl.hidePhotoSettings === "boolean"
+                ? tpl.hidePhotoSettings
+                : typeof tpl.hide_photo_settings === "boolean"
+                  ? tpl.hide_photo_settings
+                  : false,
+          }))
+        );
+      }
     };
 
     loadTemplates();
