@@ -850,13 +850,30 @@ export default function HistoryPage() {
               }}
             >
               {modalIsVideo ? (
-                <video
-                  src={modalVideoUrl}
-                  controls
-                  playsInline
-                  preload="metadata"
-                  style={{ maxWidth: "100%", maxHeight: "min(78vh, 100%)", borderRadius: 18 }}
-                />
+                <div
+                  style={{
+                    width: "min(100%, 460px)",
+                    maxHeight: "min(78vh, 100%)",
+                    borderRadius: 18,
+                    overflow: "hidden",
+                    background: "rgba(8, 10, 18, 0.96)",
+                    boxShadow: "0 18px 50px rgba(0,0,0,0.35)",
+                  }}
+                >
+                  <video
+                    src={modalVideoUrl}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      maxHeight: "min(78vh, 100%)",
+                      objectFit: "contain",
+                      background: "rgba(8, 10, 18, 0.96)",
+                    }}
+                  />
+                </div>
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img

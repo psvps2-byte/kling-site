@@ -319,7 +319,8 @@ async function normalizeRemoteVideoUrlForKling(url: string): Promise<File> {
 
 export default function Home() {
   const SHOW_TEMPLATES = false;
-  const SHOW_HOME_HUB = false;
+  const SHOW_HOME_HUB = true;
+  const HERO_VIDEO_SRC = "/hero-loop.MOV";
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [templates, setTemplates] = useState<any[]>([]);
@@ -358,15 +359,43 @@ export default function Home() {
   const localTemplates = [
     {
       id: "sakura-bench",
-      title: "Sakura Bench",
+      title: "Сакура на лавці",
       preview: "/templates/copy-26324caf-preview.jpg",
-      previewVideo: "/templates/sakura-bench-preview.m4v",
+      previewVideo: "/templates/sakura-bench-preview.MOV",
+      hidePhotoSettings: true,
+      preferredAspect: "9:16" as Aspect,
       preferredModel: "nano-banana" as PhotoModelChoice,
       autoOpenUpload: true,
       homeSubtitleUk: "Рожева cinematic fashion сцена з лавкою",
       homeSubtitleEn: "Pink cinematic fashion bench scene",
       prompt:
         "Стильна жінка сидить на рожевій парковій лавці на тихій міській вулиці, оточеній деревами з рожевими квітами сакури. Вона одягнена повністю в рожевий образ: блискучий рожевий плащ, рожеві черевики на підборах зі шнурівкою, тримає в руках букет рожевих квітів. Ніжний макіяж, спокійний трохи задумливий погляд у камеру.\nНавколо атмосфера дощового ранку: мокрий асфальт віддзеркалює світло, на землі лежать пелюстки сакури. Позаду видно вузьку європейську вулицю з ліхтарями, рожевими фасадами будинків та автомобілем у легкому боке.\nКольорова палітра майже монохромна — різні відтінки рожевого. Атмосфера романтична, кінематографічна та трохи казкова. М’яке розсіяне світло, легкий туман, глибина різкості з сильним боке на фоні.\nФотореалістичний стиль, висока деталізація, модна фотосесія, shallow depth of field, 85mm lens, cinematic lighting, soft pastel tones, ultra realistic, high resolution, fashion photography, композиція з акцентом на модель на лавці.",
+    },
+    {
+      id: "ducklings-spring",
+      title: "Весняні каченята",
+      previewVideo: "/templates/ducklings-spring-preview.mp4",
+      hidePhotoSettings: true,
+      preferredAspect: "9:16" as Aspect,
+      preferredModel: "nano-banana" as PhotoModelChoice,
+      autoOpenUpload: true,
+      homeSubtitleUk: "Весняна студійна сцена з дитиною та каченятами",
+      homeSubtitleEn: "Spring studio scene with a child and ducklings",
+      prompt:
+        "Маленька мила дитина сидить на підлозі у світлій мінімалістичній фотостудії, радісно усміхається та дивиться у камеру. Вона тримає в руках маленьке жовте каченя, ще одне каченя сидить у неї на голові. Навколо неї ходять кілька пухнастих каченят. Дитина одягнена в білу оверсайз футболку та світло-блакитні джинси. Позаду стоїть скляна ваза з жовтими тюльпанами та білими нарцисами. Весняна атмосфера, ніжні пастельні кольори, м’яке природне освітлення, високий ключ (high key), чистий білий фон, легкі тіні, мала глибина різкості, фотореалізм, висока деталізація, професійна студійна зйомка, 4K.",
+    },
+    {
+      id: "sakura-garden-fashion",
+      title: "Сакура в саду",
+      previewVideo: "/templates/sakura-garden-fashion-preview.mp4",
+      hidePhotoSettings: true,
+      preferredAspect: "9:16" as Aspect,
+      preferredModel: "nano-banana" as PhotoModelChoice,
+      autoOpenUpload: true,
+      homeSubtitleUk: "Fashion-портрет жінки в квітучому саду сакури",
+      homeSubtitleEn: "Fashion portrait of a woman in a blooming sakura garden",
+      prompt:
+        "Кінематографічний fashion-портрет жінки в квітучому саду сакури, знятий з дуже низького ракурсу крізь розмиті гілки та пелюстки сакури на передньому плані. Жінка стоїть серед дерев, спокійна, впевнена, дивиться прямо в камеру. Вона тримає великий букет ніжно-рожевих півоній. На ній об’ємний светр світло-рожевого кольору з рюшами, що створює м’який романтичний образ.\nТепле природне освітлення на заході сонця, золотиста година, м’яке боке, мала глибина різкості, розмитий фон, квіткове оточення, пастельні відтінки рожевого та зеленого. Атмосфера ніжності, модна редакційна зйомка, висока деталізація, фотореалізм, 4K, професійна фотографія.",
     },
     {
       id: "0001",
@@ -405,43 +434,7 @@ export default function Home() {
     },
   ];
   const effectiveTemplates = SHOW_TEMPLATES ? templates : localTemplates;
-  const homeCards = [
-    {
-      id: "home-photo",
-      kind: "tab" as const,
-      titleUk: "Фото",
-      titleEn: "Photo",
-      subtitleUk: "Створення та редагування фото",
-      subtitleEn: "Create and edit photos",
-      tab: "photo" as MediaTab,
-      accentClass: "homeCardAccentPhoto",
-      sizeClass: "homeCardWide",
-    },
-    {
-      id: "home-video",
-      kind: "tab" as const,
-      titleUk: "Відео",
-      titleEn: "Video",
-      subtitleUk: "Image to video, motion, edit",
-      subtitleEn: "Image to video, motion, edit",
-      tab: "video" as MediaTab,
-      accentClass: "homeCardAccentVideo",
-      sizeClass: "homeCardTall",
-    },
-    ...localTemplates.map((tpl, index) => ({
-      id: `tpl-${tpl.id}`,
-      kind: "template" as const,
-      titleUk: tpl.title,
-      titleEn: tpl.title,
-      subtitleUk: tpl.homeSubtitleUk || tpl.title,
-      subtitleEn: tpl.homeSubtitleEn || tpl.title,
-      templateId: tpl.id,
-      preview: tpl.preview,
-      previewVideo: tpl.previewVideo,
-      accentClass: index % 2 === 0 ? "homeCardAccentWarm" : "homeCardAccentRose",
-      sizeClass: index % 3 === 0 ? "homeCardTall" : "homeCardMedium",
-    })),
-  ];
+  const homeFeaturedTemplates = effectiveTemplates.slice(0, 3);
 
   // GLOBAL
   const [mediaTab, setMediaTab] = useState<MediaTab>(SHOW_HOME_HUB ? "home" : "photo");
@@ -462,6 +455,10 @@ export default function Home() {
   const { data: session } = useSession();
   const [historyHint, setHistoryHint] = useState<string | null>(null);
   const [historyPulse, setHistoryPulse] = useState(false);
+  const selectedTemplate = selectedTemplateId
+    ? effectiveTemplates.find((tpl) => tpl.id === selectedTemplateId) ?? null
+    : null;
+  const hideSelectedTemplatePhotoSettings = selectedTemplate?.hidePhotoSettings === true;
 
   function openMediaTab(tab: MediaTab) {
     setMediaTab(tab);
@@ -472,6 +469,9 @@ export default function Home() {
     if (!nextTemplate) return;
     setSelectedTemplateId(nextTemplate.id);
     setTemplatePrompt(nextTemplate.prompt);
+    if (nextTemplate.preferredAspect) {
+      setAspect(nextTemplate.preferredAspect);
+    }
     if (nextTemplate.preferredModel) {
       setPhotoModel(nextTemplate.preferredModel);
     }
@@ -1600,68 +1600,9 @@ export default function Home() {
     generate();
   }
 
-  // Telegram CTA Bubble
-  const [tgCtaVisible, setTgCtaVisible] = useState(false);
-
-  useEffect(() => {
-    const storageKey = "tg_cta_shown_count_v1";
-    const count = parseInt(localStorage.getItem(storageKey) || "0", 10);
-    
-    // Show only on first 2 visits (count = 0 or 1)
-    if (count < 2) {
-      setTgCtaVisible(true);
-    }
-  }, []);
-
-  function handleTgCtaClick() {
-    const storageKey = "tg_cta_shown_count_v1";
-    // Mark as clicked, set to 2 to ensure it never shows again
-    localStorage.setItem(storageKey, "2");
-    setTgCtaVisible(false);
-  }
-
-  function handleTgCtaClose() {
-    const storageKey = "tg_cta_shown_count_v1";
-    // Mark as seen, set to 2 to ensure it never shows again
-    localStorage.setItem(storageKey, "2");
-    setTgCtaVisible(false);
-  }
-
   return (
     <>
       <div className="page-wrap">
-        {tgCtaVisible && (
-          <a
-            href="https://t.me/vilnapro"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="tgCta"
-            onClick={handleTgCtaClick}
-            role="button"
-            tabIndex={0}
-          >
-            <video
-              className="tgCtaVideo"
-              src="/cta/vilna.webm"
-              autoPlay
-              loop
-              playsInline
-              muted
-            />
-            <button
-              type="button"
-              className="tgCtaClose"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleTgCtaClose();
-              }}
-              aria-label="Close"
-            >
-              ✕
-            </button>
-          </a>
-        )}
         <style jsx global>{`
           @media (prefers-reduced-motion: reduce) {
             .ldots span,
@@ -1893,160 +1834,186 @@ export default function Home() {
 
           .homeHub {
             max-width: 1120px;
-            margin: 8px auto 0;
+            margin: 0 auto;
           }
 
-          .homeHubHeader {
-            margin-bottom: 16px;
-          }
-
-          .homeHubTitle {
-            margin: 0;
-            font-size: clamp(28px, 4vw, 40px);
-            line-height: 1.04;
-            color: rgba(255, 255, 255, 0.95);
-            font-weight: 800;
-            letter-spacing: -0.03em;
-          }
-
-          .homeHubSubtitle {
-            margin: 8px 0 0;
-            max-width: 680px;
-            color: rgba(255, 255, 255, 0.64);
-            font-size: 15px;
-            line-height: 1.45;
-          }
-
-          .homeGrid {
-            display: grid;
-            grid-template-columns: repeat(12, minmax(0, 1fr));
-            gap: 14px;
-          }
-
-          .homeCard {
+          .homeHero {
             position: relative;
-            min-height: 220px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 28px;
+            min-height: 720px;
+            border-radius: 0;
             overflow: hidden;
-            cursor: pointer;
-            padding: 0;
-            text-align: left;
-            background:
-              radial-gradient(circle at top, rgba(255, 255, 255, 0.12), transparent 52%),
-              linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
-            box-shadow: 0 18px 46px rgba(0, 0, 0, 0.3);
-            transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+            border: none;
+            background: #0b0808;
+            box-shadow: none;
           }
 
-          .homeCard:hover {
-            transform: translateY(-2px);
-            border-color: rgba(255, 255, 255, 0.18);
-            box-shadow: 0 24px 56px rgba(0, 0, 0, 0.36);
-          }
-
-          .homeCardWide {
-            grid-column: span 6;
-          }
-
-          .homeCardMedium {
-            grid-column: span 4;
-          }
-
-          .homeCardTall {
-            grid-column: span 6;
-            min-height: 300px;
-          }
-
-          .homeCardAccentPhoto {
-            background:
-              radial-gradient(circle at 18% 18%, rgba(93, 173, 255, 0.35), transparent 36%),
-              linear-gradient(135deg, rgba(13, 27, 47, 0.96), rgba(8, 18, 38, 0.84));
-          }
-
-          .homeCardAccentVideo {
-            background:
-              radial-gradient(circle at 82% 12%, rgba(163, 108, 255, 0.28), transparent 34%),
-              linear-gradient(135deg, rgba(25, 17, 58, 0.95), rgba(9, 16, 38, 0.88));
-          }
-
-          .homeCardAccentWarm {
-            background-color: rgba(255, 255, 255, 0.04);
-          }
-
-          .homeCardAccentRose {
-            background-color: rgba(255, 255, 255, 0.03);
-          }
-
-          .homeCardGlow {
-            position: absolute;
-            inset: auto -16% -28% auto;
-            width: 220px;
-            height: 220px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(255, 255, 255, 0.16), transparent 64%);
-            filter: blur(8px);
-          }
-
-          .homeCardImageWrap,
-          .homeCardScrim {
-            position: absolute;
-            inset: 0;
-          }
-
-          .homeCardImage {
-            object-fit: cover;
-          }
-
-          .homeCardVideo {
+          .homeHeroVideo {
             position: absolute;
             inset: 0;
             width: 100%;
             height: 100%;
             object-fit: cover;
             display: block;
+            filter: saturate(1) contrast(1) brightness(0.9);
+            transform: scale(1.02);
           }
 
-          .homeCardScrim {
-            background: linear-gradient(180deg, rgba(8, 10, 18, 0.06), rgba(8, 10, 18, 0.78));
-          }
-
-          .homeCardContent {
+          .homeHeroOverlay {
             position: absolute;
-            inset: auto 16px 16px 16px;
+            inset: 0;
+            background:
+              linear-gradient(180deg, rgba(6, 4, 4, 0.12) 0%, rgba(6, 4, 4, 0.2) 42%, rgba(6, 4, 4, 0.42) 100%),
+              radial-gradient(circle at 50% 48%, rgba(255, 216, 186, 0.08), transparent 32%);
+          }
+
+          .homeHeroNoise {
+            position: absolute;
+            inset: 0;
+            opacity: 0.18;
+            background-image:
+              radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.18) 0 1px, transparent 1px),
+              radial-gradient(circle at 80% 30%, rgba(255, 255, 255, 0.12) 0 1px, transparent 1px),
+              radial-gradient(circle at 40% 80%, rgba(255, 255, 255, 0.1) 0 1px, transparent 1px);
+            background-size: 160px 160px, 210px 210px, 180px 180px;
+            pointer-events: none;
+          }
+
+          .homeHeroInner {
+            position: relative;
+            z-index: 1;
+            min-height: 720px;
             display: flex;
             flex-direction: column;
-            gap: 6px;
-            z-index: 1;
+            justify-content: flex-end;
+            align-items: center;
+            text-align: center;
+            padding: 82px 28px 42px;
           }
 
-          .homeCardKicker {
-            display: inline-flex;
-            width: fit-content;
-            padding: 6px 10px;
+          .homeHeroTitle {
+            margin: 0;
+            max-width: 10ch;
+            color: #f5ede6;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: clamp(30px, 5vw, 52px);
+            line-height: 0.95;
+            font-weight: 500;
+            letter-spacing: -0.045em;
+            text-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+          }
+
+          .homeHeroActions {
+            width: 100%;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 240px));
+            justify-content: center;
+            gap: 14px;
+            margin-top: 22px;
+          }
+
+          .homeHeroAction {
+            appearance: none;
+            border: 1px solid rgba(242, 211, 185, 0.34);
             border-radius: 999px;
-            background: rgba(0, 0, 0, 0.28);
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            color: rgba(255, 255, 255, 0.72);
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
-          }
-
-          .homeCardTitle {
-            color: rgba(255, 255, 255, 0.96);
-            font-size: clamp(24px, 3vw, 34px);
+            min-height: 74px;
+            padding: 18px 26px;
+            background: linear-gradient(180deg, rgba(25, 19, 18, 0.56), rgba(12, 9, 9, 0.7));
+            box-shadow:
+              0 10px 34px rgba(0, 0, 0, 0.3),
+              inset 0 0 0 1px rgba(255, 228, 204, 0.08);
+            color: #f7efe7;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: clamp(26px, 3.6vw, 44px);
             line-height: 1;
-            font-weight: 800;
-            letter-spacing: -0.04em;
+            cursor: pointer;
+            transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
           }
 
-          .homeCardText {
-            color: rgba(255, 255, 255, 0.78);
-            font-size: 14px;
-            line-height: 1.35;
-            max-width: 28ch;
+          .homeHeroAction:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 226, 198, 0.5);
+            box-shadow:
+              0 18px 40px rgba(0, 0, 0, 0.36),
+              inset 0 0 0 1px rgba(255, 228, 204, 0.12);
+          }
+
+          .homeTemplates {
+            margin-top: 28px;
+            padding: 0 4px;
+          }
+
+          .homeTemplatesTitle {
+            margin: 0 0 18px;
+            text-align: center;
+            color: #f1e6db;
+            font-family: Georgia, "Times New Roman", serif;
+            font-size: clamp(36px, 5vw, 52px);
+            font-weight: 500;
+            letter-spacing: -0.035em;
+          }
+
+          .homeTemplatesRow {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+          }
+
+          .homeTemplateCard {
+            appearance: none;
+            border: 1px solid rgba(244, 216, 189, 0.18);
+            border-radius: 28px;
+            padding: 10px;
+            text-align: left;
+            background: linear-gradient(180deg, rgba(17, 13, 13, 0.88), rgba(10, 8, 8, 0.96));
+            box-shadow: 0 20px 56px rgba(0, 0, 0, 0.34);
+            cursor: pointer;
+            transition: transform 0.18s ease, border-color 0.18s ease;
+          }
+
+          .homeTemplateCard:hover {
+            transform: translateY(-3px);
+            border-color: rgba(244, 216, 189, 0.34);
+          }
+
+          .homeTemplateMedia {
+            position: relative;
+            aspect-ratio: 3 / 4.5;
+            border-radius: 22px;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.04);
+          }
+
+          .homeTemplateImage,
+          .homeTemplateVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+          }
+
+          .homeTemplateCaption {
+            padding: 12px 6px 2px;
+            color: rgba(245, 234, 223, 0.9);
+            font-size: 15px;
+            font-weight: 600;
+          }
+
+          .homeTemplateDots {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 18px;
+          }
+
+          .homeTemplateDot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: rgba(255, 241, 230, 0.2);
+          }
+
+          .homeTemplateDot.active {
+            background: rgba(255, 241, 230, 0.78);
           }
 
           .vRow {
@@ -2634,10 +2601,18 @@ export default function Home() {
           }
 
           @media (max-width: 900px) {
-            .homeCardWide,
-            .homeCardMedium,
-            .homeCardTall {
-              grid-column: span 6;
+            .homeHero {
+              min-height: 680px;
+            }
+
+            .homeHeroInner {
+              min-height: 680px;
+              padding-left: 22px;
+              padding-right: 22px;
+            }
+
+            .homeTemplatesRow {
+              grid-template-columns: repeat(2, minmax(0, 1fr));
             }
           }
 
@@ -2647,116 +2622,51 @@ export default function Home() {
               padding: 10px 14px;
             }
 
-            .homeGrid {
-              grid-template-columns: repeat(1, minmax(0, 1fr));
+            .homeHero {
+              min-height: 640px;
+              border-radius: 0;
             }
 
-            .homeCardWide,
-            .homeCardMedium,
-            .homeCardTall {
-              grid-column: span 1;
-              min-height: 240px;
+            .homeHeroInner {
+              min-height: 640px;
+              padding: 70px 16px 24px;
             }
 
-            .homeHubSubtitle {
-              font-size: 14px;
+            .homeHeroTitle {
+              max-width: 9ch;
+              font-size: clamp(24px, 8vw, 38px);
             }
-          }
 
-          /* Telegram CTA Bubble */
-          .tgCta {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 999;
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            border: none !important;
-            outline: none !important;
-            background: transparent !important;
-            backdrop-filter: none;
-            -webkit-backdrop-filter: none;
-            padding: 0;
-            cursor: pointer;
-            box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45) !important;
-            transition: transform 0.2s ease, filter 0.2s ease;
-            animation: floatBubble 3s ease-in-out infinite;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-decoration: none;
-            color: inherit;
-          }
-
-          .tgCta::before,
-          .tgCta::after {
-            content: none !important;
-          }
-
-          .tgCta:hover {
-            transform: scale(1.08);
-            filter: brightness(1.1);
-          }
-
-          .tgCta:active {
-            transform: scale(0.95);
-          }
-
-          @keyframes floatBubble {
-            0%, 100% {
-              transform: translateY(0px);
+            .homeHeroActions {
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+              gap: 10px;
+              margin-top: 18px;
             }
-            50% {
-              transform: translateY(-8px);
+
+            .homeHeroAction {
+              min-height: 58px;
+              font-size: 22px;
+              padding: 14px 12px;
+            }
+
+            .homeTemplates {
+              margin-top: 24px;
+            }
+
+            .homeTemplatesRow {
+              display: flex;
+              gap: 12px;
+              overflow-x: auto;
+              scroll-snap-type: x mandatory;
+              padding-bottom: 4px;
+            }
+
+            .homeTemplateCard {
+              min-width: min(240px, 72vw);
+              scroll-snap-align: start;
             }
           }
 
-          .tgCtaVideo {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-          }
-
-          .tgCtaClose {
-            position: absolute;
-            top: 4px;
-            right: 4px;
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: rgba(0, 0, 0, 0.5);
-            border: none;
-            color: white;
-            font-size: 14px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-            transition: background 0.2s ease;
-            z-index: 10;
-          }
-
-          .tgCtaClose:hover {
-            background: rgba(0, 0, 0, 0.7);
-          }
-
-          @media (max-width: 640px) {
-            .tgCta {
-              bottom: 80px;
-              right: 16px;
-              width: 80px;
-              height: 80px;
-            }
-          }
-
-          @media (prefers-reduced-motion: reduce) {
-            .tgCta {
-              animation: none;
-            }
-          }
         `}</style>
 
         {/* Topbar */}
@@ -2812,7 +2722,7 @@ export default function Home() {
         {/* Main card */}
         <div className="glass-card">
           {/* Tabs */}
-          <div className="tabs">
+          <div className="tabs" style={{ display: mediaTab === "home" ? "none" : undefined }}>
             <div className="tabsWrap" role="tablist" aria-label="media tabs">
               {SHOW_HOME_HUB && (
                 <button
@@ -2848,71 +2758,85 @@ export default function Home() {
 
           {SHOW_HOME_HUB && mediaTab === "home" && (
             <div className="homeHub">
-              <div className="homeHubHeader">
-                <h2 className="homeHubTitle">{lang === "uk" ? "Оберіть що відкрити" : "Choose what to open"}</h2>
-                <p className="homeHubSubtitle">
-                  {lang === "uk"
-                    ? "Легкі локальні прев'ю завантажуються миттєво. Натисни на вкладку або шаблон."
-                    : "Light local previews load instantly. Tap a tab or template."}
-                </p>
-              </div>
+              <section className="homeHero">
+                <video
+                  className="homeHeroVideo"
+                  src={HERO_VIDEO_SRC}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  preload="auto"
+                />
+                <div className="homeHeroOverlay" aria-hidden="true" />
+                <div className="homeHeroNoise" aria-hidden="true" />
 
-              <div className="homeGrid">
-                {homeCards.map((card) => {
-                  const isTemplate = card.kind === "template";
-                  return (
+                <div className="homeHeroInner">
+                  <h1 className="homeHeroTitle">
+                    {lang === "uk" ? "Твій простір для свободи" : "Your space for freedom"}
+                  </h1>
+
+                  <div className="homeHeroActions">
                     <button
-                      key={card.id}
                       type="button"
-                      className={`homeCard ${card.sizeClass} ${card.accentClass}`}
-                      onClick={() => {
-                        if (isTemplate) {
-                          openTemplate(card.templateId);
-                          return;
-                        }
-                        openMediaTab(card.tab);
-                      }}
+                      className="homeHeroAction"
+                      onClick={() => openMediaTab("photo")}
                     >
-                      {isTemplate && card.preview ? (
-                        <div className="homeCardImageWrap">
-                          {card.previewVideo ? (
-                            <video
-                              src={card.previewVideo}
-                              className="homeCardVideo"
-                              autoPlay
-                              muted
-                              loop
-                              playsInline
-                              preload="metadata"
-                              poster={card.preview}
-                              aria-hidden="true"
-                            />
-                          ) : (
-                            <Image
-                              src={card.preview}
-                              alt={lang === "uk" ? card.subtitleUk : card.subtitleEn}
-                              fill
-                              sizes="(max-width: 640px) 100vw, (max-width: 1100px) 50vw, 33vw"
-                              className="homeCardImage"
-                            />
-                          )}
-                        </div>
-                      ) : (
-                        <div className="homeCardGlow" aria-hidden="true" />
-                      )}
-
-                      <div className="homeCardScrim" aria-hidden="true" />
-                      <div className="homeCardContent">
-                        <span className="homeCardKicker">
-                          {isTemplate ? (lang === "uk" ? "Шаблон" : "Template") : (lang === "uk" ? "Вкладка" : "Tab")}
-                        </span>
-                        <span className="homeCardTitle">{lang === "uk" ? card.titleUk : card.titleEn}</span>
-                        <span className="homeCardText">{lang === "uk" ? card.subtitleUk : card.subtitleEn}</span>
-                      </div>
+                      {lang === "uk" ? "Фото" : "Photo"}
                     </button>
-                  );
-                })}
-              </div>
+                    <button
+                      type="button"
+                      className="homeHeroAction"
+                      onClick={() => openMediaTab("video")}
+                    >
+                      {lang === "uk" ? "Відео" : "Video"}
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              <section className="homeTemplates">
+                <h2 className="homeTemplatesTitle">{lang === "uk" ? "Популярні шаблони" : "Popular templates"}</h2>
+                <div className="homeTemplatesRow">
+                  {homeFeaturedTemplates.map((tpl) => (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      className="homeTemplateCard"
+                      onClick={() => openTemplate(tpl.id)}
+                    >
+                      <div className="homeTemplateMedia">
+                        {tpl.previewVideo ? (
+                          <video
+                            className="homeTemplateVideo"
+                            src={tpl.previewVideo}
+                            autoPlay
+                            muted
+                            loop
+                            playsInline
+                            preload="metadata"
+                            poster={tpl.preview}
+                          />
+                        ) : (
+                          <Image
+                            src={tpl.preview_url || tpl.preview}
+                            alt={tpl.title}
+                            width={420}
+                            height={620}
+                            className="homeTemplateImage"
+                          />
+                        )}
+                      </div>
+                      <div className="homeTemplateCaption">{tpl.title}</div>
+                    </button>
+                  ))}
+                </div>
+                <div className="homeTemplateDots" aria-hidden="true">
+                  {homeFeaturedTemplates.map((tpl, index) => (
+                    <span key={tpl.id} className={`homeTemplateDot ${index === 2 ? "active" : ""}`} />
+                  ))}
+                </div>
+              </section>
             </div>
           )}
 
@@ -2935,7 +2859,7 @@ export default function Home() {
                       ← {lang === "uk" ? "Назад" : "Back"}
                     </button>
                     <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "rgba(255,255,255,0.92)" }}>
-                      {effectiveTemplates.find((t) => t.id === selectedTemplateId)?.title}
+                      {selectedTemplate?.title}
                     </h2>
                   </div>
 
@@ -3015,23 +2939,23 @@ export default function Home() {
                     )}
 
                     <div className="uploadTile uploadTileBig templatePreviewBig">
-                      {effectiveTemplates.find((t) => t.id === selectedTemplateId)?.previewVideo ? (
+                      {selectedTemplate?.previewVideo ? (
                         <video
-                          src={effectiveTemplates.find((t) => t.id === selectedTemplateId)?.previewVideo}
+                          src={selectedTemplate?.previewVideo}
                           muted
                           loop
                           autoPlay
                           playsInline
                           preload="metadata"
-                          poster={effectiveTemplates.find((t) => t.id === selectedTemplateId)?.preview}
+                          poster={selectedTemplate?.preview}
                           style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
                         />
                       ) : (
                         <>
                           {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
-                            src={effectiveTemplates.find((t) => t.id === selectedTemplateId)?.preview_url || effectiveTemplates.find((t) => t.id === selectedTemplateId)?.preview}
-                            alt={effectiveTemplates.find((t) => t.id === selectedTemplateId)?.title}
+                            src={selectedTemplate?.preview_url || selectedTemplate?.preview}
+                            alt={selectedTemplate?.title}
                           />
                         </>
                       )}
@@ -3120,124 +3044,127 @@ export default function Home() {
                     />
                   </div>
 
-                  {/* Inline Format selector */}
-                  <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
-                    <div ref={inlineSelectorsRef} style={{ display: "flex", gap: 24, alignItems: "center" }}>
-                      <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
-                        <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>
-                          {lang === "uk" ? "Формат" : "Format"}
-                        </div>
-                        <div style={{ position: "relative" }}>
-                          <button
-                            type="button"
-                            className="vPill selectTrigger miniSelectTrigger"
-                              onClick={() => {
-                                setFormatOpen((v) => !v);
-                                setModelOpen(false);
-                                setQtyOpen(false);
-                              }}
-                            aria-haspopup="menu"
-                            aria-expanded={formatOpen}
-                          >
-                            <span style={{ opacity: 0.95 }}>{aspect}</span>
-                            <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>▾</span>
-                          </button>
-
-                          {formatOpen && (
-                            <div
-                              className="smallDropdown miniDropdown"
-                              role="menu"
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onTouchStart={(e) => e.stopPropagation()}
-                            >
-                              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                {ASPECT_OPTIONS.map((r) => (
-                                  <button
-                                    key={r}
-                                    type="button"
-                                    className={aspect === r ? "formatOption active numMono" : "formatOption numMono"}
-                                    onClick={() => {
-                                      setAspect(r);
-                                      setFormatOpen(false);
-                                    }}
-                                  >
-                                    <span style={{ display: "inline-flex", justifyContent: "space-between", width: "100%" }}>
-                                      <span>{r}</span>
-                                      {aspect === r && <span>✓</span>}
-                                    </span>
-                                  </button>
-                                ))}
-                              </div>
+                  {(!hideSelectedTemplatePhotoSettings || refUploading) && (
+                    <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
+                      {!hideSelectedTemplatePhotoSettings && (
+                        <div ref={inlineSelectorsRef} style={{ display: "flex", gap: 24, alignItems: "center" }}>
+                          <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                            <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>
+                              {lang === "uk" ? "Формат" : "Format"}
                             </div>
-                          )}
-                        </div>
-                      </div>
+                            <div style={{ position: "relative" }}>
+                              <button
+                                type="button"
+                                className="vPill selectTrigger miniSelectTrigger"
+                                  onClick={() => {
+                                    setFormatOpen((v) => !v);
+                                    setModelOpen(false);
+                                    setQtyOpen(false);
+                                  }}
+                                aria-haspopup="menu"
+                                aria-expanded={formatOpen}
+                              >
+                                <span style={{ opacity: 0.95 }}>{aspect}</span>
+                                <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>▾</span>
+                              </button>
 
-                      <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
-                        <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>
-                          {lang === "uk" ? "Модель" : "Model"}
-                        </div>
-                        <div style={{ position: "relative" }}>
-                          <button
-                            type="button"
-                            className="vPill selectTrigger miniSelectTrigger"
-                            onClick={() => {
-                              setModelOpen((v) => !v);
-                              setFormatOpen(false);
-                              setQtyOpen(false);
-                            }}
-                            aria-haspopup="menu"
-                            aria-expanded={modelOpen}
-                          >
-                            <span style={{ opacity: 0.95 }}>
-                              {photoModel === "chatgpt" ? "ChatGPT" : "Nano Banana"}
-                            </span>
-                            <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>▾</span>
-                          </button>
-
-                          {modelOpen && (
-                            <div
-                              className="smallDropdown miniDropdown"
-                              role="menu"
-                              onMouseDown={(e) => e.stopPropagation()}
-                              onTouchStart={(e) => e.stopPropagation()}
-                            >
-                              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                {([
-                                  { key: "chatgpt", label: "ChatGPT" },
-                                  { key: "nano-banana", label: "Nano Banana" },
-                                ] as const).map((m) => (
-                                  <button
-                                    key={m.key}
-                                    type="button"
-                                    className={photoModel === m.key ? "formatOption active numMono" : "formatOption numMono"}
-                                    onClick={() => {
-                                      setPhotoModel(m.key);
-                                      setModelOpen(false);
-                                    }}
-                                  >
-                                    <span style={{ display: "inline-flex", justifyContent: "space-between", width: "100%" }}>
-                                      <span>{m.label}</span>
-                                      {photoModel === m.key && <span>✓</span>}
-                                    </span>
-                                  </button>
-                                ))}
-                              </div>
+                              {formatOpen && (
+                                <div
+                                  className="smallDropdown miniDropdown"
+                                  role="menu"
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onTouchStart={(e) => e.stopPropagation()}
+                                >
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                    {ASPECT_OPTIONS.map((r) => (
+                                      <button
+                                        key={r}
+                                        type="button"
+                                        className={aspect === r ? "formatOption active numMono" : "formatOption numMono"}
+                                        onClick={() => {
+                                          setAspect(r);
+                                          setFormatOpen(false);
+                                        }}
+                                      >
+                                        <span style={{ display: "inline-flex", justifyContent: "space-between", width: "100%" }}>
+                                          <span>{r}</span>
+                                          {aspect === r && <span>✓</span>}
+                                        </span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
-                          )}
+                          </div>
+
+                          <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
+                            <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>
+                              {lang === "uk" ? "Модель" : "Model"}
+                            </div>
+                            <div style={{ position: "relative" }}>
+                              <button
+                                type="button"
+                                className="vPill selectTrigger miniSelectTrigger"
+                                onClick={() => {
+                                  setModelOpen((v) => !v);
+                                  setFormatOpen(false);
+                                  setQtyOpen(false);
+                                }}
+                                aria-haspopup="menu"
+                                aria-expanded={modelOpen}
+                              >
+                                <span style={{ opacity: 0.95 }}>
+                                  {photoModel === "chatgpt" ? "ChatGPT" : "Nano Banana"}
+                                </span>
+                                <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>▾</span>
+                              </button>
+
+                              {modelOpen && (
+                                <div
+                                  className="smallDropdown miniDropdown"
+                                  role="menu"
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  onTouchStart={(e) => e.stopPropagation()}
+                                >
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                    {([
+                                      { key: "chatgpt", label: "ChatGPT" },
+                                      { key: "nano-banana", label: "Nano Banana" },
+                                    ] as const).map((m) => (
+                                      <button
+                                        key={m.key}
+                                        type="button"
+                                        className={photoModel === m.key ? "formatOption active numMono" : "formatOption numMono"}
+                                        onClick={() => {
+                                          setPhotoModel(m.key);
+                                          setModelOpen(false);
+                                        }}
+                                      >
+                                        <span style={{ display: "inline-flex", justifyContent: "space-between", width: "100%" }}>
+                                          <span>{m.label}</span>
+                                          {photoModel === m.key && <span>✓</span>}
+                                        </span>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      </div>
+                      )}
+
+                      {refUploading && (
+                        <div className="gen-pill">
+                          <span>
+                            {lang === "uk" ? "Завантаження фото" : "Uploading image"}
+                            <LoadingDots />
+                          </span>
+                        </div>
+                      )}
                     </div>
-
-                    {refUploading && (
-                      <div className="gen-pill">
-                        <span>
-                          {lang === "uk" ? "Завантаження фото" : "Uploading image"}
-                          <LoadingDots />
-                        </span>
-                      </div>
-                    )}
-                  </div>
+                  )}
 
                   {(!session ||
                     (!!session && points <= 0) ||
