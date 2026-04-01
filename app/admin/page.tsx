@@ -43,6 +43,14 @@ function formatDate(value: string) {
 
 export default function AdminPage() {
   const aspectOptions = ['1:1', '16:9', '9:16'] as const;
+  const sectionOptions = [
+    { value: 'popular', label: 'Популярні шаблони' },
+    { value: 'special-day', label: 'Твій особливий день' },
+    { value: 'spring-breath', label: 'Дихання весни' },
+    { value: 'business-style', label: 'Бізнес стиль' },
+    { value: 'little-wonders', label: 'Маленькі дива' },
+    { value: 'little-big-personalities', label: 'Маленькі великі особистості' },
+  ] as const;
   const modelOptions = [
     { value: 'chatgpt', label: 'ChatGPT' },
     { value: 'nano-banana', label: 'Nano Banana' },
@@ -54,6 +62,7 @@ export default function AdminPage() {
 
   const [title, setTitle] = useState('');
   const [prompt, setPrompt] = useState('');
+  const [sectionKey, setSectionKey] = useState<(typeof sectionOptions)[number]['value']>('popular');
   const [preferredAspect, setPreferredAspect] = useState<(typeof aspectOptions)[number]>('9:16');
   const [preferredModel, setPreferredModel] = useState<(typeof modelOptions)[number]['value']>('nano-banana');
   const [sortOrder, setSortOrder] = useState<number>(0);
@@ -149,6 +158,7 @@ export default function AdminPage() {
       formData.append('file', file);
       formData.append('title', title.trim());
       formData.append('prompt', prompt.trim());
+      formData.append('section_key', sectionKey);
       formData.append('preferred_aspect', preferredAspect);
       formData.append('preferred_model', preferredModel);
       formData.append('sort_order', String(sortOrder));
@@ -167,6 +177,7 @@ export default function AdminPage() {
 
       setTitle('');
       setPrompt('');
+      setSectionKey('popular');
       setPreferredAspect('9:16');
       setPreferredModel('nano-banana');
       setSortOrder(0);
@@ -373,6 +384,21 @@ export default function AdminPage() {
             </label>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <label>
+                Розділ
+                <select
+                  value={sectionKey}
+                  onChange={(e) => setSectionKey(e.target.value as (typeof sectionOptions)[number]['value'])}
+                  style={{ width: '100%', padding: 10, marginTop: 6 }}
+                >
+                  {sectionOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
               <label>
                 Формат за замовчуванням
                 <select

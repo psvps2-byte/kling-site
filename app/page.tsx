@@ -32,6 +32,19 @@ type PendingGeneration = {
   prompt: string;
 };
 
+const HOME_TEMPLATE_SECTIONS = [
+  { key: "popular", titleUk: "Популярні шаблони", titleEn: "Popular templates" },
+  { key: "special-day", titleUk: "Твій особливий день", titleEn: "Your special day" },
+  { key: "spring-breath", titleUk: "Дихання весни", titleEn: "Breath of spring" },
+  { key: "business-style", titleUk: "Бізнес стиль", titleEn: "Business style" },
+  { key: "little-wonders", titleUk: "Маленькі дива", titleEn: "Little wonders" },
+  {
+    key: "little-big-personalities",
+    titleUk: "Маленькі великі особистості",
+    titleEn: "Little big personalities",
+  },
+] as const;
+
 const ASPECT_OPTIONS = ["1:1", "16:9", "9:16"] as const;
 
 const PENDING_GENERATIONS_KEY = "vilna_pending_generations_v1";
@@ -356,6 +369,7 @@ export default function Home() {
             ...tpl,
             preferredAspect: tpl.preferredAspect || tpl.preferred_aspect || "9:16",
             preferredModel: tpl.preferredModel || tpl.preferred_model || "nano-banana",
+            sectionKey: tpl.sectionKey || tpl.section_key || "popular",
             previewVideo: tpl.previewVideo || tpl.preview_video || null,
             hidePhotoSettings:
               typeof tpl.hidePhotoSettings === "boolean"
@@ -376,6 +390,7 @@ export default function Home() {
       id: "sakura-garden-fashion",
       title: "Сакура в саду",
       previewVideo: "/templates/sakura-garden-fashion-preview.mp4",
+      sectionKey: "popular",
       hidePhotoSettings: true,
       preferredAspect: "9:16" as Aspect,
       preferredModel: "nano-banana" as PhotoModelChoice,
@@ -389,6 +404,7 @@ export default function Home() {
       id: "ducklings-spring",
       title: "Весняні каченята",
       previewVideo: "/templates/ducklings-spring-preview.mp4",
+      sectionKey: "popular",
       hidePhotoSettings: true,
       preferredAspect: "9:16" as Aspect,
       preferredModel: "nano-banana" as PhotoModelChoice,
@@ -403,6 +419,7 @@ export default function Home() {
       title: "Сакура на лавці",
       preview: "/templates/copy-26324caf-preview.jpg",
       previewVideo: "/templates/sakura-bench-preview.MOV",
+      sectionKey: "popular",
       hidePhotoSettings: true,
       preferredAspect: "9:16" as Aspect,
       preferredModel: "nano-banana" as PhotoModelChoice,
@@ -449,7 +466,14 @@ export default function Home() {
     },
   ];
   const effectiveTemplates = SHOW_TEMPLATES ? templates : localTemplates;
-  const homeFeaturedTemplates = effectiveTemplates.slice(0, 3);
+  const homeTemplateSections = useMemo(
+    () =>
+      HOME_TEMPLATE_SECTIONS.map((section) => ({
+        ...section,
+        templates: effectiveTemplates.filter((tpl: any) => (tpl.sectionKey || "popular") === section.key),
+      })).filter((section) => section.templates.length > 0),
+    [effectiveTemplates]
+  );
 
   // GLOBAL
   const [mediaTab, setMediaTab] = useState<MediaTab>(SHOW_HOME_HUB ? "home" : "photo");
@@ -1957,6 +1981,10 @@ export default function Home() {
             padding: 0 4px;
           }
 
+          .homeTemplatesSection + .homeTemplatesSection {
+            margin-top: 28px;
+          }
+
           .homeTemplatesTitle {
             margin: 0 0 18px;
             text-align: center;
@@ -2668,6 +2696,10 @@ export default function Home() {
               margin-top: 24px;
             }
 
+            .homeTemplatesSection + .homeTemplatesSection {
+              margin-top: 24px;
+            }
+
             .homeTemplatesRow {
               display: flex;
               gap: 12px;
@@ -2811,46 +2843,52 @@ export default function Home() {
               </section>
 
               <section className="homeTemplates">
-                <h2 className="homeTemplatesTitle">{lang === "uk" ? "Популярні шаблони" : "Popular templates"}</h2>
-                <div className="homeTemplatesRow">
-                  {homeFeaturedTemplates.map((tpl) => (
-                    <button
-                      key={tpl.id}
-                      type="button"
-                      className="homeTemplateCard"
-                      onClick={() => openTemplate(tpl.id)}
-                    >
-                      <div className="homeTemplateMedia">
-                        {tpl.previewVideo ? (
-                          <video
-                            className="homeTemplateVideo"
-                            src={tpl.previewVideo}
-                            autoPlay
-                            muted
-                            loop
-                            playsInline
-                            preload="metadata"
-                            poster={tpl.preview}
-                          />
-                        ) : (
-                          <Image
-                            src={tpl.preview_url || tpl.preview}
-                            alt={tpl.title}
-                            width={420}
-                            height={620}
-                            className="homeTemplateImage"
-                          />
-                        )}
+                {homeTemplateSections.map((section) => (
+                  <div key={section.key} className="homeTemplatesSection">
+                    <h2 className="homeTemplatesTitle">{lang === "uk" ? section.titleUk : section.titleEn}</h2>
+                    <div className="homeTemplatesRow">
+                      {section.templates.map((tpl: any) => (
+                        <button
+                          key={tpl.id}
+                          type="button"
+                          className="homeTemplateCard"
+                          onClick={() => openTemplate(tpl.id)}
+                        >
+                          <div className="homeTemplateMedia">
+                            {tpl.previewVideo ? (
+                              <video
+                                className="homeTemplateVideo"
+                                src={tpl.previewVideo}
+                                autoPlay
+                                muted
+                                loop
+                                playsInline
+                                preload="metadata"
+                                poster={tpl.preview}
+                              />
+                            ) : (
+                              <Image
+                                src={tpl.preview_url || tpl.preview}
+                                alt={tpl.title}
+                                width={420}
+                                height={620}
+                                className="homeTemplateImage"
+                              />
+                            )}
+                          </div>
+                          <div className="homeTemplateCaption">{tpl.title}</div>
+                        </button>
+                      ))}
+                    </div>
+                    {section.templates.length > 1 && (
+                      <div className="homeTemplateDots" aria-hidden="true">
+                        {section.templates.map((tpl: any, index: number) => (
+                          <span key={tpl.id} className={`homeTemplateDot ${index === 0 ? "active" : ""}`} />
+                        ))}
                       </div>
-                      <div className="homeTemplateCaption">{tpl.title}</div>
-                    </button>
-                  ))}
-                </div>
-                <div className="homeTemplateDots" aria-hidden="true">
-                  {homeFeaturedTemplates.map((tpl, index) => (
-                    <span key={tpl.id} className={`homeTemplateDot ${index === 2 ? "active" : ""}`} />
-                  ))}
-                </div>
+                    )}
+                  </div>
+                ))}
               </section>
             </div>
           )}
