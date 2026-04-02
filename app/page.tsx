@@ -333,13 +333,7 @@ async function normalizeRemoteVideoUrlForKling(url: string): Promise<File> {
 export default function Home() {
   const SHOW_TEMPLATES = false;
   const SHOW_HOME_HUB = true;
-  const HERO_VIDEO_WEBM = "/hero-loop.webm";
-  const HERO_VIDEO_MP4 = "/hero-loop.mp4";
-  const HERO_VIDEO_FALLBACK = "/hero-loop.MOV";
-  const HERO_POSTER_SRC = "/hero-loop-poster.jpg";
-  const heroRef = useRef<HTMLElement | null>(null);
-  const [shouldLoadHeroVideo, setShouldLoadHeroVideo] = useState(false);
-  const [canAutoplayHeroVideo, setCanAutoplayHeroVideo] = useState(true);
+  const HERO_VIDEO_SRC = "/hero-loop.MOV";
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [templates, setTemplates] = useState<any[]>([]);
@@ -494,77 +488,6 @@ export default function Home() {
   useEffect(() => {
     setLangState(getLang());
   }, []);
-
-  useEffect(() => {
-    if (!SHOW_HOME_HUB || typeof window === "undefined") return;
-
-    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const nav = navigator as Navigator & {
-      connection?: { saveData?: boolean; effectiveType?: string };
-    };
-    const connection = nav.connection;
-    const saveData = connection?.saveData === true;
-    const slowNetwork =
-      connection?.effectiveType === "slow-2g" || connection?.effectiveType === "2g";
-    const allowVideo = !mediaQuery.matches && !saveData && !slowNetwork;
-
-    setCanAutoplayHeroVideo(allowVideo);
-    if (!allowVideo) {
-      setShouldLoadHeroVideo(false);
-      return;
-    }
-
-    let cancelled = false;
-    let observer: IntersectionObserver | null = null;
-    let timeoutId: number | null = null;
-    const requestIdle = window.requestIdleCallback?.bind(window);
-    const cancelIdle = window.cancelIdleCallback?.bind(window);
-    let idleId: number | null = null;
-
-    const loadVideo = () => {
-      if (!cancelled) setShouldLoadHeroVideo(true);
-    };
-
-    const scheduleLoad = () => {
-      if (idleId != null || timeoutId != null) return;
-      if (requestIdle) {
-        idleId = requestIdle(() => {
-          idleId = null;
-          loadVideo();
-        }, { timeout: 1200 });
-        return;
-      }
-      timeoutId = window.setTimeout(() => {
-        timeoutId = null;
-        loadVideo();
-      }, 250);
-    };
-
-    observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          scheduleLoad();
-          observer?.disconnect();
-          observer = null;
-        }
-      },
-      { rootMargin: "240px 0px" }
-    );
-
-    const heroNode = heroRef.current;
-    if (heroNode) {
-      observer.observe(heroNode);
-    } else {
-      scheduleLoad();
-    }
-
-    return () => {
-      cancelled = true;
-      observer?.disconnect();
-      if (idleId != null && cancelIdle) cancelIdle(idleId);
-      if (timeoutId != null) window.clearTimeout(timeoutId);
-    };
-  }, [SHOW_HOME_HUB]);
 
   function markPendingGeneration(id: string, kind: PendingKind, pendingPrompt: string) {
     const current = readPendingGenerations();
@@ -2847,23 +2770,16 @@ export default function Home() {
 
           {SHOW_HOME_HUB && mediaTab === "home" && (
             <div className="homeHub">
-              <section ref={heroRef} className="homeHero">
-                {shouldLoadHeroVideo && (
-                  <video
-                    className="homeHeroVideo"
-                    autoPlay={canAutoplayHeroVideo}
-                    muted
-                    loop
-                    playsInline
-                    preload="metadata"
-                    poster={HERO_POSTER_SRC}
-                    aria-hidden="true"
-                  >
-                    <source src={HERO_VIDEO_WEBM} type="video/webm" />
-                    <source src={HERO_VIDEO_MP4} type="video/mp4" />
-                    <source src={HERO_VIDEO_FALLBACK} type="video/quicktime" />
-                  </video>
-                )}
+              <section className="homeHero">
+                <video
+                  className="homeHeroVideo"
+                  src={HERO_VIDEO_SRC}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  preload="auto"
+                />
                 <div className="homeHeroOverlay" aria-hidden="true" />
                 <div className="homeHeroNoise" aria-hidden="true" />
 
