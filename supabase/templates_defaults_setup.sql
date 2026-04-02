@@ -1,7 +1,4 @@
 alter table if exists public.templates
-  add column if not exists section_key text default 'popular';
-
-alter table if exists public.templates
   add column if not exists preferred_aspect text default '9:16';
 
 alter table if exists public.templates
@@ -12,7 +9,6 @@ alter table if exists public.templates
 
 update public.templates
 set
-  section_key = coalesce(nullif(section_key, ''), 'popular'),
   preferred_aspect = coalesce(nullif(preferred_aspect, ''), '9:16'),
   preferred_model = coalesce(nullif(preferred_model, ''), 'nano-banana')
 where true;
