@@ -42,20 +42,12 @@ function formatDate(value: string) {
 }
 
 export default function AdminPage() {
-  const aspectOptions = ['1:1', '16:9', '9:16'] as const;
-  const modelOptions = [
-    { value: 'chatgpt', label: 'ChatGPT' },
-    { value: 'nano-banana', label: 'Nano Banana' },
-  ] as const;
-
   const [authenticated, setAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
   const [title, setTitle] = useState('');
   const [prompt, setPrompt] = useState('');
-  const [preferredAspect, setPreferredAspect] = useState<(typeof aspectOptions)[number]>('9:16');
-  const [preferredModel, setPreferredModel] = useState<(typeof modelOptions)[number]['value']>('nano-banana');
   const [sortOrder, setSortOrder] = useState<number>(0);
   const [isActive, setIsActive] = useState(true);
   const [file, setFile] = useState<File | null>(null);
@@ -149,8 +141,6 @@ export default function AdminPage() {
       formData.append('file', file);
       formData.append('title', title.trim());
       formData.append('prompt', prompt.trim());
-      formData.append('preferred_aspect', preferredAspect);
-      formData.append('preferred_model', preferredModel);
       formData.append('sort_order', String(sortOrder));
       formData.append('is_active', String(isActive));
 
@@ -167,8 +157,6 @@ export default function AdminPage() {
 
       setTitle('');
       setPrompt('');
-      setPreferredAspect('9:16');
-      setPreferredModel('nano-banana');
       setSortOrder(0);
       setIsActive(true);
       setFile(null);
@@ -371,38 +359,6 @@ export default function AdminPage() {
                 placeholder="Опиши промпт..."
               />
             </label>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-              <label>
-                Формат за замовчуванням
-                <select
-                  value={preferredAspect}
-                  onChange={(e) => setPreferredAspect(e.target.value as (typeof aspectOptions)[number])}
-                  style={{ width: '100%', padding: 10, marginTop: 6 }}
-                >
-                  {aspectOptions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                Модель за замовчуванням
-                <select
-                  value={preferredModel}
-                  onChange={(e) => setPreferredModel(e.target.value as (typeof modelOptions)[number]['value'])}
-                  style={{ width: '100%', padding: 10, marginTop: 6 }}
-                >
-                  {modelOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
 
             <label>
               Sort order
