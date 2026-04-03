@@ -320,7 +320,7 @@ async function normalizeRemoteVideoUrlForKling(url: string): Promise<File> {
 export default function Home() {
   const SHOW_TEMPLATES = false;
   const SHOW_HOME_HUB = true;
-  const HERO_VIDEO_SRC = "/hero-loop.MOV";
+  const HERO_VIDEO_SRC = "/hero-loop.mp4";
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [templates, setTemplates] = useState<any[]>([]);
@@ -360,7 +360,7 @@ export default function Home() {
     {
       id: "sakura-garden-fashion",
       title: "Сакура в саду",
-      previewVideo: "/templates/sakura-garden-fashion-preview.mp4",
+      previewVideo: "/templates/sakura-garden-fashion-preview_qhoGYsRB.mp4",
       hidePhotoSettings: true,
       preferredAspect: "9:16" as Aspect,
       preferredModel: "nano-banana" as PhotoModelChoice,
@@ -373,7 +373,7 @@ export default function Home() {
     {
       id: "ducklings-spring",
       title: "Весняні каченята",
-      previewVideo: "/templates/ducklings-spring-preview.mp4",
+      previewVideo: "/templates/ducklings-spring-preview_40501mx2.mp4",
       hidePhotoSettings: true,
       preferredAspect: "9:16" as Aspect,
       preferredModel: "nano-banana" as PhotoModelChoice,
@@ -387,7 +387,7 @@ export default function Home() {
       id: "sakura-bench",
       title: "Сакура на лавці",
       preview: "/templates/copy-26324caf-preview.jpg",
-      previewVideo: "/templates/sakura-bench-preview.MOV",
+      previewVideo: "/templates/sakura-bench-preview_Lt4DNs9h.mp4",
       hidePhotoSettings: true,
       preferredAspect: "9:16" as Aspect,
       preferredModel: "nano-banana" as PhotoModelChoice,
