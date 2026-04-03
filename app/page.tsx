@@ -373,7 +373,7 @@ export default function Home() {
     {
       id: "ducklings-spring",
       title: "Весняні каченята",
-      previewVideo: "/templates/ducklings-spring-preview_40501mx2.mp4",
+      previewVideo: "/templates/ducklings-spring-preview.mp4",
       hidePhotoSettings: true,
       preferredAspect: "9:16" as Aspect,
       preferredModel: "nano-banana" as PhotoModelChoice,
@@ -448,7 +448,7 @@ export default function Home() {
     },
   ];
   const effectiveTemplates = SHOW_TEMPLATES ? templates : localTemplates;
-  const homeFeaturedTemplates = effectiveTemplates.slice(0, 3);
+  const homeFeaturedTemplates = effectiveTemplates.filter((tpl) => tpl.sectionKey === "popular" || !tpl.sectionKey);
 
   // GLOBAL
   const [mediaTab, setMediaTab] = useState<MediaTab>(SHOW_HOME_HUB ? "home" : "photo");
@@ -2012,24 +2012,6 @@ export default function Home() {
             font-weight: 600;
           }
 
-          .homeTemplateDots {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 18px;
-          }
-
-          .homeTemplateDot {
-            width: 10px;
-            height: 10px;
-            border-radius: 999px;
-            background: rgba(255, 241, 230, 0.2);
-          }
-
-          .homeTemplateDot.active {
-            background: rgba(255, 241, 230, 0.78);
-          }
-
           .vRow {
             display: flex;
             gap: 10px;
@@ -2843,11 +2825,6 @@ export default function Home() {
                       </div>
                       <div className="homeTemplateCaption">{tpl.title}</div>
                     </button>
-                  ))}
-                </div>
-                <div className="homeTemplateDots" aria-hidden="true">
-                  {homeFeaturedTemplates.map((tpl, index) => (
-                    <span key={tpl.id} className={`homeTemplateDot ${index === 2 ? "active" : ""}`} />
                   ))}
                 </div>
               </section>
