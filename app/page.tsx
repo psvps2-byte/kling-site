@@ -437,7 +437,6 @@ export default function Home() {
   const selectedTemplate = selectedTemplateId
     ? effectiveTemplates.find((tpl) => tpl.id === selectedTemplateId) ?? null
     : null;
-  const hideSelectedTemplatePhotoSettings = selectedTemplate?.hidePhotoSettings === true;
 
   function openMediaTab(tab: MediaTab) {
     setMediaTab(tab);
@@ -448,6 +447,8 @@ export default function Home() {
     if (!nextTemplate) return;
     setSelectedTemplateId(nextTemplate.id);
     setTemplatePrompt(nextTemplate.prompt);
+    setSrcFile2(null);
+    setSrcUrl2("");
     if (nextTemplate.preferredAspect) {
       setAspect(nextTemplate.preferredAspect);
     }
@@ -2548,6 +2549,74 @@ export default function Home() {
             object-fit: contain;
           }
 
+          .selectedTemplateShell {
+            margin-top: 10px;
+          }
+
+          .selectedTemplateHeader {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+          }
+
+          .selectedTemplateTitle {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.92);
+          }
+
+          .selectedTemplateGrid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+            align-items: stretch;
+          }
+
+          .selectedTemplateCol {
+            display: flex;
+          }
+
+          .selectedTemplateTile {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 9 / 14;
+          }
+
+          .selectedTemplateTile .tile-label {
+            left: 50%;
+            bottom: 16px;
+            transform: translateX(-50%);
+            text-align: center;
+            width: calc(100% - 32px);
+          }
+
+          .selectedTemplateAction {
+            display: flex;
+            justify-content: center;
+            margin-top: 18px;
+          }
+
+          .selectedTemplateAction .ios-btn {
+            min-width: 220px;
+          }
+
+          .selectedTemplateStatus {
+            margin-top: 12px;
+            display: flex;
+            justify-content: center;
+          }
+
+          .selectedTemplateError {
+            margin-top: 12px;
+            color: rgba(255, 120, 120, 0.95);
+            white-space: pre-wrap;
+            word-break: break-word;
+            text-align: center;
+          }
+
           .templatesSection {
             max-width: 900px;
             margin: 26px auto 0;
@@ -2574,6 +2643,10 @@ export default function Home() {
 
             .homeTemplatesRow {
               grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .selectedTemplateTile {
+              aspect-ratio: 9 / 15;
             }
           }
 
@@ -2625,6 +2698,28 @@ export default function Home() {
             .homeTemplateCard {
               min-width: min(240px, 72vw);
               scroll-snap-align: start;
+            }
+
+            .selectedTemplateHeader {
+              margin-bottom: 14px;
+            }
+
+            .selectedTemplateTitle {
+              font-size: 18px;
+            }
+
+            .selectedTemplateGrid {
+              gap: 12px;
+            }
+
+            .selectedTemplateTile {
+              aspect-ratio: 9 / 16;
+              border-radius: 22px;
+            }
+
+            .selectedTemplateAction .ios-btn {
+              width: 100%;
+              max-width: 260px;
             }
           }
 
@@ -2801,82 +2896,44 @@ export default function Home() {
             <>
               {selectedTemplateId ? (
                 <>
-                  {/* РОЗШИРЕНИЙ ВИГЛЯД після вибору шаблону */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-                    <button
-                      type="button"
-                      className="ios-btn ios-btn--ghost"
-                      onClick={() => {
-                        setSelectedTemplateId(null);
-                        setTemplatePrompt(null);
-                      }}
-                      style={{ padding: "8px 12px" }}
-                    >
-                      ← {lang === "uk" ? "Назад" : "Back"}
-                    </button>
-                    <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "rgba(255,255,255,0.92)" }}>
-                      {selectedTemplate?.title}
-                    </h2>
-                  </div>
-
-                  <div className="uploadRow">
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
-                      <div
-                        className="uploadTile uploadTileBig"
-                        role="button"
-                        tabIndex={0}
-                        aria-label={lang === "uk" ? "Завантажити фото" : "Upload image"}
-                        onClick={() => openSourceModal("image", "file1")}
-                        onKeyDown={(e) => e.key === "Enter" && openSourceModal("image", "file1")}
+                  <div className="selectedTemplateShell">
+                    <div className="selectedTemplateHeader">
+                      <button
+                        type="button"
+                        className="ios-btn ios-btn--ghost"
+                        onClick={() => {
+                          setSelectedTemplateId(null);
+                          setTemplatePrompt(null);
+                        }}
+                        style={{ padding: "8px 12px" }}
                       >
-                        {srcPreview ? (
-                          <>
-                            <img src={srcPreview} alt="reference1" />
-                            <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                            <button
-                              type="button"
-                              className="tile-remove"
-                              aria-label={lang === "uk" ? "Видалити референс" : "Remove reference"}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSrcFile(null);
-                                setSrcUrl("");
-                                setSrcFile2(null);
-                                setSrcUrl2("");
-                              }}
-                            >
-                              ✕
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <span className="uploadPlus">+</span>
-                            <span className="tile-label">{lang === "uk" ? "Фото" : "Photo"}</span>
-                          </>
-                        )}
-                      </div>
+                        ← {lang === "uk" ? "Назад" : "Back"}
+                      </button>
+                      <h2 className="selectedTemplateTitle">{selectedTemplate?.title}</h2>
                     </div>
 
-                    {(srcFile || srcUrl) && (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                    <div className="selectedTemplateGrid">
+                      <div className="selectedTemplateCol">
                         <div
-                          className="uploadTile uploadTileBig"
+                          className="uploadTile uploadTileBig selectedTemplateTile"
                           role="button"
                           tabIndex={0}
-                          aria-label={lang === "uk" ? "Завантажити друге фото" : "Upload second image"}
-                          onClick={() => openSourceModal("image", "file2t")}
-                          onKeyDown={(e) => e.key === "Enter" && openSourceModal("image", "file2t")}
+                          aria-label={lang === "uk" ? "Завантажити фото" : "Upload image"}
+                          onClick={() => openSourceModal("image", "file1")}
+                          onKeyDown={(e) => e.key === "Enter" && openSourceModal("image", "file1")}
                         >
-                          {srcPreview2 ? (
+                          {srcPreview ? (
                             <>
-                              <img src={srcPreview2} alt="reference2" />
-                              <span className="tile-label">{lang === "uk" ? "Фото 2" : "Photo 2"}</span>
+                              <img src={srcPreview} alt="reference1" />
+                              <span className="tile-label">{lang === "uk" ? "Твоє фото" : "Your photo"}</span>
                               <button
                                 type="button"
                                 className="tile-remove"
-                                aria-label={lang === "uk" ? "Видалити" : "Remove"}
+                                aria-label={lang === "uk" ? "Видалити референс" : "Remove reference"}
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  setSrcFile(null);
+                                  setSrcUrl("");
                                   setSrcFile2(null);
                                   setSrcUrl2("");
                                 }}
@@ -2887,35 +2944,37 @@ export default function Home() {
                           ) : (
                             <>
                               <span className="uploadPlus">+</span>
-                              <span className="tile-label">{lang === "uk" ? "Фото 2" : "Photo 2"}</span>
+                              <span className="tile-label">{lang === "uk" ? "Завантажити фото" : "Upload photo"}</span>
                             </>
                           )}
                         </div>
                       </div>
-                    )}
 
-                    <div className="uploadTile uploadTileBig templatePreviewBig">
-                      {selectedTemplate?.previewVideo ? (
-                        <video
-                          src={selectedTemplate?.previewVideo}
-                          muted
-                          loop
-                          autoPlay
-                          playsInline
-                          preload="metadata"
-                          poster={selectedTemplate?.preview}
-                          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-                        />
-                      ) : (
-                        <>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={selectedTemplate?.preview_url || selectedTemplate?.preview}
-                            alt={selectedTemplate?.title}
-                          />
-                        </>
-                      )}
-                      <span className="tile-label">{lang === "uk" ? "Шаблон" : "Template"}</span>
+                      <div className="selectedTemplateCol">
+                        <div className="uploadTile uploadTileBig templatePreviewBig selectedTemplateTile">
+                          {selectedTemplate?.previewVideo ? (
+                            <video
+                              src={selectedTemplate?.previewVideo}
+                              muted
+                              loop
+                              autoPlay
+                              playsInline
+                              preload="metadata"
+                              poster={selectedTemplate?.preview}
+                              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+                            />
+                          ) : (
+                            <>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={selectedTemplate?.preview_url || selectedTemplate?.preview}
+                                alt={selectedTemplate?.title}
+                              />
+                            </>
+                          )}
+                          <span className="tile-label">{lang === "uk" ? "Прев’ю результату" : "Result preview"}</span>
+                        </div>
+                      </div>
                     </div>
 
                     <input
@@ -2934,7 +2993,6 @@ export default function Home() {
                           return;
                         }
 
-                        // Convert HEIC to JPEG if needed
                         try {
                           f = await normalizeImageFile(f);
                         } catch (err: any) {
@@ -2958,240 +3016,43 @@ export default function Home() {
                         }
                       }}
                     />
-                    <input
-                      id="file2t"
-                      type="file"
-                      accept={acceptImg}
-                      style={{ display: "none" }}
-                      onChange={async (e) => {
-                        let f = e.target.files?.[0] ?? null;
 
-                        setError(null);
-
-                        if (!f) {
-                          setSrcFile2(null);
-                          setSrcUrl2("");
-                          return;
-                        }
-
-                        // Convert HEIC to JPEG if needed
-                        try {
-                          f = await normalizeImageFile(f);
-                        } catch (err: any) {
-                          setError(normalizeErr(err));
-                          setSrcFile2(null);
-                          setSrcUrl2("");
-                          return;
-                        }
-
-                        setSrcFile2(f);
-                        setSrcUrl2("");
-
-                        try {
-                          setRefUploading(true);
-                          const { url } = await uploadToR2AndGetPublicUrl(f);
-                          setSrcUrl2(url);
-                        } catch (err: any) {
-                          setError(normalizeErr(err));
-                        } finally {
-                          setRefUploading(false);
-                        }
-                      }}
-                    />
-                  </div>
-
-                  {(!hideSelectedTemplatePhotoSettings || refUploading) && (
-                    <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
-                      {!hideSelectedTemplatePhotoSettings && (
-                        <div ref={inlineSelectorsRef} style={{ display: "flex", gap: 24, alignItems: "center" }}>
-                          <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
-                            <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>
-                              {lang === "uk" ? "Формат" : "Format"}
-                            </div>
-                            <div style={{ position: "relative" }}>
-                              <button
-                                type="button"
-                                className="vPill selectTrigger miniSelectTrigger"
-                                  onClick={() => {
-                                    setFormatOpen((v) => !v);
-                                    setModelOpen(false);
-                                    setQtyOpen(false);
-                                  }}
-                                aria-haspopup="menu"
-                                aria-expanded={formatOpen}
-                              >
-                                <span style={{ opacity: 0.95 }}>{aspect}</span>
-                                <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>▾</span>
-                              </button>
-
-                              {formatOpen && (
-                                <div
-                                  className="smallDropdown miniDropdown"
-                                  role="menu"
-                                  onMouseDown={(e) => e.stopPropagation()}
-                                  onTouchStart={(e) => e.stopPropagation()}
-                                >
-                                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                    {ASPECT_OPTIONS.map((r) => (
-                                      <button
-                                        key={r}
-                                        type="button"
-                                        className={aspect === r ? "formatOption active numMono" : "formatOption numMono"}
-                                        onClick={() => {
-                                          setAspect(r);
-                                          setFormatOpen(false);
-                                        }}
-                                      >
-                                        <span style={{ display: "inline-flex", justifyContent: "space-between", width: "100%" }}>
-                                          <span>{r}</span>
-                                          {aspect === r && <span>✓</span>}
-                                        </span>
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          <div style={{ position: "relative", display: "inline-flex", alignItems: "center" }}>
-                            <div className="groupTitle" style={{ marginBottom: 0, marginRight: 8 }}>
-                              {lang === "uk" ? "Модель" : "Model"}
-                            </div>
-                            <div style={{ position: "relative" }}>
-                              <button
-                                type="button"
-                                className="vPill selectTrigger miniSelectTrigger"
-                                onClick={() => {
-                                  setModelOpen((v) => !v);
-                                  setFormatOpen(false);
-                                  setQtyOpen(false);
-                                }}
-                                aria-haspopup="menu"
-                                aria-expanded={modelOpen}
-                              >
-                                <span style={{ opacity: 0.95 }}>
-                                  {photoModel === "chatgpt" ? "ChatGPT" : "Nano Banana"}
-                                </span>
-                                <span style={{ marginLeft: 6, fontSize: 12, opacity: 0.85 }}>▾</span>
-                              </button>
-
-                              {modelOpen && (
-                                <div
-                                  className="smallDropdown miniDropdown"
-                                  role="menu"
-                                  onMouseDown={(e) => e.stopPropagation()}
-                                  onTouchStart={(e) => e.stopPropagation()}
-                                >
-                                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                    {([
-                                      { key: "chatgpt", label: "ChatGPT" },
-                                      { key: "nano-banana", label: "Nano Banana" },
-                                    ] as const).map((m) => (
-                                      <button
-                                        key={m.key}
-                                        type="button"
-                                        className={photoModel === m.key ? "formatOption active numMono" : "formatOption numMono"}
-                                        onClick={() => {
-                                          setPhotoModel(m.key);
-                                          setModelOpen(false);
-                                        }}
-                                      >
-                                        <span style={{ display: "inline-flex", justifyContent: "space-between", width: "100%" }}>
-                                          <span>{m.label}</span>
-                                          {photoModel === m.key && <span>✓</span>}
-                                        </span>
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
+                    <div className="selectedTemplateAction">
+                      {!session ? (
+                        <Link
+                          className="ios-btn ios-btn--primary"
+                          href="/auth"
+                          style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                        >
+                          {dict.signIn}
+                        </Link>
+                      ) : points <= 0 ? (
+                        <Link
+                          className="ios-btn ios-btn--primary"
+                          href="/account"
+                          style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
+                        >
+                          {dict.buyPoints}
+                        </Link>
+                      ) : (
+                        <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
+                          {generateBtnText}
+                        </button>
                       )}
+                    </div>
 
-                      {refUploading && (
+                    {(loading || refUploading) && (
+                      <div className="selectedTemplateStatus">
                         <div className="gen-pill">
                           <span>
-                            {lang === "uk" ? "Завантаження фото" : "Uploading image"}
+                            {loading ? dict.generating : lang === "uk" ? "Завантаження фото" : "Uploading image"}
                             <LoadingDots />
                           </span>
                         </div>
-                      )}
-                    </div>
-                  )}
-
-                  {(!session ||
-                    (!!session && points <= 0) ||
-                    (!!session && points > 0 && points < currentCost)) && (
-                      <div style={{ marginTop: 10, opacity: 0.9 }}>
-                        {!session && <div>{dict.authRequired}</div>}
-                        {!!session && points <= 0 && (
-                          <div>
-                            У тебе 0 балів —{" "}
-                            <Link href="/account" style={{ textDecoration: "underline" }}>
-                              обери пакет балів
-                            </Link>
-                            .
-                          </div>
-                        )}
-                        {!!session && points > 0 && points < currentCost && (
-                          <div>
-                            Недостатньо балів —{" "}
-                            <Link href="/account" style={{ textDecoration: "underline" }}>
-                              поповнити
-                            </Link>
-                            .
-                          </div>
-                        )}
                       </div>
                     )}
 
-                  <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 12, flexWrap: "wrap" }}>
-                    {!session ? (
-                      <Link
-                        className="ios-btn ios-btn--primary"
-                        href="/auth"
-                        style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-                      >
-                        {dict.signIn}
-                      </Link>
-                    ) : points <= 0 ? (
-                      <Link
-                        className="ios-btn ios-btn--primary"
-                        href="/account"
-                        style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}
-                      >
-                        {dict.buyPoints}
-                      </Link>
-                    ) : (
-                      <button className="ios-btn ios-btn--primary" onClick={onGenerateClick} disabled={generateDisabled}>
-                        {generateBtnText}
-                      </button>
-                    )}
-
-                    {(loading || refUploading) && (
-                      <div className="gen-pill">
-                        <span>
-                          {loading ? dict.generating : lang === "uk" ? "Завантаження фото" : "Uploading image"}
-                          <LoadingDots />
-                        </span>
-                      </div>
-                    )}
-
-                    {error && (
-                      <div
-                        style={{
-                          color: "rgba(255, 120, 120, 0.95)",
-                          maxWidth: 680,
-                          whiteSpace: "pre-wrap",
-                          wordBreak: "break-word",
-                        }}
-                      >
-                        {error}
-                      </div>
-                    )}
+                    {error && <div className="selectedTemplateError">{error}</div>}
                   </div>
                 </>
               ) : (
