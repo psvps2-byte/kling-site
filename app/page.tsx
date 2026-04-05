@@ -411,6 +411,20 @@ export default function Home() {
       prompt:
         "Кінематографічне відео крупного портрету жінки серед квітучих гілок сакури під час золотої години. Вона стоїть із заплющеними очима, спокійна та розслаблена, ніжно торкається обличчя руками.\nТепле сонячне світло проходить крізь пелюстки, створюючи м’які природні тіні від квітів на її шкірі. Легкий вітер повільно рухає волосся та гілки навколо. Пелюстки сакури повільно падають у повітрі.\nКамера плавно рухається вперед (slow dolly-in), зйомка крізь розмиті квіти на передньому плані, сильне боке, мала глибина різкості. Атмосфера ніжності, спокою та весни.\nФотореалізм, м’який фокус, cinematic lighting, pastel tones, fashion editorial style.",
     },
+    {
+      id: "mario-buddy",
+      title: "Дитина і Mario",
+      previewVideo: "/templates/mario-buddy-preview.mp4",
+      sectionKey: "popular",
+      hidePhotoSettings: true,
+      preferredAspect: "9:16" as Aspect,
+      preferredModel: "nano-banana" as PhotoModelChoice,
+      autoOpenUpload: true,
+      homeSubtitleUk: "Яскрава сцена з дитиною та персонажем Mario",
+      homeSubtitleEn: "Bright scene with a child and Mario",
+      prompt:
+        "Реалістичне фото дитини, яка стоїть поруч із персонажем Mario. Вона стоїть у повний зріст, усміхається та показує жест \"лайк\" рукою.\nMario стоїть поруч, обіймає дитину за плечі та також показує \"лайк\", при цьому він стоїть на класичному блоці з гри Super Mario (жовтий блок зі знаком питання).\nФон — яскравий мультяшний світ у стилі гри Super Mario: зелені пагорби, блоки зі знаком питання, труби, хмаринки та яскраве синє небо.\nСтиль: фотореалізм + інтеграція 3D мультяшного персонажа, висока деталізація, природне освітлення, чіткість, глибина різкості, вертикальне кадрування, повний зріст, 4k.",
+    },
   ];
   const effectiveTemplates = SHOW_TEMPLATES ? templates : localTemplates;
   const homeFeaturedTemplates = effectiveTemplates.filter((tpl) => tpl.sectionKey === "popular" || !tpl.sectionKey);
