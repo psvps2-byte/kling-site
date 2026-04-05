@@ -413,7 +413,7 @@ export default function Home() {
     },
     {
       id: "mario-buddy",
-      title: "Дитина і Mario",
+      title: "Друзі з Маріо",
       previewVideo: "/templates/mario-buddy-preview.mp4",
       sectionKey: "popular",
       hidePhotoSettings: true,
