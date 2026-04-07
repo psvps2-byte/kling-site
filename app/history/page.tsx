@@ -127,7 +127,6 @@ export default function HistoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [pendingLocal, setPendingLocal] = useState<PendingGeneration[]>([]);
   const [nowTs, setNowTs] = useState<number>(Date.now());
-  const [copiedPromptUid, setCopiedPromptUid] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // ✅ Показуємо по 20 (кнопка “Ще”)
@@ -417,7 +416,7 @@ export default function HistoryPage() {
     }
   }
 
-  async function copyPrompt(prompt?: string, uid?: string) {
+  async function copyPrompt(prompt?: string) {
     const value = String(prompt || "").trim();
     if (!value) {
       showToast(dict.noPrompt ?? "Немає промпту");
@@ -425,12 +424,6 @@ export default function HistoryPage() {
     }
     try {
       await navigator.clipboard.writeText(value);
-      if (uid) {
-        setCopiedPromptUid(uid);
-        window.setTimeout(() => {
-          setCopiedPromptUid((current) => (current === uid ? null : current));
-        }, 1500);
-      }
       showToast(dict.copied ?? "Скопійовано!");
     } catch {
       showToast(dict.copyFailed ?? "Не вдалося скопіювати");
@@ -596,29 +589,6 @@ export default function HistoryPage() {
 
         .preview-img--photo {
           object-fit: cover;
-        }
-
-        .preview-action {
-          position: absolute;
-          top: 12px;
-          right: 12px;
-          z-index: 2;
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          background: rgba(10, 12, 20, 0.72);
-          color: white;
-          border-radius: 999px;
-          padding: 8px 12px;
-          font-size: 12px;
-          font-weight: 600;
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
-          cursor: pointer;
-          transition: background 0.16s ease, transform 0.16s ease;
-        }
-
-        .preview-action:hover {
-          background: rgba(20, 24, 38, 0.9);
-          transform: translateY(-1px);
         }
 
         .history-toast {
@@ -796,19 +766,6 @@ export default function HistoryPage() {
                   onClick={() => openModal(it)}
                   title={it.prompt ?? ""}
                 >
-                  <button
-                    type="button"
-                    className="preview-action"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      void copyPrompt(it.prompt, it.uid);
-                    }}
-                  >
-                    {copiedPromptUid === it.uid
-                      ? (dict.copied ?? "Скопійовано!")
-                      : (dict.copyPrompt ?? "Скопіювати промпт")}
-                  </button>
-
                   {url ? (
                     isVid ? (
                       <>
@@ -1065,7 +1022,7 @@ export default function HistoryPage() {
               <button
                 type="button"
                 className="ios-btn ios-btn--ghost"
-                onClick={() => copyPrompt(selected.prompt, selected.uid)}
+                onClick={() => copyPrompt(selected.prompt)}
               >
                 {dict.copyPrompt ?? "Скопіювати промпт"}
               </button>
