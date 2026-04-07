@@ -50,27 +50,56 @@ type TemplateItem = {
 };
 
 const TENDERNESS_OF_TIME_TEMPLATE_ID = "nizhnist-chasu";
+const QUIET_LUXURY_TEMPLATE_ID = "tykha-rozkish";
 
 function isTendernessOfTimeTemplate(templateId: string | null | undefined) {
   return templateId === TENDERNESS_OF_TIME_TEMPLATE_ID;
 }
 
+function isQuietLuxuryTemplate(templateId: string | null | undefined) {
+  return templateId === QUIET_LUXURY_TEMPLATE_ID;
+}
+
+function templateNeedsAge(templateId: string | null | undefined) {
+  return isTendernessOfTimeTemplate(templateId) || isQuietLuxuryTemplate(templateId);
+}
+
+function templateNeedsSecondReference(templateId: string | null | undefined) {
+  return isTendernessOfTimeTemplate(templateId);
+}
+
 function buildSelectedTemplatePrompt(template: TemplateItem | null, ageValue: string) {
   if (!template) return "";
-  if (!isTendernessOfTimeTemplate(template.id)) return template.prompt;
+  if (isTendernessOfTimeTemplate(template.id)) {
+    const normalizedAge = String(ageValue).trim();
+    const ageInstruction = normalizedAge
+      ? `Жінці на головному портреті ${normalizedAge} роки, і свічки на торті мають показувати число "${normalizedAge}".`
+      : `Свічки на торті мають показувати актуальний вік жінки.`;
 
-  const normalizedAge = String(ageValue).trim();
-  const ageInstruction = normalizedAge
-    ? `Жінці на головному портреті ${normalizedAge} роки, і свічки на торті мають показувати число "${normalizedAge}".`
-    : `Свічки на торті мають показувати актуальний вік жінки.`;
+    return [
+      template.prompt,
+      "Використай image_1 як референс для дорослої жінки в теперішньому часі.",
+      "Використай image_2 як дитяче фото для великої чорно-білої проєкції на фоні.",
+      ageInstruction,
+      "Збережи максимальну схожість рис обличчя між дорослим і дитячим образом, але не змінюй загальний mood, композицію та стилістику шаблону.",
+    ].join("\n\n");
+  }
 
-  return [
-    template.prompt,
-    "Використай image_1 як референс для дорослої жінки в теперішньому часі.",
-    "Використай image_2 як дитяче фото для великої чорно-білої проєкції на фоні.",
-    ageInstruction,
-    "Збережи максимальну схожість рис обличчя між дорослим і дитячим образом, але не змінюй загальний mood, композицію та стилістику шаблону.",
-  ].join("\n\n");
+  if (isQuietLuxuryTemplate(template.id)) {
+    const normalizedAge = String(ageValue).trim();
+    const ageInstruction = normalizedAge
+      ? `She is celebrating her ${normalizedAge}th birthday, and the candles on the cake must clearly show the number "${normalizedAge}".`
+      : `She is celebrating her current age, and the candles on the cake should match it.`;
+
+    return [
+      template.prompt,
+      "Use image_1 as the face and styling reference for the woman.",
+      ageInstruction,
+      "Keep the same elegant monochrome styling, projector 'age' on the wall, black balloons, sunglasses, and luxury editorial mood.",
+    ].join("\n\n");
+  }
+
+  return template.prompt;
 }
 
 const ASPECT_OPTIONS = ["1:1", "16:9", "9:16"] as const;
@@ -495,6 +524,20 @@ export default function Home() {
       prompt:
         "Кінематографічний портрет молодої жінки, яка тримає невеликий святковий торт із запаленими свічками. М’яке тепле світло свічок освітлює її обличчя, навколо темний атмосферний студійний фон і мінімалістична композиція. На ній елегантний чорний одяг, оверсайз піджак, спокійний задумливий вираз обличчя. Поруч чорні повітряні кульки, драматичне м’яке освітлення, високий контраст, мала глибина різкості, редакційна fashion-фотографія, ультрареалізм, об’єктив 50mm, м’які тіні, приглушена кольорова палітра, меланхолійний атмосферний настрій, висока деталізація, 4k. Позаду велика проєкція дитячого фото цієї ж дівчини: чорно-біла, трохи розмита, ностальгічна, з сильним емоційним контрастом між минулим і теперішнім.",
     },
+    {
+      id: QUIET_LUXURY_TEMPLATE_ID,
+      title: "Тиха розкіш",
+      previewVideo: "/templates/tykha-rozkish-preview.mp4",
+      sectionKey: "special-day",
+      hidePhotoSettings: true,
+      preferredAspect: "9:16" as Aspect,
+      preferredModel: "nano-banana" as PhotoModelChoice,
+      autoOpenUpload: true,
+      homeSubtitleUk: "Стримана luxury fashion-сцена до дня народження",
+      homeSubtitleEn: "Subtle luxury fashion birthday scene",
+      prompt:
+        "A high-fashion editorial photoshoot of a confident woman celebrating her birthday. She is sitting in a stylish pose, slightly crouching in a minimalist studio, wearing an oversized black blazer with a deep neckline, bare legs, black high heels, and stylish black sunglasses. She is holding a small chocolate cake with glossy icing, topped with lit number candles. The scene is elegant and monochrome: black helium balloons on the left side and on the floor with mixed matte and glossy textures. Behind her, a large age number is projected onto the wall with a soft projector glow on a clean light gray background. Soft diffused studio lighting, subtle shadows, cinematic contrast, luxury aesthetic, modern minimalism, sharp focus, ultra-detailed skin texture, professional photography, fashion magazine style, 85mm lens, shallow depth of field, high resolution, clean composition.",
+    },
   ];
   const effectiveTemplates = SHOW_TEMPLATES ? templates : localTemplates;
   const templateSections = [
@@ -554,7 +597,8 @@ export default function Home() {
   const selectedTemplate = selectedTemplateId
     ? effectiveTemplates.find((tpl) => tpl.id === selectedTemplateId) ?? null
     : null;
-  const selectedTemplateNeedsAge = isTendernessOfTimeTemplate(selectedTemplateId);
+  const selectedTemplateNeedsAge = templateNeedsAge(selectedTemplateId);
+  const selectedTemplateNeedsSecondReference = templateNeedsSecondReference(selectedTemplateId);
   const selectedTemplatePrompt = useMemo(
     () => buildSelectedTemplatePrompt(selectedTemplate, templateAge),
     [selectedTemplate, templateAge]
@@ -1591,7 +1635,7 @@ export default function Home() {
       if (selectedTemplateNeedsAge && !templateAge.trim()) {
         throw new Error(lang === "uk" ? "Вкажи вік для шаблону" : "Enter the age for this template");
       }
-      if (isTendernessOfTimeTemplate(selectedTemplateId) && !srcUrl2) {
+      if (selectedTemplateNeedsSecondReference && !srcUrl2) {
         throw new Error(
           lang === "uk"
             ? "Додай дитяче фото для шаблону «Ніжність часу»"
@@ -3086,9 +3130,13 @@ export default function Home() {
                               <img src={srcPreview} alt="reference1" />
                               <span className="tile-label">
                                 {selectedTemplateNeedsAge
-                                  ? lang === "uk"
-                                    ? "Доросле фото"
-                                    : "Adult photo"
+                                  ? selectedTemplateNeedsSecondReference
+                                    ? lang === "uk"
+                                      ? "Доросле фото"
+                                      : "Adult photo"
+                                    : lang === "uk"
+                                      ? "Фото"
+                                      : "Photo"
                                   : lang === "uk"
                                     ? "Твоє фото"
                                     : "Your photo"}
@@ -3113,9 +3161,13 @@ export default function Home() {
                               <span className="uploadPlus">+</span>
                               <span className="tile-label">
                                 {selectedTemplateNeedsAge
-                                  ? lang === "uk"
-                                    ? "Доросле фото"
-                                    : "Adult photo"
+                                  ? selectedTemplateNeedsSecondReference
+                                    ? lang === "uk"
+                                      ? "Доросле фото"
+                                      : "Adult photo"
+                                    : lang === "uk"
+                                      ? "Фото"
+                                      : "Photo"
                                   : lang === "uk"
                                     ? "Завантажити фото"
                                     : "Upload photo"}
@@ -3125,7 +3177,7 @@ export default function Home() {
                         </div>
                       </div>
 
-                      {selectedTemplateNeedsAge && (
+                      {selectedTemplateNeedsSecondReference && (
                         <div className="selectedTemplateCol">
                           <div
                             className="uploadTile uploadTileBig selectedTemplateTile"
@@ -3162,7 +3214,7 @@ export default function Home() {
                         </div>
                       )}
 
-                      {!selectedTemplateNeedsAge && (
+                      {!selectedTemplateNeedsSecondReference && (
                         <div className="selectedTemplateCol">
                           <div className="uploadTile uploadTileBig templatePreviewBig selectedTemplateTile">
                             {selectedTemplate?.previewVideo ? (
