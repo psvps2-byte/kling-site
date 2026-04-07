@@ -2741,11 +2741,19 @@ export default function Home() {
           .selectedTemplateAction {
             display: flex;
             justify-content: center;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
             margin-top: 18px;
           }
 
           .selectedTemplateAction .ios-btn {
             min-width: 220px;
+          }
+
+          .selectedTemplateAgeInput {
+            width: 120px;
+            text-align: center;
           }
 
           .selectedTemplateStatus {
@@ -2862,6 +2870,10 @@ export default function Home() {
             .selectedTemplateAction .ios-btn {
               width: 100%;
               max-width: 260px;
+            }
+
+            .selectedTemplateAgeInput {
+              width: min(140px, 42vw);
             }
           }
 
@@ -3118,46 +3130,6 @@ export default function Home() {
                           <div
                             className="uploadTile uploadTileBig selectedTemplateTile"
                             role="button"
-                            tabIndex={-1}
-                            style={{
-                              padding: 22,
-                              display: "flex",
-                              flexDirection: "column",
-                              alignItems: "flex-start",
-                              justifyContent: "space-between",
-                              gap: 14,
-                              cursor: "default",
-                            }}
-                          >
-                            <div style={{ display: "grid", gap: 6, width: "100%" }}>
-                              <div style={{ fontSize: 14, fontWeight: 700 }}>
-                                {lang === "uk" ? "Вік на торті" : "Age on the cake"}
-                              </div>
-                              <div style={{ fontSize: 13, opacity: 0.72, lineHeight: 1.45 }}>
-                                {lang === "uk"
-                                  ? "Це число використаємо для свічок і настрою сцени."
-                                  : "We will use this number for the candles and scene mood."}
-                              </div>
-                            </div>
-                            <input
-                              className="ios-input"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              placeholder={lang === "uk" ? "Наприклад, 32" : "For example, 32"}
-                              value={templateAge}
-                              onClick={(e) => e.stopPropagation()}
-                              onChange={(e) => setTemplateAge(e.target.value.replace(/[^\d]/g, "").slice(0, 3))}
-                              style={{ width: "100%", maxWidth: "100%" }}
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      {selectedTemplateNeedsAge && (
-                        <div className="selectedTemplateCol">
-                          <div
-                            className="uploadTile uploadTileBig selectedTemplateTile"
-                            role="button"
                             tabIndex={0}
                             aria-label={lang === "uk" ? "Завантажити дитяче фото" : "Upload childhood image"}
                             onClick={() => openSourceModal("image", "file2t")}
@@ -3190,31 +3162,33 @@ export default function Home() {
                         </div>
                       )}
 
-                      <div className="selectedTemplateCol">
-                        <div className="uploadTile uploadTileBig templatePreviewBig selectedTemplateTile">
-                          {selectedTemplate?.previewVideo ? (
-                            <video
-                              src={selectedTemplate?.previewVideo}
-                              muted
-                              loop
-                              autoPlay
-                              playsInline
-                              preload="metadata"
-                              poster={selectedTemplate?.preview}
-                              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
-                            />
-                          ) : (
-                            <>
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={selectedTemplate?.preview_url || selectedTemplate?.preview}
-                                alt={selectedTemplate?.title}
+                      {!selectedTemplateNeedsAge && (
+                        <div className="selectedTemplateCol">
+                          <div className="uploadTile uploadTileBig templatePreviewBig selectedTemplateTile">
+                            {selectedTemplate?.previewVideo ? (
+                              <video
+                                src={selectedTemplate?.previewVideo}
+                                muted
+                                loop
+                                autoPlay
+                                playsInline
+                                preload="metadata"
+                                poster={selectedTemplate?.preview}
+                                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
                               />
-                            </>
-                          )}
-                          <span className="tile-label">{lang === "uk" ? "Прев’ю результату" : "Result preview"}</span>
+                            ) : (
+                              <>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={selectedTemplate?.preview_url || selectedTemplate?.preview}
+                                  alt={selectedTemplate?.title}
+                                />
+                              </>
+                            )}
+                            <span className="tile-label">{lang === "uk" ? "Прев’ю результату" : "Result preview"}</span>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
 
                     <input
@@ -3297,6 +3271,17 @@ export default function Home() {
                     />
 
                     <div className="selectedTemplateAction">
+                      {selectedTemplateNeedsAge && (
+                        <input
+                          className="ios-input selectedTemplateAgeInput"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          placeholder={lang === "uk" ? "Вік" : "Age"}
+                          aria-label={lang === "uk" ? "Вік на торті" : "Age on the cake"}
+                          value={templateAge}
+                          onChange={(e) => setTemplateAge(e.target.value.replace(/[^\d]/g, "").slice(0, 3))}
+                        />
+                      )}
                       {!session ? (
                         <Link
                           className="ios-btn ios-btn--primary"
