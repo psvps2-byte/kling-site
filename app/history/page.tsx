@@ -127,6 +127,7 @@ export default function HistoryPage() {
   const [error, setError] = useState<string | null>(null);
   const [pendingLocal, setPendingLocal] = useState<PendingGeneration[]>([]);
   const [nowTs, setNowTs] = useState<number>(Date.now());
+  const [copiedPromptUid, setCopiedPromptUid] = useState<string | null>(null);
 
   // ✅ Показуємо по 20 (кнопка “Ще”)
   const [visibleCount, setVisibleCount] = useState(20);
@@ -395,6 +396,26 @@ export default function HistoryPage() {
     }
   }
 
+  async function copyPrompt(prompt?: string, uid?: string) {
+    const value = String(prompt || "").trim();
+    if (!value) {
+      alert(dict.noPrompt ?? "Немає промпту");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(value);
+      if (uid) {
+        setCopiedPromptUid(uid);
+        window.setTimeout(() => {
+          setCopiedPromptUid((current) => (current === uid ? null : current));
+        }, 1500);
+      }
+      alert(dict.copied);
+    } catch {
+      alert(dict.copyFailed);
+    }
+  }
+
   async function shareLink(url?: string) {
     if (!url) return;
 
@@ -556,6 +577,29 @@ export default function HistoryPage() {
           object-fit: cover;
         }
 
+        .preview-action {
+          position: absolute;
+          top: 12px;
+          right: 12px;
+          z-index: 2;
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          background: rgba(10, 12, 20, 0.72);
+          color: white;
+          border-radius: 999px;
+          padding: 8px 12px;
+          font-size: 12px;
+          font-weight: 600;
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          cursor: pointer;
+          transition: background 0.16s ease, transform 0.16s ease;
+        }
+
+        .preview-action:hover {
+          background: rgba(20, 24, 38, 0.9);
+          transform: translateY(-1px);
+        }
+
       `}</style>
 
       {/* top bar */}
@@ -687,6 +731,18 @@ export default function HistoryPage() {
                   onClick={() => openModal(it)}
                   title={it.prompt ?? ""}
                 >
+                  <button
+                    type="button"
+                    className="preview-action"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void copyPrompt(it.prompt, it.uid);
+                    }}
+                  >
+                    {copiedPromptUid === it.uid
+                      ? (dict.copied ?? "Скопійовано!")
+                      : (dict.copyPrompt ?? "Скопіювати промпт")}
+                  </button>
 
                   {url ? (
                     isVid ? (
@@ -849,39 +905,74 @@ export default function HistoryPage() {
                 minHeight: 0,
               }}
             >
-              {modalIsVideo ? (
-                <div
-                  style={{
-                    width: "min(100%, 460px)",
-                    maxHeight: "min(78vh, 100%)",
-                    borderRadius: 18,
-                    overflow: "hidden",
-                    background: "rgba(8, 10, 18, 0.96)",
-                    boxShadow: "0 18px 50px rgba(0,0,0,0.35)",
-                  }}
-                >
-                  <video
-                    src={modalVideoUrl}
-                    controls
-                    playsInline
-                    preload="metadata"
+              <div style={{ width: "min(100%, 720px)", display: "grid", gap: 16 }}>
+                {modalIsVideo ? (
+                  <div
                     style={{
-                      display: "block",
-                      width: "100%",
+                      width: "min(100%, 460px)",
                       maxHeight: "min(78vh, 100%)",
-                      objectFit: "contain",
+                      margin: "0 auto",
+                      borderRadius: 18,
+                      overflow: "hidden",
                       background: "rgba(8, 10, 18, 0.96)",
+                      boxShadow: "0 18px 50px rgba(0,0,0,0.35)",
+                    }}
+                  >
+                    <video
+                      src={modalVideoUrl}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      style={{
+                        display: "block",
+                        width: "100%",
+                        maxHeight: "min(78vh, 100%)",
+                        objectFit: "contain",
+                        background: "rgba(8, 10, 18, 0.96)",
+                      }}
+                    />
+                  </div>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={modalUrl}
+                    alt={selected.prompt || "preview"}
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "min(78vh, 100%)",
+                      borderRadius: 18,
+                      margin: "0 auto",
                     }}
                   />
+                )}
+
+                <div
+                  style={{
+                    display: "grid",
+                    gap: 8,
+                    padding: 14,
+                    borderRadius: 18,
+                    border: "1px solid rgba(255,255,255,0.08)",
+                    background: "rgba(255,255,255,0.05)",
+                  }}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.82 }}>
+                    {dict.copyPrompt ?? "Скопіювати промпт"}
+                  </div>
+                  <div
+                    style={{
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                      fontSize: 14,
+                      lineHeight: 1.5,
+                      color: "rgba(255,255,255,0.92)",
+                      opacity: selected.prompt ? 1 : 0.68,
+                    }}
+                  >
+                    {selected.prompt || (dict.noPrompt ?? "Немає промпту")}
+                  </div>
                 </div>
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={modalUrl}
-                  alt={selected.prompt || "preview"}
-                  style={{ maxWidth: "100%", maxHeight: "min(78vh, 100%)", borderRadius: 18 }}
-                />
-              )}
+              </div>
             </div>
 
             {/* ✅ кнопки тільки в модалці */}
@@ -904,6 +995,13 @@ export default function HistoryPage() {
               </button>
               <button type="button" className="ios-btn ios-btn--ghost" onClick={() => copyLink(modalUrl)}>
                 {dict.copyLink}
+              </button>
+              <button
+                type="button"
+                className="ios-btn ios-btn--ghost"
+                onClick={() => copyPrompt(selected.prompt, selected.uid)}
+              >
+                {dict.copyPrompt ?? "Скопіювати промпт"}
               </button>
               <button type="button" className="ios-btn ios-btn--ghost" onClick={() => shareLink(modalUrl)}>
                 {dict.share}
