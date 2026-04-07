@@ -25,11 +25,28 @@ type VideoDuration = 5 | 10;
 type CharacterOrientation = "image" | "video";
 type PhotoModelChoice = "chatgpt" | "nano-banana";
 type PendingKind = "photo" | "video";
+type TemplateSectionKey = "popular" | "special-day";
 type PendingGeneration = {
   id: string;
   kind: PendingKind;
   createdAt: number;
   prompt: string;
+};
+
+type TemplateItem = {
+  id: string;
+  title: string;
+  prompt: string;
+  preview?: string;
+  preview_url?: string;
+  previewVideo?: string;
+  hidePhotoSettings?: boolean;
+  preferredAspect?: Aspect;
+  preferredModel?: PhotoModelChoice;
+  autoOpenUpload?: boolean;
+  homeSubtitleUk?: string;
+  homeSubtitleEn?: string;
+  sectionKey?: TemplateSectionKey;
 };
 
 const ASPECT_OPTIONS = ["1:1", "16:9", "9:16"] as const;
@@ -323,7 +340,7 @@ export default function Home() {
   const HERO_VIDEO_SRC = "/hero-loop.mp4";
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
-  const [templates, setTemplates] = useState<any[]>([]);
+  const [templates, setTemplates] = useState<TemplateItem[]>([]);
   const [templatePrompt, setTemplatePrompt] = useState<string | null>(null);
 
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -356,7 +373,7 @@ export default function Home() {
     loadTemplates();
   }, []);
 
-  const localTemplates = [
+  const localTemplates: TemplateItem[] = [
     {
       id: "sakura-garden-fashion",
       title: "Сакура в саду",
@@ -425,9 +442,43 @@ export default function Home() {
       prompt:
         "Людина що на фото-референсі стоїть поруч із персонажем Mario. Вона стоїть у повний зріст, усміхається та показує жест \"лайк\" рукою.\nMario стоїть поруч, обіймає людину за плечі та також показує \"лайк\", при цьому він стоїть на класичному блоці з гри Super Mario (жовтий блок зі знаком питання).\nФон — яскравий мультяшний світ у стилі гри Super Mario: зелені пагорби, блоки зі знаком питання, труби, хмаринки та яскраве синє небо.\nСтиль: фотореалізм + інтеграція 3D мультяшного персонажа, висока деталізація, природне освітлення, чіткість, глибина різкості, вертикальне кадрування, повний зріст, 4k.",
     },
+    {
+      id: "iskristiy-nastriy",
+      title: "Іскристий Настрій",
+      previewVideo: "/templates/iskristiy-nastriy-preview.mp4",
+      sectionKey: "special-day",
+      hidePhotoSettings: true,
+      preferredAspect: "9:16" as Aspect,
+      preferredModel: "nano-banana" as PhotoModelChoice,
+      autoOpenUpload: true,
+      homeSubtitleUk: "Гламурна fashion-сцена з диско кулями та святковим настроєм",
+      homeSubtitleEn: "Glamorous fashion scene with disco balls and a celebratory mood",
+      prompt:
+        "A stylish cinematic fashion video of an elegant woman in a black sequin mini dress, crouching gracefully in a minimal studio with a light gray background. She is surrounded by large reflective disco balls and scattered silver confetti on the floor. The woman holds a champagne glass and smiles softly.\nSubtle natural movements: she slightly shifts her pose, gently tilts her head, her hair softly moves, she raises the glass a little, and her expression changes with a relaxed, confident, playful mood.\nThe disco balls reflect moving light, creating dynamic shimmering highlights. Confetti slightly moves on the floor.\nCamera movement: slow cinematic dolly-in combined with slight side movement (parallax), smooth motion, shallow depth of field.\nLighting: soft studio lighting with glossy reflections on sequins and disco balls, high contrast sparkle highlights.\nStyle: fashion editorial, luxury, glamorous party vibe, high-end commercial.\nUltra realistic, high detail, 4K, cinematic, smooth motion, depth of field, film look.",
+    },
   ];
   const effectiveTemplates = SHOW_TEMPLATES ? templates : localTemplates;
   const homeFeaturedTemplates = effectiveTemplates.filter((tpl) => tpl.sectionKey === "popular" || !tpl.sectionKey);
+  const templateSections = [
+    {
+      key: "popular" as TemplateSectionKey,
+      titleUk: "Шаблони",
+      titleEn: "Templates",
+    },
+    {
+      key: "special-day" as TemplateSectionKey,
+      titleUk: "Твій особливий день",
+      titleEn: "Your special day",
+    },
+  ];
+  const groupedTemplateSections = templateSections
+    .map((section) => ({
+      ...section,
+      items: effectiveTemplates.filter((tpl) =>
+        section.key === "popular" ? !tpl.sectionKey || tpl.sectionKey === "popular" : tpl.sectionKey === section.key
+      ),
+    }))
+    .filter((section) => section.items.length > 0);
 
   // GLOBAL
   const [mediaTab, setMediaTab] = useState<MediaTab>(SHOW_HOME_HUB ? "home" : "photo");
@@ -2637,6 +2688,10 @@ export default function Home() {
             padding: 0 6px;
           }
 
+          .templatesGroup + .templatesGroup {
+            margin-top: 24px;
+          }
+
           .templatesTitle {
             font-size: 28px;
             font-weight: 800;
@@ -4061,45 +4116,51 @@ export default function Home() {
 
         {mediaTab === "photo" && SHOW_TEMPLATES && (
           <div className="templatesSection">
-            <h2 className="templatesTitle">{lang === "uk" ? "Шаблони" : "Templates"}</h2>
-            <div className="templatesRow">
-              {effectiveTemplates?.map((tpl) => (
-                <button
-                  key={tpl.id}
-                  type="button"
-                  className={`templateCard ${selectedTemplateId === tpl.id ? "active" : ""}`}
-                  onClick={() => {
-                    if (selectedTemplateId === tpl.id) {
-                      setSelectedTemplateId(null);
-                      setTemplatePrompt(null);
-                    } else {
-                      openTemplate(tpl.id);
-                    }
-                  }}
-                >
-                  <div className="templatePreviewWrap">
-                    {tpl.previewVideo ? (
-                      <video
-                        src={tpl.previewVideo}
-                        muted
-                        loop
-                        autoPlay
-                        playsInline
-                        preload="metadata"
-                        poster={tpl.preview_url || tpl.preview}
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                      />
-                    ) : (
-                      <>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={tpl.preview_url || tpl.preview} alt={tpl.title} />
-                      </>
-                    )}
-                  </div>
-                  <div className="templateLabel">{tpl.title}</div>
-                </button>
-              ))}
-            </div>
+            {groupedTemplateSections.map((section) => (
+              <div key={section.key} className="templatesGroup">
+                <h2 className="templatesTitle">
+                  {lang === "uk" ? section.titleUk : section.titleEn}
+                </h2>
+                <div className="templatesRow">
+                  {section.items.map((tpl) => (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      className={`templateCard ${selectedTemplateId === tpl.id ? "active" : ""}`}
+                      onClick={() => {
+                        if (selectedTemplateId === tpl.id) {
+                          setSelectedTemplateId(null);
+                          setTemplatePrompt(null);
+                        } else {
+                          openTemplate(tpl.id);
+                        }
+                      }}
+                    >
+                      <div className="templatePreviewWrap">
+                        {tpl.previewVideo ? (
+                          <video
+                            src={tpl.previewVideo}
+                            muted
+                            loop
+                            autoPlay
+                            playsInline
+                            preload="metadata"
+                            poster={tpl.preview_url || tpl.preview}
+                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          />
+                        ) : (
+                          <>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={tpl.preview_url || tpl.preview} alt={tpl.title} />
+                          </>
+                        )}
+                      </div>
+                      <div className="templateLabel">{tpl.title}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
