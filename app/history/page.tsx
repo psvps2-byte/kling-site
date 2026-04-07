@@ -128,12 +128,14 @@ export default function HistoryPage() {
   const [pendingLocal, setPendingLocal] = useState<PendingGeneration[]>([]);
   const [nowTs, setNowTs] = useState<number>(Date.now());
   const [copiedPromptUid, setCopiedPromptUid] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // ✅ Показуємо по 20 (кнопка “Ще”)
   const [visibleCount, setVisibleCount] = useState(20);
 
   const mountedRef = useRef(true);
   const lockedScrollYRef = useRef(0);
+  const toastTimerRef = useRef<number | null>(null);
 
   async function loadHistory() {
     try {
@@ -213,6 +215,14 @@ export default function HistoryPage() {
       window.scrollTo(0, lockedScrollYRef.current);
     };
   }, [selected]);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
 
   // ✅ Скидаємо “показати ще”, коли змінився пошук/фільтр/сорт
   useEffect(() => {
@@ -386,20 +396,31 @@ export default function HistoryPage() {
     setSelected(null);
   }
 
+  function showToast(message: string) {
+    setToastMessage(message);
+    if (toastTimerRef.current) {
+      window.clearTimeout(toastTimerRef.current);
+    }
+    toastTimerRef.current = window.setTimeout(() => {
+      setToastMessage(null);
+      toastTimerRef.current = null;
+    }, 2200);
+  }
+
   async function copyLink(url?: string) {
     if (!url) return;
     try {
       await navigator.clipboard.writeText(url);
-      alert(dict.copied);
+      showToast(dict.copied ?? "Скопійовано!");
     } catch {
-      alert(dict.copyFailed);
+      showToast(dict.copyFailed ?? "Не вдалося скопіювати");
     }
   }
 
   async function copyPrompt(prompt?: string, uid?: string) {
     const value = String(prompt || "").trim();
     if (!value) {
-      alert(dict.noPrompt ?? "Немає промпту");
+      showToast(dict.noPrompt ?? "Немає промпту");
       return;
     }
     try {
@@ -410,9 +431,9 @@ export default function HistoryPage() {
           setCopiedPromptUid((current) => (current === uid ? null : current));
         }, 1500);
       }
-      alert(dict.copied);
+      showToast(dict.copied ?? "Скопійовано!");
     } catch {
-      alert(dict.copyFailed);
+      showToast(dict.copyFailed ?? "Не вдалося скопіювати");
     }
   }
 
@@ -598,6 +619,50 @@ export default function HistoryPage() {
         .preview-action:hover {
           background: rgba(20, 24, 38, 0.9);
           transform: translateY(-1px);
+        }
+
+        .history-toast {
+          position: fixed;
+          top: 24px;
+          right: 24px;
+          z-index: 10020;
+          min-width: 220px;
+          max-width: min(360px, calc(100vw - 32px));
+          padding: 14px 16px;
+          border-radius: 18px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background:
+            radial-gradient(circle at top left, rgba(255, 220, 190, 0.12), transparent 42%),
+            linear-gradient(180deg, rgba(23, 20, 24, 0.9), rgba(11, 10, 14, 0.96));
+          box-shadow: 0 22px 48px rgba(0, 0, 0, 0.38);
+          color: rgba(255, 245, 236, 0.96);
+          backdrop-filter: blur(16px) saturate(140%);
+          -webkit-backdrop-filter: blur(16px) saturate(140%);
+          font-size: 14px;
+          line-height: 1.35;
+          animation: historyToastIn 0.18s ease-out;
+          pointer-events: none;
+        }
+
+        @keyframes historyToastIn {
+          from {
+            opacity: 0;
+            transform: translateY(-8px) scale(0.98);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @media (max-width: 640px) {
+          .history-toast {
+            top: auto;
+            right: 16px;
+            left: 16px;
+            bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+            max-width: none;
+          }
         }
 
       `}</style>
@@ -1018,6 +1083,8 @@ export default function HistoryPage() {
           </div>
         </div>
       )}
+
+      {toastMessage && <div className="history-toast">{toastMessage}</div>}
     </div>
   );
 }
