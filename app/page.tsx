@@ -2944,7 +2944,7 @@ export default function Home() {
                           />
                         ) : (
                           <Image
-                            src={tpl.preview_url || tpl.preview}
+                            src={tpl.preview_url || tpl.preview || "/next.svg"}
                             alt={tpl.title}
                             width={420}
                             height={620}
