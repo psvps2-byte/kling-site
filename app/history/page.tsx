@@ -929,7 +929,7 @@ export default function HistoryPage() {
             style={{
               width: "min(1100px, 100%)",
               borderRadius: 24,
-              overflow: "auto",
+              overflow: "hidden",
               border: "1px solid rgba(255,255,255,0.14)",
               background: "rgba(255,255,255,0.08)",
               backdropFilter: "blur(18px) saturate(140%)",
@@ -963,19 +963,17 @@ export default function HistoryPage() {
               style={{
                 padding: 18,
                 paddingTop: 64,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
                 flex: 1,
                 minHeight: 0,
+                overflowY: "auto",
               }}
             >
-              <div style={{ width: "min(100%, 720px)", display: "grid", gap: 16 }}>
+              <div style={{ width: "min(100%, 720px)", display: "grid", gap: 16, margin: "0 auto" }}>
                 {modalIsVideo ? (
                   <div
                     style={{
                       width: "min(100%, 460px)",
-                      maxHeight: "min(78vh, 100%)",
+                      maxHeight: "min(62dvh, 720px)",
                       margin: "0 auto",
                       borderRadius: 18,
                       overflow: "hidden",
@@ -991,7 +989,7 @@ export default function HistoryPage() {
                       style={{
                         display: "block",
                         width: "100%",
-                        maxHeight: "min(78vh, 100%)",
+                        maxHeight: "min(62dvh, 720px)",
                         objectFit: "contain",
                         background: "rgba(8, 10, 18, 0.96)",
                       }}
@@ -1003,8 +1001,12 @@ export default function HistoryPage() {
                     src={modalUrl}
                     alt={selected.prompt || "preview"}
                     style={{
+                      display: "block",
+                      width: "auto",
                       maxWidth: "100%",
-                      maxHeight: "min(78vh, 100%)",
+                      height: "auto",
+                      maxHeight: "min(62dvh, 720px)",
+                      objectFit: "contain",
                       borderRadius: 18,
                       margin: "0 auto",
                     }}
@@ -1051,8 +1053,7 @@ export default function HistoryPage() {
                 flexWrap: "wrap",
                 background: "rgba(24, 24, 28, 0.72)",
                 borderTop: "1px solid rgba(255,255,255,0.08)",
-                position: "sticky",
-                bottom: 0,
+                flexShrink: 0,
               }}
             >
               <button type="button" className="ios-btn ios-btn--ghost" onClick={() => downloadFile(modalUrl)}>
