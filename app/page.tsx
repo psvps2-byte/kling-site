@@ -49,6 +49,30 @@ type TemplateItem = {
   sectionKey?: TemplateSectionKey;
 };
 
+const TENDERNESS_OF_TIME_TEMPLATE_ID = "nizhnist-chasu";
+
+function isTendernessOfTimeTemplate(templateId: string | null | undefined) {
+  return templateId === TENDERNESS_OF_TIME_TEMPLATE_ID;
+}
+
+function buildSelectedTemplatePrompt(template: TemplateItem | null, ageValue: string) {
+  if (!template) return "";
+  if (!isTendernessOfTimeTemplate(template.id)) return template.prompt;
+
+  const normalizedAge = String(ageValue).trim();
+  const ageInstruction = normalizedAge
+    ? `Жінці на головному портреті ${normalizedAge} роки, і свічки на торті мають показувати число "${normalizedAge}".`
+    : `Свічки на торті мають показувати актуальний вік жінки.`;
+
+  return [
+    template.prompt,
+    "Використай image_1 як референс для дорослої жінки в теперішньому часі.",
+    "Використай image_2 як дитяче фото для великої чорно-білої проєкції на фоні.",
+    ageInstruction,
+    "Збережи максимальну схожість рис обличчя між дорослим і дитячим образом, але не змінюй загальний mood, композицію та стилістику шаблону.",
+  ].join("\n\n");
+}
+
 const ASPECT_OPTIONS = ["1:1", "16:9", "9:16"] as const;
 
 const PENDING_GENERATIONS_KEY = "vilna_pending_generations_v1";
@@ -342,6 +366,7 @@ export default function Home() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
   const [templatePrompt, setTemplatePrompt] = useState<string | null>(null);
+  const [templateAge, setTemplateAge] = useState("");
 
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [libraryKind, setLibraryKind] = useState<"image" | "video">("image");
@@ -456,6 +481,20 @@ export default function Home() {
       prompt:
         "A stylish cinematic fashion video of an elegant woman in a black sequin mini dress, crouching gracefully in a minimal studio with a light gray background. She is surrounded by large reflective disco balls and scattered silver confetti on the floor. The woman holds a champagne glass and smiles softly.\nSubtle natural movements: she slightly shifts her pose, gently tilts her head, her hair softly moves, she raises the glass a little, and her expression changes with a relaxed, confident, playful mood.\nThe disco balls reflect moving light, creating dynamic shimmering highlights. Confetti slightly moves on the floor.\nCamera movement: slow cinematic dolly-in combined with slight side movement (parallax), smooth motion, shallow depth of field.\nLighting: soft studio lighting with glossy reflections on sequins and disco balls, high contrast sparkle highlights.\nStyle: fashion editorial, luxury, glamorous party vibe, high-end commercial.\nUltra realistic, high detail, 4K, cinematic, smooth motion, depth of field, film look.",
     },
+    {
+      id: TENDERNESS_OF_TIME_TEMPLATE_ID,
+      title: "Ніжність часу",
+      previewVideo: "/templates/nizhnist-chasu-preview.mp4",
+      sectionKey: "special-day",
+      hidePhotoSettings: true,
+      preferredAspect: "9:16" as Aspect,
+      preferredModel: "nano-banana" as PhotoModelChoice,
+      autoOpenUpload: true,
+      homeSubtitleUk: "Емоційний портрет між дитячими спогадами й теперішнім",
+      homeSubtitleEn: "Emotional portrait between childhood memories and the present",
+      prompt:
+        "Кінематографічний портрет молодої жінки, яка тримає невеликий святковий торт із запаленими свічками. М’яке тепле світло свічок освітлює її обличчя, навколо темний атмосферний студійний фон і мінімалістична композиція. На ній елегантний чорний одяг, оверсайз піджак, спокійний задумливий вираз обличчя. Поруч чорні повітряні кульки, драматичне м’яке освітлення, високий контраст, мала глибина різкості, редакційна fashion-фотографія, ультрареалізм, об’єктив 50mm, м’які тіні, приглушена кольорова палітра, меланхолійний атмосферний настрій, висока деталізація, 4k. Позаду велика проєкція дитячого фото цієї ж дівчини: чорно-біла, трохи розмита, ностальгічна, з сильним емоційним контрастом між минулим і теперішнім.",
+    },
   ];
   const effectiveTemplates = SHOW_TEMPLATES ? templates : localTemplates;
   const templateSections = [
@@ -515,6 +554,11 @@ export default function Home() {
   const selectedTemplate = selectedTemplateId
     ? effectiveTemplates.find((tpl) => tpl.id === selectedTemplateId) ?? null
     : null;
+  const selectedTemplateNeedsAge = isTendernessOfTimeTemplate(selectedTemplateId);
+  const selectedTemplatePrompt = useMemo(
+    () => buildSelectedTemplatePrompt(selectedTemplate, templateAge),
+    [selectedTemplate, templateAge]
+  );
 
   function openMediaTab(tab: MediaTab) {
     setMediaTab(tab);
@@ -524,7 +568,8 @@ export default function Home() {
     const nextTemplate = effectiveTemplates.find((tpl) => tpl.id === templateId);
     if (!nextTemplate) return;
     setSelectedTemplateId(nextTemplate.id);
-    setTemplatePrompt(nextTemplate.prompt);
+    setTemplatePrompt(buildSelectedTemplatePrompt(nextTemplate, ""));
+    setTemplateAge("");
     setSrcFile2(null);
     setSrcUrl2("");
     if (nextTemplate.preferredAspect) {
@@ -1541,7 +1586,19 @@ export default function Home() {
 
       // PHOTO
       const userPrompt = selectedTemplateId ? templatePrompt ?? "" : prompt.trim();
-      if (!userPrompt) throw new Error(lang === "uk" ? "Введи промт" : "Please enter a prompt");
+      const templateDrivenPrompt = selectedTemplateId ? selectedTemplatePrompt : userPrompt;
+      const finalPrompt = selectedTemplateId ? templateDrivenPrompt : userPrompt;
+      if (selectedTemplateNeedsAge && !templateAge.trim()) {
+        throw new Error(lang === "uk" ? "Вкажи вік для шаблону" : "Enter the age for this template");
+      }
+      if (isTendernessOfTimeTemplate(selectedTemplateId) && !srcUrl2) {
+        throw new Error(
+          lang === "uk"
+            ? "Додай дитяче фото для шаблону «Ніжність часу»"
+            : "Add the childhood photo for the Tenderness of Time template"
+        );
+      }
+      if (!finalPrompt) throw new Error(lang === "uk" ? "Введи промт" : "Please enter a prompt");
       if (refUploading)
         throw new Error(
           lang === "uk"
@@ -1560,14 +1617,14 @@ export default function Home() {
       setPhotoProgressText(lang === "uk" ? "Створюю задачу..." : "Creating task...");
 
       const body: any = {
-        prompt: userPrompt.trim(),
+        prompt: finalPrompt.trim(),
         aspect_ratio: aspect,
         model_choice: photoModel,
         n: 1,
         image_1: srcUrl || null,
         image_2: srcUrl2 || null,
       };
-      pendingIdForCleanup = beginPendingGeneration("photo", userPrompt.trim());
+      pendingIdForCleanup = beginPendingGeneration("photo", finalPrompt.trim());
 
       const res = await fetch("/api/kling/omni-image", {
         method: "POST",
@@ -2993,6 +3050,7 @@ export default function Home() {
                         onClick={() => {
                           setSelectedTemplateId(null);
                           setTemplatePrompt(null);
+                          setTemplateAge("");
                         }}
                         style={{ padding: "8px 12px" }}
                       >
@@ -3014,7 +3072,15 @@ export default function Home() {
                           {srcPreview ? (
                             <>
                               <img src={srcPreview} alt="reference1" />
-                              <span className="tile-label">{lang === "uk" ? "Твоє фото" : "Your photo"}</span>
+                              <span className="tile-label">
+                                {selectedTemplateNeedsAge
+                                  ? lang === "uk"
+                                    ? "Доросле фото"
+                                    : "Adult photo"
+                                  : lang === "uk"
+                                    ? "Твоє фото"
+                                    : "Your photo"}
+                              </span>
                               <button
                                 type="button"
                                 className="tile-remove"
@@ -3033,11 +3099,96 @@ export default function Home() {
                           ) : (
                             <>
                               <span className="uploadPlus">+</span>
-                              <span className="tile-label">{lang === "uk" ? "Завантажити фото" : "Upload photo"}</span>
+                              <span className="tile-label">
+                                {selectedTemplateNeedsAge
+                                  ? lang === "uk"
+                                    ? "Доросле фото"
+                                    : "Adult photo"
+                                  : lang === "uk"
+                                    ? "Завантажити фото"
+                                    : "Upload photo"}
+                              </span>
                             </>
                           )}
                         </div>
                       </div>
+
+                      {selectedTemplateNeedsAge && (
+                        <div className="selectedTemplateCol">
+                          <div
+                            className="uploadTile uploadTileBig selectedTemplateTile"
+                            role="button"
+                            tabIndex={-1}
+                            style={{
+                              padding: 22,
+                              display: "flex",
+                              flexDirection: "column",
+                              alignItems: "flex-start",
+                              justifyContent: "space-between",
+                              gap: 14,
+                              cursor: "default",
+                            }}
+                          >
+                            <div style={{ display: "grid", gap: 6, width: "100%" }}>
+                              <div style={{ fontSize: 14, fontWeight: 700 }}>
+                                {lang === "uk" ? "Вік на торті" : "Age on the cake"}
+                              </div>
+                              <div style={{ fontSize: 13, opacity: 0.72, lineHeight: 1.45 }}>
+                                {lang === "uk"
+                                  ? "Це число використаємо для свічок і настрою сцени."
+                                  : "We will use this number for the candles and scene mood."}
+                              </div>
+                            </div>
+                            <input
+                              className="ios-input"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              placeholder={lang === "uk" ? "Наприклад, 32" : "For example, 32"}
+                              value={templateAge}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => setTemplateAge(e.target.value.replace(/[^\d]/g, "").slice(0, 3))}
+                              style={{ width: "100%", maxWidth: "100%" }}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {selectedTemplateNeedsAge && (
+                        <div className="selectedTemplateCol">
+                          <div
+                            className="uploadTile uploadTileBig selectedTemplateTile"
+                            role="button"
+                            tabIndex={0}
+                            aria-label={lang === "uk" ? "Завантажити дитяче фото" : "Upload childhood image"}
+                            onClick={() => openSourceModal("image", "file2t")}
+                            onKeyDown={(e) => e.key === "Enter" && openSourceModal("image", "file2t")}
+                          >
+                            {srcPreview2 ? (
+                              <>
+                                <img src={srcPreview2} alt="reference2" />
+                                <span className="tile-label">{lang === "uk" ? "Дитяче фото" : "Childhood photo"}</span>
+                                <button
+                                  type="button"
+                                  className="tile-remove"
+                                  aria-label={lang === "uk" ? "Видалити другий референс" : "Remove second reference"}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSrcFile2(null);
+                                    setSrcUrl2("");
+                                  }}
+                                >
+                                  ✕
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <span className="uploadPlus">+</span>
+                                <span className="tile-label">{lang === "uk" ? "Дитяче фото" : "Childhood photo"}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      )}
 
                       <div className="selectedTemplateCol">
                         <div className="uploadTile uploadTileBig templatePreviewBig selectedTemplateTile">
@@ -3098,6 +3249,45 @@ export default function Home() {
                           setRefUploading(true);
                           const { url } = await uploadToR2AndGetPublicUrl(f);
                           setSrcUrl(url);
+                        } catch (err: any) {
+                          setError(normalizeErr(err));
+                        } finally {
+                          setRefUploading(false);
+                        }
+                      }}
+                    />
+                    <input
+                      id="file2t"
+                      type="file"
+                      accept={acceptImg}
+                      style={{ display: "none" }}
+                      onChange={async (e) => {
+                        let f = e.target.files?.[0] ?? null;
+
+                        setError(null);
+
+                        if (!f) {
+                          setSrcFile2(null);
+                          setSrcUrl2("");
+                          return;
+                        }
+
+                        try {
+                          f = await normalizeImageFile(f);
+                        } catch (err: any) {
+                          setError(normalizeErr(err));
+                          setSrcFile2(null);
+                          setSrcUrl2("");
+                          return;
+                        }
+
+                        setSrcFile2(f);
+                        setSrcUrl2("");
+
+                        try {
+                          setRefUploading(true);
+                          const { url } = await uploadToR2AndGetPublicUrl(f);
+                          setSrcUrl2(url);
                         } catch (err: any) {
                           setError(normalizeErr(err));
                         } finally {
@@ -4151,6 +4341,7 @@ export default function Home() {
                         if (selectedTemplateId === tpl.id) {
                           setSelectedTemplateId(null);
                           setTemplatePrompt(null);
+                          setTemplateAge("");
                         } else {
                           openTemplate(tpl.id);
                         }
