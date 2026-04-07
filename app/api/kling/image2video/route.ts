@@ -169,6 +169,7 @@ export async function POST(req: Request) {
       .update({
         status: "RUNNING",
         task_id: taskId ? String(taskId) : null,
+        payload,
         result_url: null,
       })
       .eq("id", generationId);
