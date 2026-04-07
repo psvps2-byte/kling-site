@@ -458,7 +458,6 @@ export default function Home() {
     },
   ];
   const effectiveTemplates = SHOW_TEMPLATES ? templates : localTemplates;
-  const homeFeaturedTemplates = effectiveTemplates.filter((tpl) => tpl.sectionKey === "popular" || !tpl.sectionKey);
   const templateSections = [
     {
       key: "popular" as TemplateSectionKey,
@@ -479,6 +478,20 @@ export default function Home() {
       ),
     }))
     .filter((section) => section.items.length > 0);
+  const homeTemplateSections = [
+    {
+      key: "popular" as TemplateSectionKey,
+      titleUk: "Популярні шаблони",
+      titleEn: "Popular templates",
+      items: effectiveTemplates.filter((tpl) => !tpl.sectionKey || tpl.sectionKey === "popular"),
+    },
+    {
+      key: "special-day" as TemplateSectionKey,
+      titleUk: "Твій особливий день",
+      titleEn: "Your special day",
+      items: effectiveTemplates.filter((tpl) => tpl.sectionKey === "special-day"),
+    },
+  ].filter((section) => section.items.length > 0);
 
   // GLOBAL
   const [mediaTab, setMediaTab] = useState<MediaTab>(SHOW_HOME_HUB ? "home" : "photo");
@@ -1987,6 +2000,10 @@ export default function Home() {
             padding: 0 4px;
           }
 
+          .homeTemplatesGroup + .homeTemplatesGroup {
+            margin-top: 28px;
+          }
+
           .homeTemplatesTitle {
             margin: 0 0 18px;
             text-align: center;
@@ -1998,9 +2015,11 @@ export default function Home() {
           }
 
           .homeTemplatesRow {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
+            display: flex;
             gap: 16px;
+            overflow-x: auto;
+            padding-bottom: 6px;
+            scroll-snap-type: x proximity;
           }
 
           .homeTemplateCard {
@@ -2013,6 +2032,10 @@ export default function Home() {
             box-shadow: 0 20px 56px rgba(0, 0, 0, 0.34);
             cursor: pointer;
             transition: transform 0.18s ease, border-color 0.18s ease;
+            flex: 0 0 auto;
+            width: min(280px, calc((100vw - 140px) / 4));
+            min-width: 220px;
+            scroll-snap-align: start;
           }
 
           .homeTemplateCard:hover {
@@ -2710,10 +2733,6 @@ export default function Home() {
               padding-right: 22px;
             }
 
-            .homeTemplatesRow {
-              grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-
             .selectedTemplateTile {
               aspect-ratio: 9 / 15;
             }
@@ -2757,10 +2776,7 @@ export default function Home() {
             }
 
             .homeTemplatesRow {
-              display: flex;
               gap: 12px;
-              overflow-x: auto;
-              scroll-snap-type: x mandatory;
               padding-bottom: 4px;
             }
 
@@ -2921,41 +2937,45 @@ export default function Home() {
               </section>
 
               <section className="homeTemplates">
-                <h2 className="homeTemplatesTitle">{lang === "uk" ? "Популярні шаблони" : "Popular templates"}</h2>
-                <div className="homeTemplatesRow">
-                  {homeFeaturedTemplates.map((tpl) => (
-                    <button
-                      key={tpl.id}
-                      type="button"
-                      className="homeTemplateCard"
-                      onClick={() => openTemplate(tpl.id)}
-                    >
-                      <div className="homeTemplateMedia">
-                        {tpl.previewVideo ? (
-                          <video
-                            className="homeTemplateVideo"
-                            src={tpl.previewVideo}
-                            autoPlay
-                            muted
-                            loop
-                            playsInline
-                            preload="metadata"
-                            poster={tpl.preview}
-                          />
-                        ) : (
-                          <Image
-                            src={tpl.preview_url || tpl.preview || "/next.svg"}
-                            alt={tpl.title}
-                            width={420}
-                            height={620}
-                            className="homeTemplateImage"
-                          />
-                        )}
-                      </div>
-                      <div className="homeTemplateCaption">{tpl.title}</div>
-                    </button>
-                  ))}
-                </div>
+                {homeTemplateSections.map((section) => (
+                  <div key={section.key} className="homeTemplatesGroup">
+                    <h2 className="homeTemplatesTitle">{lang === "uk" ? section.titleUk : section.titleEn}</h2>
+                    <div className="homeTemplatesRow">
+                      {section.items.map((tpl) => (
+                        <button
+                          key={tpl.id}
+                          type="button"
+                          className="homeTemplateCard"
+                          onClick={() => openTemplate(tpl.id)}
+                        >
+                          <div className="homeTemplateMedia">
+                            {tpl.previewVideo ? (
+                              <video
+                                className="homeTemplateVideo"
+                                src={tpl.previewVideo}
+                                autoPlay
+                                muted
+                                loop
+                                playsInline
+                                preload="metadata"
+                                poster={tpl.preview}
+                              />
+                            ) : (
+                              <Image
+                                src={tpl.preview_url || tpl.preview || "/next.svg"}
+                                alt={tpl.title}
+                                width={420}
+                                height={620}
+                                className="homeTemplateImage"
+                              />
+                            )}
+                          </div>
+                          <div className="homeTemplateCaption">{tpl.title}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </section>
             </div>
           )}
