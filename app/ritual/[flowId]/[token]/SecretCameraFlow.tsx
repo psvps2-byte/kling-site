@@ -21,6 +21,8 @@ export default function SecretCameraFlow({ flowId, token, prompt }: Props) {
   const [error, setError] = useState("");
   const [shareState, setShareState] = useState("");
 
+  const examplePreviewUrl = "/secret/result-preview.jpg";
+
   function resetMessages() {
     setError("");
     setShareState("");
@@ -108,22 +110,37 @@ export default function SecretCameraFlow({ flowId, token, prompt }: Props) {
         </div>
 
         <div className="ritual-grid">
-          <section className="ritual-panel">
+          <section className="ritual-panel ritual-panel-combo">
             <div className="ritual-panel-top">
               <strong>Ваше фото</strong>
+              <strong>Результат</strong>
             </div>
 
-            <button
-              type="button"
-              className={`ritual-upload ${sourcePreviewUrl ? "has-image" : ""}`}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {sourcePreviewUrl ? (
-                <Image src={sourcePreviewUrl} alt="Uploaded source" fill className="ritual-image" unoptimized />
-              ) : (
-                <span className="ritual-upload-copy">Натисніть, щоб завантажити фото</span>
-              )}
-            </button>
+            <div className="ritual-stage">
+              <button
+                type="button"
+                className={`ritual-upload ritual-narrow ${sourcePreviewUrl ? "has-image" : ""}`}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                {sourcePreviewUrl ? (
+                  <Image src={sourcePreviewUrl} alt="Uploaded source" fill className="ritual-image" unoptimized />
+                ) : (
+                  <span className="ritual-upload-copy">Натисніть, щоб завантажити фото</span>
+                )}
+              </button>
+
+              <div className={`ritual-result ritual-narrow ${(resultUrl || examplePreviewUrl) ? "has-image" : ""}`}>
+                {resultUrl ? (
+                  <Image src={resultUrl} alt="Generated result" fill className="ritual-image" unoptimized />
+                ) : examplePreviewUrl ? (
+                  <Image src={examplePreviewUrl} alt="Preview result example" fill className="ritual-image" unoptimized />
+                ) : (
+                  <span className="ritual-placeholder">
+                    Тут з’явиться готове зображення після генерації
+                  </span>
+                )}
+              </div>
+            </div>
 
             <input
               ref={fileInputRef}
@@ -133,37 +150,21 @@ export default function SecretCameraFlow({ flowId, token, prompt }: Props) {
               onChange={(event) => handleSelectFile(event.target.files?.[0] || null)}
             />
 
-            <div className="ritual-panel-actions">
-              <button type="button" className="ritual-button ritual-button-secondary" onClick={() => fileInputRef.current?.click()}>
-                Обрати фото
-              </button>
+            <div className="ritual-center-action">
               <button
                 type="button"
-                className="ritual-button"
+                className="ritual-button ritual-button-large"
                 onClick={handleGenerate}
                 disabled={!sourceFile || stage === "generating"}
               >
                 {stage === "generating" ? "Генеруємо..." : "Згенерувати"}
               </button>
             </div>
-          </section>
 
-          <section className="ritual-panel">
-            <div className="ritual-panel-top">
-              <strong>Результат</strong>
-            </div>
-
-            <div className={`ritual-result ${resultUrl ? "has-image" : ""}`}>
-              {resultUrl ? (
-                <Image src={resultUrl} alt="Generated result" fill className="ritual-image" unoptimized />
-              ) : (
-                <span className="ritual-placeholder">
-                  Тут з’явиться готове зображення після генерації
-                </span>
-              )}
-            </div>
-
-            <div className="ritual-panel-actions">
+            <div className="ritual-panel-actions ritual-panel-actions-end">
+              <button type="button" className="ritual-button ritual-button-secondary" onClick={() => fileInputRef.current?.click()}>
+                Обрати фото
+              </button>
               <a
                 href={resultUrl || "#"}
                 download
@@ -233,7 +234,7 @@ export default function SecretCameraFlow({ flowId, token, prompt }: Props) {
 
         .ritual-grid {
           display: grid;
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: 1fr;
           gap: 18px;
         }
 
@@ -250,6 +251,19 @@ export default function SecretCameraFlow({ flowId, token, prompt }: Props) {
           font-size: 16px;
         }
 
+        .ritual-panel-combo .ritual-panel-top {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 18px;
+        }
+
+        .ritual-stage {
+          display: grid;
+          grid-template-columns: minmax(0, 0.9fr) minmax(0, 0.7fr);
+          gap: 18px;
+          align-items: stretch;
+        }
+
         .ritual-upload,
         .ritual-result {
           position: relative;
@@ -261,6 +275,10 @@ export default function SecretCameraFlow({ flowId, token, prompt }: Props) {
           background:
             linear-gradient(180deg, rgba(255, 221, 137, 0.08), rgba(255, 221, 137, 0.02)),
             #0a0a0a;
+        }
+
+        .ritual-narrow {
+          aspect-ratio: 4 / 7;
         }
 
         .ritual-upload {
@@ -295,6 +313,15 @@ export default function SecretCameraFlow({ flowId, token, prompt }: Props) {
           flex-wrap: wrap;
         }
 
+        .ritual-panel-actions-end {
+          justify-content: center;
+        }
+
+        .ritual-center-action {
+          display: flex;
+          justify-content: center;
+        }
+
         .ritual-button {
           appearance: none;
           display: inline-flex;
@@ -308,6 +335,10 @@ export default function SecretCameraFlow({ flowId, token, prompt }: Props) {
           color: #1f1504;
           text-decoration: none;
           font-weight: 700;
+        }
+
+        .ritual-button-large {
+          min-width: 240px;
         }
 
         .ritual-button:disabled,
@@ -328,13 +359,33 @@ export default function SecretCameraFlow({ flowId, token, prompt }: Props) {
         }
 
         @media (max-width: 820px) {
-          .ritual-grid {
-            grid-template-columns: 1fr;
-          }
-
           .ritual-card {
             padding: 16px;
             border-radius: 24px;
+          }
+
+          .ritual-stage,
+          .ritual-panel-combo .ritual-panel-top {
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+          }
+        }
+
+        @media (max-width: 560px) {
+          .ritual-stage,
+          .ritual-panel-combo .ritual-panel-top {
+            gap: 10px;
+          }
+
+          .ritual-button-large {
+            width: 100%;
+            min-width: 0;
+          }
+
+          .ritual-upload-copy,
+          .ritual-placeholder {
+            font-size: 14px;
+            padding: 14px;
           }
         }
       `}</style>
