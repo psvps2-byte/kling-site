@@ -44,6 +44,8 @@ export default function SecretCameraFlow({
   const [previewUrl, setPreviewUrl] = useState("");
   const [resultUrl, setResultUrl] = useState("");
   const [error, setError] = useState("");
+  const [cameraFacingMode, setCameraFacingMode] = useState<"user" | "environment">("user");
+  const [canSwitchCamera, setCanSwitchCamera] = useState(false);
 
   function getErrorMessage(errorValue: unknown) {
     if (errorValue instanceof Error && errorValue.message) return errorValue.message;
@@ -55,9 +57,11 @@ export default function SecretCameraFlow({
 
     async function startCamera() {
       try {
+        streamRef.current?.getTracks().forEach((track) => track.stop());
+
         const stream = await navigator.mediaDevices.getUserMedia({
           video: {
-            facingMode: "user",
+            facingMode: { ideal: cameraFacingMode },
             width: { ideal: 1080 },
             height: { ideal: 1920 },
           },
@@ -70,6 +74,11 @@ export default function SecretCameraFlow({
         }
 
         streamRef.current = stream;
+        const videoTrack = stream.getVideoTracks()[0];
+        const capabilities = typeof videoTrack?.getCapabilities === "function" ? videoTrack.getCapabilities() : null;
+        const facingModes = Array.isArray(capabilities?.facingMode) ? capabilities.facingMode : [];
+        setCanSwitchCamera(facingModes.includes("user") && facingModes.includes("environment"));
+
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play().catch(() => undefined);
@@ -87,7 +96,7 @@ export default function SecretCameraFlow({
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     };
-  }, []);
+  }, [cameraFacingMode]);
 
   async function captureAndGenerate() {
     const video = videoRef.current;
@@ -147,18 +156,26 @@ export default function SecretCameraFlow({
     setStage("camera");
   }
 
+  function toggleCamera() {
+    setError("");
+    setCameraFacingMode((current) => (current === "user" ? "environment" : "user"));
+  }
+
   return (
     <main className="secret-camera-shell">
       <section className="secret-camera-card">
-        <div className="secret-topbar">
-          <span className="secret-kicker">VILNA private flow</span>
-          <p>Станьте прямо, тримайте шию відкритою і розмістіть обличчя в межах рамки.</p>
-        </div>
-
         {stage === "camera" && (
           <div className="secret-camera-stage">
             <video ref={videoRef} playsInline muted autoPlay className="secret-video" />
             <div className="secret-overlay">
+              <div className="secret-toolbar">
+                <span className="secret-kicker">VILNA</span>
+                {canSwitchCamera && (
+                  <button type="button" className="secret-icon-button" onClick={toggleCamera}>
+                    {cameraFacingMode === "user" ? "Основна" : "Фронтальна"}
+                  </button>
+                )}
+              </div>
               <div className="secret-frame" />
               <div className="secret-tips">
                 {tips.map((tip) => (
@@ -230,7 +247,7 @@ export default function SecretCameraFlow({
           min-height: 100dvh;
           display: grid;
           place-items: center;
-          padding: 24px 16px;
+          padding: 0;
           background:
             radial-gradient(circle at top, rgba(194, 160, 79, 0.24), transparent 32%),
             linear-gradient(180deg, #120f09 0%, #050505 100%);
@@ -238,20 +255,17 @@ export default function SecretCameraFlow({
         }
 
         .secret-camera-card {
-          width: min(100%, 440px);
+          width: min(100%, 460px);
+          min-height: 100dvh;
           display: grid;
-          gap: 16px;
-          padding: 18px;
-          border: 1px solid rgba(255, 219, 142, 0.18);
-          border-radius: 28px;
+          grid-template-rows: minmax(0, 1fr) auto auto;
+          gap: 12px;
+          padding: 12px;
+          border: 0;
+          border-radius: 0;
           background: rgba(17, 13, 9, 0.88);
-          box-shadow: 0 20px 80px rgba(0, 0, 0, 0.45);
+          box-shadow: none;
           backdrop-filter: blur(14px);
-        }
-
-        .secret-topbar {
-          display: grid;
-          gap: 6px;
         }
 
         .secret-kicker {
@@ -261,7 +275,6 @@ export default function SecretCameraFlow({
           color: #d7b76b;
         }
 
-        .secret-topbar p,
         .secret-reference-box p {
           margin: 0;
           color: rgba(247, 240, 220, 0.8);
@@ -290,28 +303,48 @@ export default function SecretCameraFlow({
         .secret-overlay {
           position: absolute;
           inset: 0;
-          pointer-events: none;
           display: flex;
           flex-direction: column;
           justify-content: space-between;
-          padding: 20px;
+          padding: 14px;
           background: linear-gradient(180deg, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.1) 32%, rgba(0, 0, 0, 0.38));
         }
 
+        .secret-toolbar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          pointer-events: auto;
+        }
+
+        .secret-icon-button {
+          appearance: none;
+          min-height: 38px;
+          padding: 0 14px;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 221, 137, 0.24);
+          background: rgba(10, 10, 10, 0.58);
+          color: #f7f0dc;
+          font-size: 13px;
+          font-weight: 600;
+        }
+
         .secret-frame {
-          width: min(72%, 240px);
-          height: 42%;
-          margin: 24px auto 0;
+          width: min(82%, 300px);
+          height: 58%;
+          margin: 12px auto 0;
           border: 2px solid rgba(255, 221, 137, 0.92);
-          border-radius: 999px 999px 240px 240px;
+          border-radius: 999px 999px 280px 280px;
           box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.2);
         }
 
         .secret-tips {
           display: flex;
-          justify-content: space-between;
+          justify-content: center;
           gap: 8px;
           flex-wrap: wrap;
+          pointer-events: none;
         }
 
         .secret-tips span {
@@ -324,21 +357,31 @@ export default function SecretCameraFlow({
 
         .secret-reference-box {
           display: grid;
-          grid-template-columns: 84px 1fr;
-          gap: 12px;
+          grid-template-columns: 56px 1fr;
+          gap: 10px;
           align-items: center;
-          padding: 12px;
-          border-radius: 20px;
+          padding: 10px 12px;
+          border-radius: 18px;
           background: rgba(255, 240, 209, 0.06);
           border: 1px solid rgba(255, 221, 137, 0.12);
         }
 
         .secret-reference {
-          width: 84px;
-          height: 84px;
-          border-radius: 16px;
+          width: 56px;
+          height: 56px;
+          border-radius: 12px;
           object-fit: cover;
           background: #0a0a0a;
+        }
+
+        .secret-reference-box strong {
+          display: block;
+          font-size: 13px;
+          margin-bottom: 2px;
+        }
+
+        .secret-reference-box p {
+          font-size: 12px;
         }
 
         .secret-actions {
@@ -374,6 +417,20 @@ export default function SecretCameraFlow({
         .secret-error {
           margin: 0;
           color: #ffb2b2;
+        }
+
+        @media (min-width: 481px) {
+          .secret-camera-shell {
+            padding: 20px 0;
+          }
+
+          .secret-camera-card {
+            min-height: auto;
+            height: min(100dvh - 40px, 900px);
+            border: 1px solid rgba(255, 219, 142, 0.18);
+            border-radius: 28px;
+            box-shadow: 0 20px 80px rgba(0, 0, 0, 0.45);
+          }
         }
       `}</style>
     </main>
