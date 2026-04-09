@@ -32,10 +32,6 @@ export default async function SecretRitualPage({
       flowId={flow.id}
       token={token}
       prompt={flow.prompt}
-      referencePreviewUrl={flow.referencePublicPath}
-      referenceTitle={flow.title}
-      referenceSubtitle={flow.subtitle}
-      tips={flow.tips}
     />
   );
 }

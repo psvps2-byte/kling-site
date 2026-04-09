@@ -4,15 +4,16 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
 type Stage = "camera" | "captured" | "generating" | "done" | "error";
+type ZoomCapability = {
+  min: number;
+  max: number;
+  step?: number;
+};
 
 type Props = {
   flowId: string;
   token: string;
   prompt: string;
-  referencePreviewUrl: string;
-  referenceTitle: string;
-  referenceSubtitle: string;
-  tips: string[];
 };
 
 function dataUrlToFile(dataUrl: string, name: string) {
@@ -32,10 +33,6 @@ export default function SecretCameraFlow({
   flowId,
   token,
   prompt,
-  referencePreviewUrl,
-  referenceTitle,
-  referenceSubtitle,
-  tips,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -46,6 +43,8 @@ export default function SecretCameraFlow({
   const [error, setError] = useState("");
   const [cameraFacingMode, setCameraFacingMode] = useState<"user" | "environment">("user");
   const [canSwitchCamera, setCanSwitchCamera] = useState(false);
+  const [zoomCapability, setZoomCapability] = useState<ZoomCapability | null>(null);
+  const [zoomValue, setZoomValue] = useState(1);
 
   function getErrorMessage(errorValue: unknown) {
     if (errorValue instanceof Error && errorValue.message) return errorValue.message;
@@ -75,9 +74,23 @@ export default function SecretCameraFlow({
 
         streamRef.current = stream;
         const videoTrack = stream.getVideoTracks()[0];
-        const capabilities = typeof videoTrack?.getCapabilities === "function" ? videoTrack.getCapabilities() : null;
+        const capabilities =
+          typeof videoTrack?.getCapabilities === "function"
+            ? (videoTrack.getCapabilities() as MediaTrackCapabilities & { zoom?: ZoomCapability })
+            : null;
         const facingModes = Array.isArray(capabilities?.facingMode) ? capabilities.facingMode : [];
         setCanSwitchCamera(facingModes.includes("user") && facingModes.includes("environment"));
+        if (capabilities?.zoom && capabilities.zoom.max > capabilities.zoom.min) {
+          const nextZoom = Math.max(1, capabilities.zoom.min);
+          setZoomCapability(capabilities.zoom);
+          setZoomValue(nextZoom);
+          await videoTrack.applyConstraints({
+            advanced: [{ zoom: nextZoom } as MediaTrackConstraintSet],
+          });
+        } else {
+          setZoomCapability(null);
+          setZoomValue(1);
+        }
 
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
@@ -161,6 +174,20 @@ export default function SecretCameraFlow({
     setCameraFacingMode((current) => (current === "user" ? "environment" : "user"));
   }
 
+  async function handleZoomChange(nextValue: number) {
+    setZoomValue(nextValue);
+    const track = streamRef.current?.getVideoTracks()[0];
+    if (!track) return;
+
+    try {
+      await track.applyConstraints({
+        advanced: [{ zoom: nextValue } as MediaTrackConstraintSet],
+      });
+    } catch {
+      setError("Зум не підтримується цією камерою");
+    }
+  }
+
   return (
     <main className="secret-camera-shell">
       <section className="secret-camera-card">
@@ -170,18 +197,28 @@ export default function SecretCameraFlow({
             <div className="secret-overlay">
               <div className="secret-toolbar">
                 <span className="secret-kicker">VILNA</span>
-                {canSwitchCamera && (
-                  <button type="button" className="secret-icon-button" onClick={toggleCamera}>
-                    {cameraFacingMode === "user" ? "Основна" : "Фронтальна"}
-                  </button>
-                )}
+                <div className="secret-toolbar-actions">
+                  {zoomCapability && (
+                    <label className="secret-zoom" aria-label="Camera zoom">
+                      <span>{zoomValue.toFixed(1)}x</span>
+                      <input
+                        type="range"
+                        min={zoomCapability.min}
+                        max={zoomCapability.max}
+                        step={zoomCapability.step || 0.1}
+                        value={zoomValue}
+                        onChange={(event) => handleZoomChange(Number(event.target.value))}
+                      />
+                    </label>
+                  )}
+                  {canSwitchCamera && (
+                    <button type="button" className="secret-icon-button" onClick={toggleCamera}>
+                      {cameraFacingMode === "user" ? "Основна" : "Фронтальна"}
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="secret-frame" />
-              <div className="secret-tips">
-                {tips.map((tip) => (
-                  <span key={tip}>{tip}</span>
-                ))}
-              </div>
             </div>
           </div>
         )}
@@ -197,21 +234,6 @@ export default function SecretCameraFlow({
             <Image src={resultUrl} alt="Generated result" className="secret-result" fill unoptimized />
           </div>
         )}
-
-        <div className="secret-reference-box">
-          <Image
-            src={referencePreviewUrl}
-            alt="Reference"
-            className="secret-reference"
-            width={84}
-            height={84}
-            unoptimized
-          />
-          <div>
-            <strong>{referenceTitle}</strong>
-            <p>{referenceSubtitle}</p>
-          </div>
-        </div>
 
         <div className="secret-actions">
           {stage === "camera" && (
@@ -258,8 +280,8 @@ export default function SecretCameraFlow({
           width: min(100%, 460px);
           min-height: 100dvh;
           display: grid;
-          grid-template-rows: minmax(0, 1fr) auto auto;
-          gap: 12px;
+          grid-template-rows: minmax(0, 1fr) auto;
+          gap: 10px;
           padding: 12px;
           border: 0;
           border-radius: 0;
@@ -273,12 +295,6 @@ export default function SecretCameraFlow({
           letter-spacing: 0.18em;
           text-transform: uppercase;
           color: #d7b76b;
-        }
-
-        .secret-reference-box p {
-          margin: 0;
-          color: rgba(247, 240, 220, 0.8);
-          line-height: 1.4;
         }
 
         .secret-camera-stage,
@@ -318,6 +334,12 @@ export default function SecretCameraFlow({
           pointer-events: auto;
         }
 
+        .secret-toolbar-actions {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
         .secret-icon-button {
           appearance: none;
           min-height: 38px;
@@ -330,6 +352,25 @@ export default function SecretCameraFlow({
           font-weight: 600;
         }
 
+        .secret-zoom {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          min-height: 38px;
+          padding: 0 12px;
+          border-radius: 999px;
+          border: 1px solid rgba(255, 221, 137, 0.24);
+          background: rgba(10, 10, 10, 0.58);
+          color: #f7f0dc;
+          font-size: 12px;
+          font-weight: 600;
+        }
+
+        .secret-zoom input {
+          width: 88px;
+          accent-color: #f4d474;
+        }
+
         .secret-frame {
           width: min(82%, 300px);
           height: 58%;
@@ -337,51 +378,6 @@ export default function SecretCameraFlow({
           border: 2px solid rgba(255, 221, 137, 0.92);
           border-radius: 999px 999px 280px 280px;
           box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.2);
-        }
-
-        .secret-tips {
-          display: flex;
-          justify-content: center;
-          gap: 8px;
-          flex-wrap: wrap;
-          pointer-events: none;
-        }
-
-        .secret-tips span {
-          padding: 8px 10px;
-          border-radius: 999px;
-          font-size: 12px;
-          background: rgba(10, 10, 10, 0.58);
-          border: 1px solid rgba(255, 221, 137, 0.2);
-        }
-
-        .secret-reference-box {
-          display: grid;
-          grid-template-columns: 56px 1fr;
-          gap: 10px;
-          align-items: center;
-          padding: 10px 12px;
-          border-radius: 18px;
-          background: rgba(255, 240, 209, 0.06);
-          border: 1px solid rgba(255, 221, 137, 0.12);
-        }
-
-        .secret-reference {
-          width: 56px;
-          height: 56px;
-          border-radius: 12px;
-          object-fit: cover;
-          background: #0a0a0a;
-        }
-
-        .secret-reference-box strong {
-          display: block;
-          font-size: 13px;
-          margin-bottom: 2px;
-        }
-
-        .secret-reference-box p {
-          font-size: 12px;
         }
 
         .secret-actions {
@@ -430,6 +426,22 @@ export default function SecretCameraFlow({
             border: 1px solid rgba(255, 219, 142, 0.18);
             border-radius: 28px;
             box-shadow: 0 20px 80px rgba(0, 0, 0, 0.45);
+          }
+        }
+
+        @media (max-width: 380px) {
+          .secret-toolbar {
+            align-items: flex-start;
+            flex-direction: column;
+          }
+
+          .secret-toolbar-actions {
+            width: 100%;
+            justify-content: space-between;
+          }
+
+          .secret-zoom input {
+            width: 72px;
           }
         }
       `}</style>
