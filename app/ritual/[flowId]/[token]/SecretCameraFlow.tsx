@@ -123,7 +123,7 @@ export default function SecretCameraFlow({ flowId, token, prompt }: Props) {
                 onClick={() => fileInputRef.current?.click()}
               >
                 {sourcePreviewUrl ? (
-                  <Image src={sourcePreviewUrl} alt="Uploaded source" fill className="ritual-image" unoptimized />
+                  <Image src={sourcePreviewUrl} alt="Uploaded source" fill className="ritual-image ritual-image-contain" unoptimized />
                 ) : (
                   <span className="ritual-upload-copy">Натисніть, щоб завантажити фото</span>
                 )}
@@ -131,9 +131,16 @@ export default function SecretCameraFlow({ flowId, token, prompt }: Props) {
 
               <div className={`ritual-result ritual-narrow ${(resultUrl || examplePreviewUrl) ? "has-image" : ""}`}>
                 {resultUrl ? (
-                  <Image src={resultUrl} alt="Generated result" fill className="ritual-image" unoptimized />
+                  <a
+                    href={resultUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="ritual-result-link"
+                  >
+                    <img src={resultUrl} alt="Generated result" className="ritual-image ritual-image-contain" />
+                  </a>
                 ) : examplePreviewUrl ? (
-                  <Image src={examplePreviewUrl} alt="Preview result example" fill className="ritual-image" unoptimized />
+                  <Image src={examplePreviewUrl} alt="Preview result example" fill className="ritual-image ritual-image-contain" unoptimized />
                 ) : (
                   <span className="ritual-placeholder">
                     Тут з’явиться готове зображення після генерації
@@ -292,6 +299,17 @@ export default function SecretCameraFlow({ flowId, token, prompt }: Props) {
 
         .ritual-image {
           object-fit: cover;
+        }
+
+        .ritual-image-contain {
+          object-fit: contain;
+          background: #0a0a0a;
+        }
+
+        .ritual-result-link {
+          display: block;
+          width: 100%;
+          height: 100%;
         }
 
         .ritual-upload-copy,
