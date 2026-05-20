@@ -11,9 +11,9 @@ import { toFile } from "openai/uploads";
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const KLING_API_KEY = (process.env.KLING_API_KEY || "").trim();
+const KLING_API_KEY = (process.env.KLING_API_KEY || process.env.KLING_ACCESS_KEY || "").trim();
 const KLING_SECRET_KEY = (process.env.KLING_SECRET_KEY || "").trim();
-const KLING_API_BASE = (process.env.KLING_API_BASE || "https://api-singapore.klingai.com").trim();
+const KLING_API_BASE = (process.env.KLING_API_BASE || process.env.KLING_BASE_URL || "https://api-singapore.klingai.com").trim();
 
 const OPENAI_API_KEY = (process.env.OPENAI_API_KEY || "").trim();
 const OPENAI_IMAGE_MODEL = (process.env.OPENAI_IMAGE_MODEL || "gpt-image-1.5").trim();

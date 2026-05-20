@@ -6,8 +6,14 @@ function mustEnv(name: string) {
   return v.trim();
 }
 
+function envOneOf(primary: string, fallback: string) {
+  const v = process.env[primary] || process.env[fallback];
+  if (!v || !v.trim()) throw new Error(`Missing ${primary} / ${fallback}`);
+  return v.trim();
+}
+
 export function generateKlingJwt(): string {
-  const ak = mustEnv("KLING_API_KEY");
+  const ak = envOneOf("KLING_API_KEY", "KLING_ACCESS_KEY");
   const sk = mustEnv("KLING_SECRET_KEY");
 
   const now = Math.floor(Date.now() / 1000);
